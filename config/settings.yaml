@@ -1,0 +1,17 @@
+paths:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  export_dir: "data/export"
+  waren_artikelgruppe_dir: "config"
+  lieferanten_mapping_dir: "config"
+  stueckliste_dir: "data/raw/stücklistenstamm"
+  existing_articles_dir: "data/processed/csv/cache"
+  dbf_dir: "M:\\DBFS003"
+  database_dir: "data/raw/databases"
+
+files: 
+  artikelstamm: "artikelstamm_majesty_2026_03_30.csv"
+  waren_artikelgruppe: "Waren-_Artikelgruppe.csv"
+  lieferanten_mapping: "Lieferanten_Majesty.csv"
+  stueckliste: "20410917_stuelipo.csv"
+  existing_articles: "existingArticlesIFAS.csv"

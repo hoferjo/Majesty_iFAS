@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Article/Module Search & Transform</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Article/Module Search & Transform</h1>
+    <div class="tabs">
+        <button class="tablink" onclick="openTab(event, 'searchTab')" id="defaultTab">Search & Transform</button>
+        <button class="tablink" onclick="openTab(event, 'settingsTab')">Settings</button>
+    </div>
+    <div id="searchTab" class="tabcontent">
+        <div style="margin-bottom:0.5em;">
+            <button type="button" id="toggleModeBtn">Switch to Module Search</button>
+            <span id="searchModeLabel" style="margin-left:1em; font-weight:bold;">Mode: Article</span>
+        </div>
+        <button id="generateModuleBtn" type="button" style="margin-bottom:1em; display:block;">Generate Module Structure</button>
+        <button id="generateModuleDataBtn" type="button" style="margin-bottom:1em; display:block;">Generate Module Data</button>
+        <button id="downloadPartlistTreeBtn" type="button" style="margin-bottom:1em; display:block;">Download Partlist Tree</button>
+        <form id="searchForm">
+            <input type="text" id="searchInput" name="query" placeholder="Search by Artikelnummer, Zeichnungsnummer or description">
+            <button type="submit">Search</button>
+        </form>
+        <button id="transformBtn" style="display:none;">Transform to iFAS Format</button>
+        <div style="margin-top:1em;">
+            <label for="currentSelection">Current Selection:</label><br>
+            <textarea id="currentSelection" rows="2" style="width:100%; margin-bottom:1em;" readonly></textarea>
+        </div>
+        <!-- Feedback log area moved here -->
+        <div id="feedbackLog" style="margin-top:1em; background:#f1f1f1; padding:1em; border-radius:5px; min-height:2em; max-height:200px; overflow-y:auto;"></div>
+    </div>
+    <div id="settingsTab" class="tabcontent" style="display:none;">
+        <h2>Settings</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <label>Upload File: <input type="file" name="file" id="fileInput"></label>
+            <button type="submit">Upload</button>
+        </form>
+        <div id="uploadStatus"></div>
+        <h3>Active Sheets</h3>
+        <form id="sheetsForm">
+            <div id="sheetsCheckboxes"></div>
+        </form>
+        <!-- Add more settings controls here -->
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

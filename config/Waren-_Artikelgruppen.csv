@@ -1,0 +1,59 @@
+﻿Aktiv;Warengruppe;Kürzel;Artikelgruppe 1;Art 1;Artikelgruppe 2;Zeichnr
+;Allgemein;ALLG;001;001 | Normteile Jost;;001
+;Kabelzug;KZ;002;003 | KZW 15;;003
+;Kabelzug;KZ;004;004 | HSW300;;004
+;Kabelzug;KZ;005;005 | HSW500;;005
+;Kabelzug;KZ;006;006 | KSA;KSA 3500 B;006 001
+;Kabelzug;KZ;006;006 | KSA;KSA 5000 B;006 002
+;Kabelzug;KZ;006;006 | KSA;KSA 6000 S;006 003
+;Kabelzug;KZ;006;006 | KSA;KSA 6000 B;006 004
+;Kabelzug;KZ;006;006 | KSA;KSA 3500 S;006 005
+;Kabelzug;KZ;006;006 | KSA;KSA 6000 S BWA;006 013
+;Kabelzug;KZ;006;006 | KSA;KSA 6000 BW;006 014
+;Kabelzug;KZ;007;007 | KSA 6500;KSA 6500 B;007 001
+;Kabelzug;KZ;008;008 | KVG CP 200;KVG CP 200-2;008 01
+;Kabelzug;KZ;008;008 | KVG CP 200;KVG CP 200;008 04
+;Kabelzug;KZ;016;016 | SWE 500;SWE 500;016 001
+;Kabelzug;KZ;016;016 | SWE 500;SWE CWED 500;016 005
+;Kabelzug;KZ;017;017 | KZW 30;;017
+;Kabelzug;KZ;018;018 | KZW 20;;018
+;Kabelzug;KZ;021;021 | Divers;;021
+;Kabelzug;KZ;025;025 | KZW25E;;025
+;Kabelzug;KZ;026;026 | KZW25ER;;026
+;Kabelzug;KZ;028;028 | HWE 300;;028
+;Kabelzug;KZ;036;036 | KZM;;036
+;Kabelzug;KZ;037;037 | KZSW;;037
+;Kabelzug;KZ;045;045 | RSH 50;RSH 50;045 001
+;Kabelzug;KZ;045;045 | RSH 50;RSH 50 RK085V;045 003
+;Kabelzug;KZ;062;062 | AAB6(alt);;062
+;Kabelzug;KZ;082;082 | PMC 14S;;082
+;Kabelzug;KZ;083;083 | Pmc 28T;;083
+;Kabelzug;KZ;091;091 | Rangierspill;;091
+;Kabelzug;KZ;095;095 | Fabrikationszeichnungen Lohnarbeit;;095
+;Kabelzug;KZ;100;100 | RSW 40;;100
+;Kabelzug;KZ;101;101 | RSW 30;;101
+;Kabelzug;KZ;105;105 | REW 55;;105
+;Kabelzug;KZ;110;110 | KZW 40;;110
+;Kabelzug;KZ;111;111 | KZW 30;;111
+;Kabelzug;KZ;112;112 | KZW40_R2500;;112
+;Kabelzug;KZ;118;118 | KZW 20_RK 049;;118
+True;Kabelzug;KZ;120;120 | KZW 10;;120
+;Kabelzug;KZ;130;130 | SWB 500;;130
+;Kabelzug;KZ;180;180 | KSA 8500;;180
+;Kabelzug;KZ;190;190 | Haspel;;190
+;Kabelzug;KZ;194;194 | Spulenachsen;;194
+;Kabelzug;KZ;200;200 | MRE;;200
+;Kabelzug;KZ;210;210 | AAB6;;210
+True;Energietechnik;ENERG;900;900 | HNEA;;900
+;Energietechnik;ENERG;901;901 | hNEA connect;;901
+;Fahrzeugbau;FB;911;911 | VA-SL;;911
+;Fahrzeugbau;FB;912;912 | VA-LL;;912
+;Fahrzeugbau;FB;921;921 | KP-SL;;921
+;Fahrzeugbau;FB;922;922 | KP-LL;;922
+;Fahrzeugbau;FB;923;923 | KKP;;923
+;Fahrzeugbau;FB;931;931 | PA-SL;;931
+;Fahrzeugbau;FB;932;932 | PA-LL;;932
+;Fahrzeugbau;FB;941;941 | PAT-SL;;941
+;Fahrzeugbau;FB;942;942 | PAT-LL;;942
+;Fahrzeugbau;FB;951;951 | WA;;951
+;Allgemein;ALLG;Normteile;Normteile;;

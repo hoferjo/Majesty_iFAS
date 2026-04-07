@@ -1,0 +1,243 @@
+liefnr,majesty_name,majesty_name_norm,ifas_nummer,ifas_name,match_method,match_score,auto_accepted,wbz
+71040,A.D.R S.p.A,a d r s p a,002046,A.D.R. S.p.a.,exact_norm,1.0,1,
+71025,Agirossi GmbH,agirossi,001906,AGIROSSI GmbH,exact_norm,1.0,1,
+71043,AGRO AG,agro,001147,Agro AG,exact_norm,1.0,1,
+71047,AIS Batterien GmbH,ais batterien,001148,AIS Batterien GmbH,exact_norm,1.0,1,
+71003,Allega GmbH,allega,001145,Allega GmbH,exact_norm,1.0,1,21
+71029,Allenspach Bernhard,allenspach bernhard,002074,Allenspach Bernhard Anhänger und Gewässerunterhalt,candidate,0.99,1,
+71006,BWB Aloxyd AG,bwb aloxyd,001112,BWB-Aloxyd AG,exact_norm,1.0,1,14
+71007,AML AG,aml,001408,aml AG Langenthal,candidate,0.99,1,21
+71049,Amsler & Frey AG,amsler und frey,002058,Amsler & Frey AG,exact_norm,1.0,1,
+71010,Amstutz Produkte AG,amstutz produkte,001109,Amstutz Produkte AG,exact_norm,1.0,1,
+71012,Aseol Suisse AG,aseol suisse,001366,Aseol Suisse AG,exact_norm,1.0,1,
+71013,ATB Systeme AG,atb systeme,001052,ATB Systeme AG,exact_norm,1.0,1,21
+71017,AVAG Betriebs AG,avag betriebs,001104,AVAG Betriebs AG,exact_norm,1.0,1,
+72076,BACHMANN SOUSA,bachmann sousa,001976,"BACHMANN SOUSA, LDA",candidate,0.99,1,28
+72035,Balluff Sensortechnik AG,balluff sensortechnik,001359,Balluff AG,candidate,0.99,1,14,
+72001,Balz Maschinen AG,balz maschinen,001283,Balz Maschinen AG,exact_norm,1.0,1,
+72002,Baumer Electric AG,baumer electric,001056,Baumer Electric AG,exact_norm,1.0,1,14,
+72025,Baumgartner Maschinenbau AG,baumgartner maschinenbau,001872,Baumgartner Maschinen,candidate,0.99,1,
+72004,H.U. Beer GmbH,h u beer,001380,H.U. Beer GmbH,exact_norm,1.0,1,21
+72006,BIBUS AG,bibus,001372,BIBUS AG,exact_norm,1.0,1,
+72024,Bieri Tenta AG,bieri tenta,001113,Bieri Tenta AG,exact_norm,1.0,1,28
+72032,Bio-Circle Surface Technology AG,bio circle surface technology,001367,Bio-Circle Surface Technology AG,exact_norm,1.0,1,
+72046,Birrer Hydraulik AG,birrer hydraulik,001963,Birrer Hydraulik AG,exact_norm,1.0,1,
+72070,Bletag AG,bletag,001150,Bletag AG,exact_norm,1.0,1,21
+72009,Blickle Räder + Rollen GmbH,blickle rader rollen,001346,Blickle Räder + Rollen GmbH,exact_norm,1.0,1,14,
+72069,B+M Haus- und Agrotech AG,b m haus und agrotech,001149,B + M Haus- und Agrotech AG,exact_norm,1.0,1,
+72058,Bohnenkamp Suisse AG,bohnenkamp suisse,001151,Bohnenkamp Suisse AG,exact_norm,1.0,1,
+72072,Bossard AG,bossard,001152,Bossard AG,exact_norm,1.0,1,14,
+72015,BRUNOX AG,brunox,001637,BRUNOX AG,exact_norm,1.0,1,
+72017,Brütsch/Rüegger Werkzeuge AG,brutsch ruegger werkzeuge,001071,Brütsch/Rüegger Werkzeuge AG,exact_norm,1.0,1,
+72064,Brütsch Rüegger Werkzeuge AG,brutsch ruegger werkzeuge,001071,Brütsch/Rüegger Werkzeuge AG,exact_norm,1.0,1,
+72045,Busland AG,busland,001069,Busland AG,exact_norm,1.0,1,
+72020,BW AG,bw,001684,BW AG,exact_norm,1.0,1,
+73001,Carbagas,carbagas,001004,CARBAGAS AG,exact_norm,1.0,1,
+73017,Carbagas AG,carbagas,001004,CARBAGAS AG,exact_norm,1.0,1,
+73025,Glas Trösch AG,glas trosch,001163,Glas Trösch AG,exact_norm,1.0,1,
+73002,Caron Fahrzeugtechnik AG,caron fahrzeugtechnik,000955,Caron Fahrzeugtechnik AG,exact_norm,1.0,1,14
+73018,MESSER Eutectic Castolin Switzerland S.A,messer eutectic castolin switzerland s a,001703,Castolin AG,candidate,0.99,1,
+73005,clean-life,clean life,001010,clean-life umwelttechnik ag,candidate,0.99,1,
+73007,Conrad Electronic AG,conrad electronic,001043,Conrad Electronic AG,exact_norm,1.0,1,
+73023,Contrinex AG,contrinex,001153,Contrinex AG,exact_norm,1.0,1,
+74002,DACHSER Spedition AG,dachser spedition,001668,DACHSER Spedition AG,exact_norm,1.0,1,
+74003,Debrunner Acifer AG,debrunner acifer,001050,Debrunner Acifer AG Stahl & Metalle,candidate,0.99,1,14
+74007,Konecranes and Demag AG,konecranes and demag,001397,Konecranes and Demag AG,exact_norm,1.0,1,
+74023,DEMTECH AG,demtech,001154,DEMTECH AG,exact_norm,1.0,1,
+74028,Denios AG,denios,001094,DENIOS,exact_norm,1.0,1,
+74001,Derendinger AG,derendinger,001374,Derendinger AG,exact_norm,1.0,1,
+74005,DHL Express (Schweiz) AG,dhl express schweiz,001093,DHL Express (Schweiz) AG,exact_norm,1.0,1,
+74006,Distrelec,distrelec,001337,Distrelec Schweiz AG,candidate,0.99,1,14
+74008,DPD (Schweiz) AG,dpd schweiz,001092,DPD (Schweiz) AG,exact_norm,1.0,1,
+74025,Dresohn AG,dresohn,001040,Dresohn AG,exact_norm,1.0,1,
+75009,ECKOLD AG,eckold,001084,ECKOLD AG,exact_norm,1.0,1,
+75023,Edelstahlhaus GmbH,edelstahlhaus,001044,Edelstahlhaus GmbH,exact_norm,1.0,1,
+75016,Eduard Steiner AG,eduard steiner,001998,Eduard Steiner AG,exact_norm,1.0,1,
+75013,Egger + Co.AG,egger,001003,Egger + Co. AG,exact_norm,1.0,1,14
+90011,Egger + Co. AG,egger,001003,Egger + Co. AG,exact_norm,1.0,1,14
+75011,Elektro-Material AG,elektro material,001157,Elektro-Material AG,exact_norm,1.0,1,14
+75024,Engel Stahl AG,engel stahl,000960,Engel Stahl AG,exact_norm,1.0,1,14
+75010,ERAG Netzbau AG,erag netzbau,001134,ERAG Netzbau AG,exact_norm,1.0,1,
+75001,ESA,esa,001005,ESA Einkaufsorganisation,candidate,0.99,1,14
+76023,Faba Fahrzeugbau AG,faba fahrzeugbau,001158,Faba Fahrzeugbau AG,exact_norm,1.0,1,
+76015,Fahrzeugbedarf AG,fahrzeugbedarf,001702,Fahrzeugbedarf AG,exact_norm,1.0,1,
+76025,FEMA GmbH,fema,001307,FEMA Federriegel und Maschinenbau GmbH,candidate,0.99,1,
+76002,Ferroflex AG,ferroflex,002093,Ferroflex AG,exact_norm,1.0,1,
+95009,FERROFLEX AG,ferroflex,002093,Ferroflex AG,exact_norm,1.0,1,
+76033,FGS GmbH,fgs,002023,FGS GmbH,exact_norm,1.0,1,
+76003,Fischer & Cie. AG,fischer und cie,001160,Fischer & Cie. AG,exact_norm,1.0,1,
+76010,Fornara AG,fornara,001343,Fornara AG,exact_norm,1.0,1,
+76005,Paul Forrer AG,paul forrer,001123,Paul Forrer AG,exact_norm,1.0,1,
+76030,Friedli Pferdetransporter GmbH,friedli pferdetransporter,002101,Friedli Pferdetransporter GmbH,exact_norm,1.0,1,
+76027,Fronius Schweiz AG,fronius schweiz,001452,Fronius Schweiz AG,exact_norm,1.0,1,
+76037,Fugendichtband24,fugendichtband24,001759,Fugendichtband24 GmbH,exact_norm,1.0,1,
+77036,Gallagher Schweiz AG,gallagher schweiz,001494,Gallagher Schweiz AG,exact_norm,1.0,1,
+81028,galtec ag,galtec,001045,galtec ag,exact_norm,1.0,1,14
+77035,Gefahrgut-Shop GmbH,gefahrgut shop,001041,Gefahrgut-Shop GmbH,exact_norm,1.0,1,
+77021,Geiser AG,geiser,001161,W. & O. Geiser AG,candidate,0.99,1,
+77032,Gerd Hacker Handels Gmbh,gerd hacker handels,001162,Gerd Hacker Handels GmbH,exact_norm,1.0,1,
+77014,GGT Gleitlager AG,ggt gleitlager,001338,GGT Gleitlager AG,exact_norm,1.0,1,
+77002,GIS AG,gis,002060,GIS AG,exact_norm,1.0,1,
+77022,GLAMETEC GmbH,glametec,001790,Glametec GmbH,exact_norm,1.0,1,
+77003,Glas Trösch AG,glas trosch,001163,Glas Trösch AG,exact_norm,1.0,1,
+77006,Grünig GmbH,grunig,002094,Grünig GmbH,exact_norm,1.0,1,
+77023,Grüter Handels AG,gruter handels,001368,Grüter Handels AG,exact_norm,1.0,1,
+77033,Gummischwarz AG,gummischwarz,001164,Gummischwarz AG,exact_norm,1.0,1,
+78047,Hans Meier AG,hans meier,002200,Hans Meier AG,exact_norm,1.0,1,
+78003,HANSA-FLEX,hansa flex,001063,HANSA-FLEX Hydraulik AG,candidate,0.99,1,21,
+78004,Dr. C. Hanser AG,dr c hanser,001061,Dr. C. Hanser AG,exact_norm,1.0,1,14
+78006,Malerei M. Hartmann GmbH,malerei m hartmann,000951,Malerei M. Hartmann GmbH,exact_norm,1.0,1,14
+78009,Hans Wegmüller AG,hans wegmuller,000965,Hans Wegmüller AG,exact_norm,1.0,1,14
+78029,Hans Wegmüller AG,hans wegmuller,000965,Hans Wegmüller AG,exact_norm,1.0,1,14
+78010,Ernst Hausammann & Co. AG,ernst hausammann und,001560,Ernst Hausammann & Co. AG,exact_norm,1.0,1,
+78022,HB Systeme GmbH,hb systeme,001402,HB Systeme GmbH,exact_norm,1.0,1,
+78068,HEBETECH AG,hebetech,001167,Hebetech AG,exact_norm,1.0,1,
+78020,HRB Heinemann AG,hrb heinemann,001348,HRB Heinemann AG,exact_norm,1.0,1,35,
+78044,Heiniger Kabel AG,heiniger kabel,002045,Heiniger Kabel AG,exact_norm,1.0,1,
+78057,Heizmann AG,heizmann,001168,Heizmann AG,exact_norm,1.0,1,
+78066,Helukabel AG,helukabel,001169,Helukabel AG,exact_norm,1.0,1,
+78053,HFT Fasteners AG,hft fasteners,001027,HFT Fasteners AG,exact_norm,1.0,1,
+78028,HKM-MESSTECHNIK GMBH,hkm messtechnik,001651,HKM-Messtechnik GmbH,exact_norm,1.0,1,90
+78037,HOELZLE AG,hoelzle,001170,Hoelzle AG,exact_norm,1.0,1,14
+78039,Hofmann PU-Elastomere AG,hofmann pu elastomere,002167,Hofmann PU-Elastomere AG,exact_norm,1.0,1,14
+78019,Hofstetter,hofstetter,001744,Hofstetter + Co. AG,exact_norm,1.0,1,28,
+78054,Holoubek trade s.r.o.,holoubek trade s r o,001740,Holoubek trade s. r. o.,exact_norm,1.0,1,
+78038,H. P. Holzer AG,h p holzer,001002,H.P. HOLZER AG,exact_norm,1.0,1,21
+78021,HRB Heinemann AG,hrb heinemann,001348,HRB Heinemann AG,exact_norm,1.0,1,
+78061,Humbaur GmbH,humbaur,001379,Humbaur GmbH,exact_norm,1.0,1,
+78063,Hydraproducts Limited,hydraproducts limited,001171,Hydraproducts Limited,exact_norm,1.0,1,
+78007,Häsag AG,hasag,001166,Häsag AG,exact_norm,1.0,1,
+78042,Hässig + Co. AG,hassig,002106,Hässig + Co. AG,exact_norm,1.0,1,
+78031,Högger Systems AG,hogger systems,001046,Högger Systems AG,exact_norm,1.0,1,21
+79019,IBA / OWIBA AG,iba owiba,001139,OWIBA AG,candidate,0.99,1,
+79001,Alfred Imhof AG,alfred imhof,002119,Alfred Imhof AG,exact_norm,1.0,1,
+79016,Immer AG,immer,001653,IMMER AG,exact_norm,1.0,1,
+79018,Indrivetec AG,indrivetec,001172,Indrivetec AG,exact_norm,1.0,1,
+79002,Ingold Industriebedarf,ingold industriebedarf,001107,Ingold AG Industriebedarf,exact_norm,1.0,1,
+79013,ISO OERLIKON AG,iso oerlikon,001047,ISO OERLIKON AG,exact_norm,1.0,1,
+80002,Jakob AG,jakob,001054,Jakob AG,exact_norm,1.0,1,14
+80010,JAKOB AG,jakob,001054,Jakob AG,exact_norm,1.0,1,14
+80004,Jost Landtechnik AG,jost landtechnik,001091,Jost / Landtechnik AG,exact_norm,1.0,1,
+88001,Kellenberg Roll-Technik AG,kellenberg roll technik,001360,Kellenberg Roll-Technik AG,exact_norm,1.0,1,14,
+81005,Kindlimann AG,kindlimann,001864,Kindlimann AG,exact_norm,1.0,1,
+81006,Klaus-Häberlin AG,klaus haberlin,000962,Klaus-Häberlin AG,exact_norm,1.0,1,14,
+81021,Klaus-Häberlin AG,klaus haberlin,000962,Klaus-Häberlin AG,exact_norm,1.0,1,14,
+81042,Koch Group AG,koch group,001173,Koch Group AG,exact_norm,1.0,1,
+81014,Hans Kohler AG,hans kohler,001165,Hans Kohler AG,exact_norm,1.0,1,14
+81032,Kramp GmbH,kramp,001174,Kramp Schweiz,candidate,0.99,1,
+81038,Kronenberg,kronenberg,002079,Kronenberg Maschinen & Fahrzeuge AG,candidate,0.99,1,
+81010,Kubo Tech AG,kubo tech,001049,Kubo Tech AG,exact_norm,1.0,1,14,
+81001,Kiener+Wittlin AG,kiener wittlin,001592,Kiener + Wittlin AG,exact_norm,1.0,1,14
+82014,Labelident GmbH,labelident,001378,Labelident GmbH,exact_norm,1.0,1,
+82002,Landi Region  Langnau AG,landi region langnau,001073,LANDI Region Langnau AG,exact_norm,1.0,1,
+82008,Laserteam AG,laserteam,001175,Laserteam AG,exact_norm,1.0,1,21
+82029,H. Lauenstein AG,h lauenstein,001090,Lauenstein AG,candidate,0.99,1,
+82019,Lerch AG,lerch,001373,Lerch AG,exact_norm,1.0,1,28
+82021,Levo Batterien AG,levo batterien,001028,Levo-Batterien AG,exact_norm,1.0,1,14,
+82006,Liechti AG,liechti,001832,Liechti Kälte AG,candidate,0.99,1,
+82026,Liechti Kälte AG,liechti kalte,001832,Liechti Kälte AG,exact_norm,1.0,1,
+82018,Linaxis AG,linaxis,001459,Linaxis AG,exact_norm,1.0,1,
+82023,Luder Technik AG,luder technik,001632,Luder Technik AG,exact_norm,1.0,1,
+82028,Luftech Schweiz AG,luftech schweiz,001176,Luftech Schweiz AG,exact_norm,1.0,1,
+83004,Maagtechnic,maagtechnic,000954,Maagtechnic AG,exact_norm,1.0,1,14
+83008,Mako Laser AG,mako laser,001177,MaKo laser ag,exact_norm,1.0,1,21
+83027,Matik AG,matik,001178,Matik AG,exact_norm,1.0,1,14
+83023,MC Control GmbH,mc control,001053,MC Control GmbH,exact_norm,1.0,1,21,
+83032,L. Meili & Co. AG,l meili und,001349,L. Meili & Co. AG,exact_norm,1.0,1,14,
+83025,Meyer BlechTechnik AG,meyer blechtechnik,001179,Meyer BlechTechnik AG,exact_norm,1.0,1,21
+83034,Meyer BlechTechnik AG Buttisholz,meyer blechtechnik buttisholz,001059,Meyer BlechTechnik AG Buttisholz,exact_norm,1.0,1,21
+83026,MIBAG AG,mibag,001778,MIBAG AG,exact_norm,1.0,1,
+83024,Meyer BlechTechnik AG Herzogenbuchsee,meyer blechtechnik herzogenbuchsee,001659,Meyer BlechTechnik AG Herzogenbuchsee,exact_norm,1.0,1,21
+83047,Mitech AG,mitech,001352,Mitech AG,exact_norm,1.0,1,
+83022,MMR-Metall AG,mmr metall,001124,MMR-Metall AG,exact_norm,1.0,1,
+83042,MonoPan® Composites GmbH & Co. KG,monopan composites und,001309,MonoPan Composites GmbH & Co. KG,exact_norm,1.0,1,
+83002,MOTOREX AG,motorex,001423,MOTOREX AG,exact_norm,1.0,1,
+83048,Mouser Electronics,mouser electronics,001180,Mouser Electronics,exact_norm,1.0,1,21
+83014,MTS Metallbaubeschläge AG,mts metallbaubeschlage,001989,MTS Metallbaubeschläge AG,exact_norm,1.0,1,
+83049,Murrelektronik AG,murrelektronik,001181,Murrelektronik AG,exact_norm,1.0,1,
+83005,Mädler Norm-Antrieb AG,madler norm antrieb,001066,MÄDLER Norm-Antrieb AG,exact_norm,1.0,1,14
+84011,Nash Group GmbH,nash group,001743,NASH GROUP GmbH,exact_norm,1.0,1,
+84008,Netztech Handels AG,netztech handels,001833,Netztech Handels AG,exact_norm,1.0,1,
+84012,novaziun AG,novaziun,001085,novaziun AG,exact_norm,1.0,1,
+85004,Okey AG,okey,001369,OKEY AG,exact_norm,1.0,1,
+85008,OLWO AG,olwo,001353,OLWO AG,exact_norm,1.0,1,
+85010,"OPO Oeschger AG, Beschläge und Werkzeuge",opo oeschger beschlage und werkzeuge,001182,OPO Oeschger AG,candidate,0.99,1,
+85005,Ortlinghaus GmbH Gams,ortlinghaus gams,001371,Ortlinghaus GmbH Gams,exact_norm,1.0,1,
+86032,packstar GmbH,packstar,001561,Packstar GmbH,exact_norm,1.0,1,
+86017,Pauli Aquatec,pauli aquatec,001838,PAULI AQUATEC GmbH,exact_norm,1.0,1,
+86030,Peter Hefti AG,peter hefti,001564,Peter Hefti AG,exact_norm,1.0,1,
+86004,Phoenix Contact AG,phoenix contact,001183,Phoenix Contact AG,exact_norm,1.0,1,21
+86023,Plasticpadana system SRL,plasticpadana system srl,001504,plasticpadana system srl,exact_norm,1.0,1,
+86024,Pneu Habegger AG,pneu habegger,001009,Pneu Habegger AG,exact_norm,1.0,1,
+86008,Power Jet AG,power jet,001351,Power Jet AG,exact_norm,1.0,1,21
+71048,Prematic AG,prematic,001036,Prematic AG,exact_norm,1.0,1,
+86022,Profiblech AG,profiblech,001184,Profiblech AG,exact_norm,1.0,1,21
+86031,Profilwerk AG,profilwerk,001126,Profilwerk AG,exact_norm,1.0,1,
+86016,PWP SA,pwp,000956,PWP SA,exact_norm,1.0,1,14
+88035,R.Aeberhardt AG,r aeberhardt,001185,R.Aeberhardt AG,exact_norm,1.0,1,
+88024,Rajapack GmbH,rajapack,001032,Rajapack Schweiz GmbH,candidate,0.99,1,
+88038,REAflon,reaflon,001186,REAflon,exact_norm,1.0,1,
+88032,Reflo-Tec AG,reflo tec,001187,Reflo-Tec AG,exact_norm,1.0,1,
+88033,Reichelt Elektronik GmbH & Co. KG,reichelt elektronik und,001188,Reichelt Elektronik GmbH & Co. KG,exact_norm,1.0,1,
+88028,REMA - TIP TOP,rema tip top,001105,REMA TIP TOP Schweiz AG,candidate,0.99,1,
+88020,Riesen Metallbau AG,riesen metallbau,001076,Riesen Metallbau AG,exact_norm,1.0,1,21,
+88003,Ringspann AG,ringspann,001189,Ringspann AG,exact_norm,1.0,1,14,
+88005,ROOSmechanik,roosmechanik,001072,ROOSmechanik,exact_norm,1.0,1,14
+88034,RS Components GmbH,rs components,001788,RS Components GmbH,exact_norm,1.0,1,21
+88039,Rubix Switzerland AG,rubix switzerland,001724,Rubix Switzerland AG,exact_norm,1.0,1,
+88007,Rufenerkipper AG,rufenerkipper,001491,RUFENERKIPPER AG,exact_norm,1.0,1,90
+89003,Sahli AG,sahli,001060,SAHLI AG,exact_norm,1.0,1,
+89004,Salzmann Elektro GmbH,salzmann elektro,001429,Salzmann Elektro GmbH,exact_norm,1.0,1,
+90018,Schneider Fahrzeug- und Containertechnik,schneider fahrzeug und containertechnik,000963,SCHNEIDER Fahrzeug- und Containertechnik GmbH,exact_norm,1.0,1,
+89045,sdt Schalldämpfertechnik GmbH,sdt schalldampfertechnik,001192,sdt Schalldämpfertechnik GmbH,exact_norm,1.0,1,
+89009,Séchy Schweisstechnik AG,sechy schweisstechnik,002183,Séchy Schweisstechnik AG,exact_norm,1.0,1,
+89038,SETON,seton,001789,SETON Division,candidate,0.99,1,
+89001,SF-Filter AG,sf filter,001361,SF-Filter AG,exact_norm,1.0,1,14
+89013,SGT,sgt,001345,SGT Sinterform-Gleitlager-Technik AG,candidate,0.99,1,21,
+89029,Sieber Transport AG,sieber transport,001065,Sieber Transport AG,exact_norm,1.0,1,
+89048,Signal AG,signal,001193,Signal AG,exact_norm,1.0,1,
+89042,SIGWA GMBH,sigwa,001194,SIGWA GMBH,exact_norm,1.0,1,
+89046,SIKA Schweiz AG,sika schweiz,001195,SIKA Schweiz AG,exact_norm,1.0,1,
+89055,Simpex Electronic AG,simpex electronic,001612,Simpex Electronic AG,exact_norm,1.0,1,
+89054,Sinntec Schmiersysteme GmbH,sinntec schmiersysteme,001308,SINNTEC Schmiersysteme GmbH,exact_norm,1.0,1,
+89033,Sommer Feinmechanik GmbH,sommer feinmechanik,001070,Sommer Feinmechanik GmbH,exact_norm,1.0,1,14
+89026,SpanSet AG,spanset,001643,SpanSet AG,exact_norm,1.0,1,
+89035,SPIWA Mechanik AG,spiwa mechanik,001042,Spiwa Mechanik AG,exact_norm,1.0,1,28
+89050,Spälti AG,spalti,001613,Spälti AG,exact_norm,1.0,1,
+91003,"Steck AG, Bigenthal",steck bigenthal,001802,Steck AG Bigenthal,exact_norm,1.0,1,
+91006,Steinbock Handling AG,steinbock handling,001422,Steinbock Handling AG,exact_norm,1.0,1,
+91009,Strassenverkehrs- und,strassenverkehrs und,000958,Strassenverkehrs- und Schifffahrtsamt,candidate,0.99,1,
+91012,Straub Hydraulik AG,straub hydraulik,001327,Straub Hydraulik AG,exact_norm,1.0,1,
+91019,Stäubli Electrical Connectors AG,staubli electrical connectors,001196,Stäubli Electrical Connectors AG,exact_norm,1.0,1,
+91020,Stüwe Switzerland AG,stuwe switzerland,002135,Stüwe Switzerland AG,exact_norm,1.0,1,
+89043,SUNCAR AG,suncar,001064,SUNCAR AG,exact_norm,1.0,1,
+89027,Webcraft GmbH,webcraft,001907,Webcraft AG,exact_norm,1.0,1,
+89019,Sury AG,sury,002054,Sury AG,exact_norm,1.0,1,
+89030,Suter Kunststoffe AG,suter kunststoffe,001425,Suter Kunststoffe AG,exact_norm,1.0,1,
+89020,Swibox AG,swibox,001197,Swibox AG,exact_norm,1.0,1,
+89017,Südo AG,sudo,000967,Südo AG,exact_norm,1.0,1,14,
+92012,druckdesign Tanner AG,druckdesign tanner,001130,druckdesign Tanner AG,exact_norm,1.0,1,
+92021,TECHNO-Gewebe Vajen GmbH,techno gewebe vajen,001198,TECHNO-Gewebe Vajen GmbH,exact_norm,1.0,1,
+92010,Tele Radio GmbH,tele radio,001350,Tele Radio Schweiz GmbH,candidate,0.99,1,21
+92017,Tele Radio Schweiz GmbH,tele radio schweiz,001350,Tele Radio Schweiz GmbH,exact_norm,1.0,1,21
+92003,TESMEC S.p.A.,tesmec s p a,001031,TESMEC SpA,candidate,0.99,1,
+92015,Thommen-Furler AG,thommen furler,001533,Thommen-Furler AG,exact_norm,1.0,1,
+92005,Tibram AG,tibram,001199,Tibram AG,exact_norm,1.0,1,28
+92011,BKW Energie AG,bkw energie,000999,BKW Energie AG,exact_norm,1.0,1,
+92018,Trafar AG,trafar,001873,Trafar AG Anlagen- und Maschinenbau,candidate,0.99,1,
+92013,Trelco AG,trelco,001742,Trelco AG,exact_norm,1.0,1,
+93002,"EMZ Unitec AG, Schweiz",emz unitec schweiz,001896,EMZ GmbH,candidate,0.99,1,
+94012,Vanatics AG,vanatics,001200,Vanatics AG,exact_norm,1.0,1,
+94009,VEGA Messtechnik AG,vega messtechnik,001201,VEGA Messtechnik AG,exact_norm,1.0,1,
+94010,Verzinkerei Oberuzwil,verzinkerei oberuzwil,001202,Verzinkerei Oberuzwil AG,exact_norm,1.0,1,14
+94005,Vetter GmbH,vetter,001341,Vetter GmbH,exact_norm,1.0,1,
+94004,Vibraplast AG,vibraplast,000968,Vibraplast AG,exact_norm,1.0,1,14
+94008,VTS Track Solutions,vts track solutions,002024,VTS Track Solutions B.V.,candidate,0.99,1,120
+95001,ZF CV Systems Global GmbH,zf cv systems global,001128,ZF CV Systems Global GmbH,exact_norm,1.0,1,
+95008,Robor AG,robor,001334,ROBOR AG,exact_norm,1.0,1,
+95007,Werren Werbetechnik GmbH,werren werbetechnik,001029,Werren Werbetechnik,exact_norm,1.0,1,14
+95020,Würth AG,wurth,001787,Würth AG,exact_norm,1.0,1,
+96005,Zaugg AG Eggiwil,zaugg eggiwil,001020,Zaugg AG Eggiwil,exact_norm,1.0,1,
+96006,Zbinden Posieux SA,zbinden posieux,001772,Zbinden Posieux SA,exact_norm,1.0,1,
+96001,Zeitler AG,zeitler,001591,Zeitler AG,exact_norm,1.0,1,
+96009,Zurrfix AG,zurrfix,001966,Zurrfix AG,exact_norm,1.0,1,
