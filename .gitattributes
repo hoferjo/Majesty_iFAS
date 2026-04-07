@@ -1,0 +1,27 @@
+# Auto-detect text files and normalize to LF in repository
+* text=auto
+
+# Source and config files use LF
+*.py text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.csv text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+
+# Windows scripts keep CRLF for local usability
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.xlsx binary
+*.dbf binary
