@@ -28,6 +28,11 @@ except Exception as e:
 artikelstamm = BASE_DIR / raw_dir / "artikelstamm" / artikelstamm_file
 waren_artikelgruppe = BASE_DIR / settings["paths"]["waren_artikelgruppe_dir"] / settings["files"]["waren_artikelgruppe"]
 lieferanten_mapping = BASE_DIR / settings["paths"]["lieferanten_mapping_dir"] / settings["files"]["lieferanten_mapping"]
+if not lieferanten_mapping.exists():
+    fallback_lieferanten_mapping = BASE_DIR / "config" / "lieferanten_mapping.csv"
+    if fallback_lieferanten_mapping.exists():
+        print(f"[WARN] Configured supplier mapping not found: {lieferanten_mapping}. Using fallback: {fallback_lieferanten_mapping}")
+        lieferanten_mapping = fallback_lieferanten_mapping
 stueckliste_path = BASE_DIR / settings["paths"]["stueckliste_dir"] / settings["files"]["stueckliste"]
 existing_articles_path = BASE_DIR / settings["paths"]["existing_articles_dir"] / settings["files"]["existing_articles"]        
 
@@ -98,6 +103,20 @@ def mergeTexts(text1, text2, text3=None, text4=None):
     else:
         return ''
 
+def getArtikelnummer(artnr):
+    letzt_lief = getEntryFromCSV(artikelstamm, artnr, 'letzt_lief')
+    return getEntryFromCSV(lieferanten_mapping, letzt_lief, 'artikelnummer')
+
+def getBeschaffungsart(artnr):
+    if isParent(artnr, stueckliste_path):
+        return '1'  # Replace 'SomeValue' with the actual value you want to return
+    return '6'  # Replace 'OtherValue' with the actual value you want to return
+
+def getKontierungsgruppe(artnr):    
+    letzt_lief = getEntryFromCSV(artikelstamm, artnr, 'letzt_lief')
+    if letzt_lief == '92005':
+        return 'Material getGroup'
+    return 'Material'
 
 def getBezeichnung2(artnr):
     artbez2 = getEntryFromCSV(artikelstamm, artnr, 'artbez2')
@@ -125,10 +144,14 @@ def deriveWBZ(artnr):
     
 def mapping_Bedingung_2o(Bedingung, outputIfTrue, outputElse, filename, artnr, columnname):
     status = getEntryFromCSV(filename, artnr, columnname)
-    if status  == Bedingung:
+    # Treat None, '', and whitespace as empty
+    status_clean = (status or '').strip()
+    bedingung_clean = (Bedingung or '').strip()
+    if bedingung_clean == '' and status_clean == '':
         return outputIfTrue
-    else:
-        return outputElse
+    if status_clean == bedingung_clean:
+        return outputIfTrue
+    return outputElse
     
 def isParent(artnr, stueckliste_path):
     try:
@@ -136,7 +159,7 @@ def isParent(artnr, stueckliste_path):
             print(f"[ERROR] Skipping isParent check for {artnr} due to stueckliste encoding.")
             return False
         with open(stueckliste_path, mode='r', encoding='utf-8-sig') as csvfile:
-            reader = csv.DictReader(csvfile)
+            reader = csv.DictReader(csvfile, delimiter=';')
             for row in reader:
                 if row.get('stulinr', '').strip() == artnr:
                     return True
@@ -149,20 +172,45 @@ def getGroup(filename, artnr, columnname):
     zeichnr = getEntryFromCSV(artikelstamm, artnr, 'zeichnr')
     code = ''
     code2 = ''
-    if zeichnr and len(zeichnr) >= 3:
-        code = zeichnr[:3]
-        if len(zeichnr) >= 6:
-            code2 = zeichnr[:3] + ' ' + zeichnr[3:6]
-    if columnname == 'Artikelgruppe 2':
-        return getEntryFromCSV(waren_artikelgruppe, code2, columnname)
-    else:
-        return getEntryFromCSV(waren_artikelgruppe, code, columnname)
+    zeichnr = str(zeichnr or '').strip()
+    # Special handling: if zeichnr is empty
+    if not zeichnr:
+        if columnname in ('Warengruppe', 'Kürzel'):
+            return 'ALLG'
+        if columnname == 'Artikelgruppe 1':
+            return 'Normteile'
+        return ''
+    parts = [part for part in zeichnr.split() if part]
+    if parts:
+        code = parts[0]
+        if len(parts) >= 2:
+            code2 = f"{parts[0]} {parts[1]}"
+    elif len(zeichnr) >= 3:
+        compact = zeichnr.replace(' ', '')
+        code = compact[:3]
+        if len(compact) >= 6:
+            code2 = f"{compact[:3]} {compact[3:6]}"
+
+    lookup_value = code2 if columnname == 'Artikelgruppe 2' else code
+    if not lookup_value:
+        return ''
+
+    with open(filename, mode='r', encoding='utf-8-sig') as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        for row in reader:
+            if (row.get('Zeichnr') or '').strip() == lookup_value:
+                val = row.get(columnname, '')
+                # If the lookup result is empty, return empty string
+                if not val or str(val).strip() == '':
+                    return ''
+                return val
+    return ''
 
 
 def IstNichtAllgemeinNormteile(artnr):
-    warengruppe = getGroup(waren_artikelgruppe, artnr, 'kürzel')
-    artikelgruppe1 = getGroup(waren_artikelgruppe, artnr, 'Artikelgruppe1')
-    if warengruppe == 'ALLG' and artikelgruppe1 == 'Normteile':
+    warengruppe = getGroup(waren_artikelgruppe, artnr, 'Kürzel')
+    artikelgruppe1 = getGroup(waren_artikelgruppe, artnr, 'Artikelgruppe 1')
+    if warengruppe in ('ALLG', 'Allgemein') and artikelgruppe1 in ('001 | Normteile Jost', '001', 'Normteile'):
         return '0'
     else:
         return '1'
@@ -174,63 +222,102 @@ def build_sheet_cache_CSV(articlelist, active_sheets):
     
     table_cache = {}
 
-    def _load_table_by_artnr(filename):
-        cache_key = str(filename)
+    def _load_table_by_column(filename, key_column):
+        """Load CSV file and index by specified key column."""
+        cache_key = (str(filename), key_column)
         if cache_key in table_cache:
             return table_cache[cache_key]
 
-        rows_by_artnr = {}
+        rows_by_key = {}
         try:
             with open(filename, mode='r', encoding='utf-8-sig') as csvfile:
-                reader = csv.DictReader(csvfile, delimiter=';')
+                # Detect delimiter: check if file is lieferanten_mapping (comma) or others (semicolon)
+                delimiter = ';'
+                if 'lieferanten' in str(filename).lower():
+                    delimiter = ','
+                
+                reader = csv.DictReader(csvfile, delimiter=delimiter)
                 for row in reader:
-                    art_key = (row.get('artnr') or '').strip()
-                    if art_key:
-                        rows_by_artnr[art_key] = row
+                    key_val = (row.get(key_column) or '').strip()
+                    if key_val:
+                        rows_by_key[key_val] = row
+                
+                if DEBUG and 'lieferanten' in str(filename).lower():
+                    print(f"[DEBUG] _load_table_by_column: loaded {len(rows_by_key)} rows from {filename} using delimiter={delimiter}, key_column={key_column}")
+                    sample_keys = list(rows_by_key.keys())[:5]
+                    print(f"[DEBUG] Sample keys: {sample_keys}")
         except FileNotFoundError:
-            rows_by_artnr = {}
+            rows_by_key = {}
 
-        table_cache[cache_key] = rows_by_artnr
-        return rows_by_artnr
+        table_cache[cache_key] = rows_by_key
+        return rows_by_key
 
-    def get_entry_cached(filename, rowname, columnname):
-        rows_by_artnr = _load_table_by_artnr(filename)
-        row = rows_by_artnr.get(str(rowname))
+    def get_entry_cached(filename, rowname, columnname, key_column='artnr'):
+        """Lookup a value in a CSV file, indexed by key_column."""
+        rows_by_key = _load_table_by_column(filename, key_column)
+        row = rows_by_key.get(str(rowname))
         if not row:
             return 0
         return row.get(columnname, '')
 
     def get_group_cached(artnr, columnname):
-        zeichnr = get_entry_cached(artikelstamm, artnr, 'zeichnr')
-        zeichnr = str(zeichnr or '')
+        zeichnr = get_entry_cached(artikelstamm, artnr, 'zeichnr', key_column='artnr')
+        zeichnr = str(zeichnr or '').strip()
+        # Special handling: if zeichnr is empty
+        if not zeichnr:
+            if columnname in ('Warengruppe', 'Kürzel'):
+                return 'ALLG'
+            if columnname == 'Artikelgruppe 1':
+                return 'Normteile'
+            return ''
         code = ''
         code2 = ''
-        if len(zeichnr) >= 3:
-            code = zeichnr[:3]
-            if len(zeichnr) >= 6:
-                code2 = zeichnr[:3] + ' ' + zeichnr[3:6]
+        parts = [part for part in zeichnr.split() if part]
+        if parts:
+            code = parts[0]
+            if len(parts) >= 2:
+                code2 = f"{parts[0]} {parts[1]}"
+        else:
+            compact = zeichnr.replace(' ', '')
+            if len(compact) >= 3:
+                code = compact[:3]
+                if len(compact) >= 6:
+                    code2 = f"{compact[:3]} {compact[3:6]}"
 
+        # Lookup and ensure empty field in lookup returns empty string
         if columnname == 'Artikelgruppe 2':
-            return get_entry_cached(waren_artikelgruppe, code2, columnname)
-        return get_entry_cached(waren_artikelgruppe, code, columnname)
+            val = get_entry_cached(waren_artikelgruppe, code2, columnname, key_column='Zeichnr')
+            return val if val and str(val).strip() != '' else ''
+        val = get_entry_cached(waren_artikelgruppe, code, columnname, key_column='Zeichnr')
+        return val if val and str(val).strip() != '' else ''
 
     def ist_nicht_allgemein_normteile_cached(artnr):
-        warengruppe = get_group_cached(artnr, 'kürzel')
-        artikelgruppe1 = get_group_cached(artnr, 'Artikelgruppe1')
-        if warengruppe == 'ALLG' and artikelgruppe1 == 'Normteile':
+        warengruppe = get_group_cached(artnr, 'Kürzel')
+        artikelgruppe1 = get_group_cached(artnr, 'Artikelgruppe 1')
+        if warengruppe in ('ALLG', 'Allgemein') and artikelgruppe1 in ('001 | Normteile Jost', '001', 'Normteile'):
             return '0'
         return '1'
 
     def derive_wbz_cached(artnr):
-        letzt_lief = get_entry_cached(artikelstamm, artnr, 'letzt_lief')
-        wbz = get_entry_cached(lieferanten_mapping, letzt_lief, 'wbz')
+        letzt_lief = get_entry_cached(artikelstamm, artnr, 'letzt_lief', key_column='artnr')
+        if DEBUG:
+            print(f"[DEBUG] derive_wbz_cached: artnr={artnr}, letzt_lief={letzt_lief}")
+        wbz = get_entry_cached(lieferanten_mapping, letzt_lief, 'wbz', key_column='liefnr')
+        if DEBUG:
+            print(f"[DEBUG] derive_wbz_cached: wbz lookup result={wbz}")
         if wbz and wbz != '0' and wbz != 0:
             return wbz
         return '0'
 
     def mapping_bedingung_2o_cached(bedingung, output_if_true, output_else, filename, artnr, columnname):
         status = get_entry_cached(filename, artnr, columnname)
-        if status == bedingung:
+        status_clean = (status or '').strip()
+        bedingung_clean = (bedingung or '').strip()
+        if DEBUG and columnname == 'sperreart':
+            print(f"[DEBUG] mapping_bedingung_2o_cached: artnr={artnr}, filename={filename}, column={columnname}, status={status!r}, status_clean={status_clean!r}, bedingung={bedingung!r}, bedingung_clean={bedingung_clean!r}")
+        if bedingung_clean == '' and status_clean == '':
+            return output_if_true
+        if status_clean == bedingung_clean:
             return output_if_true
         return output_else
 
@@ -302,12 +389,36 @@ def build_sheet_cache_CSV(articlelist, active_sheets):
                 return get_entry_cached(filename, artnr_val, columnname)
             return ''
 
+        if func == 'getArtikelnummer':
+            # args: artnr
+            if len(arglist) >= 1:
+                artnr_val = article.get(arglist[-1], arglist[-1])
+                letzt_lief = get_entry_cached(artikelstamm, artnr_val, 'letzt_lief', key_column='artnr')
+                if not letzt_lief or letzt_lief == 0:
+                    return ''
+                val = get_entry_cached(lieferanten_mapping, letzt_lief, 'artikelnummer', key_column='liefnr')
+                if not val or val == 0:
+                    val = get_entry_cached(lieferanten_mapping, letzt_lief, 'ifas_nummer', key_column='liefnr')
+                return '' if val == 0 else val
+            return ''
+
+        if func == 'getBeschaffungsart':
+            # args can be "artnr" or ",artnr"
+            if len(arglist) >= 1:
+                return getBeschaffungsart(article.get(arglist[-1], arglist[-1]))
+            return ''
+
+        if func == 'getKontierungsgruppe':
+            if len(arglist) >= 1:
+                return getKontierungsgruppe(article.get(arglist[-1], arglist[-1]))
+            return ''
+
         if func == 'getGroup':
             # args: filename, artnr, columnname
             if len(arglist) == 3:
                 artnr_val = article.get(arglist[1], arglist[1])
                 columnname = arglist[2]
-                return get_group_cached(artnr_val, columnname)
+                return getGroup(waren_artikelgruppe, artnr_val, columnname)
             return ''
 
         if func == 'mapping_Bedingung_2o':

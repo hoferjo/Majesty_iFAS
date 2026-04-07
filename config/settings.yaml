@@ -12,6 +12,6 @@ paths:
 files: 
   artikelstamm: "artikelstamm_majesty_2026_03_30.csv"
   waren_artikelgruppe: "Waren-_Artikelgruppen.csv"
-  lieferanten_mapping: "Lieferanten_Majesty.csv"
+  lieferanten_mapping: "lieferanten_mapping.csv"
   stueckliste: "20410917_stuelipo.csv"
   existing_articles: "existingArticlesIFAS.csv"

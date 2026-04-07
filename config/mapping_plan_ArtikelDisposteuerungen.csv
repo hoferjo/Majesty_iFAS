@@ -1,8 +1,7 @@
 columnname;function;arguments;
-Spalten;;;
 Artikelnummer;;artnr;
 Dispositionsbereich;defaultvalue;02;
-Wiederbeschaffungszeit;derive_WBZ;artikelstamm,letzt_lief,artnr;
+Wiederbeschaffungszeit;derive_WBZ;artnr;
 Sicherheitsbestand LE;defaultvalue;0;
 Meldebestand LE;defaultvalue;0;
 Maximalbestand LE;defaultvalue;0;
