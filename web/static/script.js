@@ -17,6 +17,46 @@ document.addEventListener("DOMContentLoaded", function() {
     var defaultTab = document.getElementById("defaultTab");
     if (defaultTab) defaultTab.click();
 
+    function getSelectedSheetHeaders() {
+        var checked = document.querySelectorAll('#sheetsCheckboxes input[name="sheetHeader"]:checked');
+        return Array.from(checked).map(function(input) { return input.value; });
+    }
+
+    function loadSheetCheckboxes() {
+        var container = document.getElementById("sheetsCheckboxes");
+        if (!container) return;
+
+        fetch("/sheets-config")
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.status !== "success") {
+                    container.innerHTML = "<p style='color:#c00;'>Failed to load sheet configuration.</p>";
+                    return;
+                }
+
+                var headers = Array.isArray(data.headers) ? data.headers : [];
+                var activeHeaders = new Set(Array.isArray(data.active_headers) ? data.active_headers : []);
+
+                if (!headers.length) {
+                    container.innerHTML = "<p>No sheet headers found.</p>";
+                    return;
+                }
+
+                container.innerHTML = headers.map(function(header, idx) {
+                    var checked = activeHeaders.has(header) ? "checked" : "";
+                    return "<label style='display:block; margin:6px 0;'>" +
+                        "<input type='checkbox' name='sheetHeader' value='" + header + "' " + checked + "> " +
+                        header +
+                        "</label>";
+                }).join("");
+            })
+            .catch(function() {
+                container.innerHTML = "<p style='color:#c00;'>Failed to load sheet configuration.</p>";
+            });
+    }
+
+    loadSheetCheckboxes();
+
     // Search mode toggle
     var searchMode = "article";
     var toggleModeBtn = document.getElementById("toggleModeBtn");
@@ -144,16 +184,42 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-        // Generate Module Data button logic (placeholder)
+        // Generate Module Data button logic
         var generateModuleDataBtn = document.getElementById("generateModuleDataBtn");
         if (generateModuleDataBtn && currentSelection) {
             generateModuleDataBtn.addEventListener("click", function() {
-                if (!selectedResult) {
-                    feedbackLog.innerHTML = `<div style='color:#c00;'>No article/module selected.</div>` + feedbackLog.innerHTML;
+                if (searchMode !== "module") {
+                    alert("Switch to Module mode to generate module data.");
                     return;
                 }
-                feedbackLog.innerHTML = `<div>Generate Module Data clicked for: ${selectedResult.artnr}</div>` + feedbackLog.innerHTML;
-                // TODO: Implement actual API call for module data generation
+                if (!selectedResult || !selectedResult.artnr) {
+                    alert("No module selected.");
+                    return;
+                }
+
+                var selectedHeaders = getSelectedSheetHeaders();
+                if (!selectedHeaders.length) {
+                    alert("No sheets selected in Settings.");
+                    return;
+                }
+
+                fetch("/generate-module-data", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        artnr: selectedResult.artnr,
+                        selected_headers: selectedHeaders
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    let entry = `<div><b>Generate Module Data:</b> ${selectedResult.artnr} — <span style='color:${data.status === 'success' ? '#27ae60' : '#c00'};'>${data.message}</span></div>`;
+                    feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                })
+                .catch(err => {
+                    let entry = `<div><b>Generate Module Data:</b> ${selectedResult.artnr} — <span style='color:#c00;'>Error: ${err}</span></div>`;
+                    feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                });
             });
         }
     // Download Partlist Tree button
@@ -169,7 +235,7 @@ document.addEventListener("DOMContentLoaded", function() {
             // Create a hidden link and trigger download
             const link = document.createElement('a');
             link.href = url;
-            link.download = `partlist_tree_${artnr}.json`;
+            link.download = `partlist_tree_${artnr}.txt`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

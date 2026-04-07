@@ -7,15 +7,74 @@ from fastapi.staticfiles import StaticFiles
 import shutil
 import os
 import json
+import csv
 
 
 settings_path = Path(__file__).parent.parent / "config" / "settings.yaml"
 etl_dir = Path(__file__).parent.parent / "etl"
 sys.path.append(str(etl_dir))
 
-from etl.transform import process_module_structure
+from etl.transform import process_module_structure, build_sheet_cache_CSV
 
 app = FastAPI()
+
+
+def _strip_trailing_empty(values):
+    trimmed = list(values)
+    while trimmed and str(trimmed[-1]).strip() == "":
+        trimmed.pop()
+    return trimmed
+
+
+def _load_sheets_config(base: Path):
+    sheets_path = base / "config" / "sheets.csv"
+    if not sheets_path.exists():
+        raise FileNotFoundError(f"sheets.csv not found at {sheets_path}")
+
+    with open(sheets_path, "r", encoding="utf-8-sig") as f:
+        rows = list(csv.reader(f, delimiter=';'))
+
+    if not rows:
+        raise ValueError("sheets.csv is empty.")
+
+    headers = _strip_trailing_empty(rows[0])
+    aliases = _strip_trailing_empty(rows[1]) if len(rows) > 1 else []
+    flags = _strip_trailing_empty(rows[2]) if len(rows) > 2 else []
+
+    active_headers = []
+    for idx, header in enumerate(headers):
+        flag = str(flags[idx]).strip().lower() if idx < len(flags) else "0"
+        if flag in {"1", "true", "yes", "y", "on"}:
+            active_headers.append(header)
+
+    return sheets_path, headers, aliases, flags, active_headers, rows
+
+
+def _mapping_exists(base: Path, sheet_name: str):
+    return (base / "config" / f"mapping_plan_{sheet_name}.csv").exists()
+
+
+def _resolve_sheet_for_mapping(base: Path, header: str, alias: str):
+    candidates = []
+    if alias:
+        candidates.append(alias)
+    if header:
+        candidates.append(header)
+        candidates.append(header.replace("_", ""))
+    if alias and alias.endswith("steuerung"):
+        candidates.append(alias + "en")
+    if header and header.endswith("_steuerung"):
+        candidates.append(header.replace("_", "") + "en")
+
+    seen = set()
+    for candidate in candidates:
+        candidate = str(candidate).strip()
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        if _mapping_exists(base, candidate):
+            return candidate
+    return None
 
 # Get the absolute path to the web directory
 web_dir = Path(__file__).parent.absolute()
@@ -45,7 +104,6 @@ def upload_file(file: UploadFile = File(...)):
 
 
 # --- Search endpoint ---
-import csv
 from fastapi import Query
 from fastapi.responses import JSONResponse
 
@@ -80,6 +138,20 @@ def search(query: str = Query(..., min_length=1), mode: str = Query("article")):
     return {"results": results}
 
 
+@app.get("/sheets-config")
+def sheets_config():
+    base = Path(__file__).parent.parent
+    try:
+        _, headers, _, _, active_headers, _ = _load_sheets_config(base)
+        return {
+            "status": "success",
+            "headers": headers,
+            "active_headers": active_headers,
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
 
 # --- Generate Module endpoint ---
 @app.post("/generate-module")
@@ -96,6 +168,98 @@ def generate_module(data: dict = Body(...)):
     try:
         process_module_structure(str(artnr), str(artikelstamm_path), str(stueckliste_path), str(article_list_path), str(partlist_path))
         return {"status": "success", "message": f"Module for {artnr} processed."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/generate-module-data")
+def generate_module_data(data: dict = Body(...)):
+    artnr = data.get("artnr")
+    selected_headers = data.get("selected_headers", [])
+    if not artnr:
+        return {"status": "error", "message": "No artnr provided"}
+    if not isinstance(selected_headers, list):
+        return {"status": "error", "message": "selected_headers must be a list"}
+
+    base = Path(__file__).parent.parent
+    article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
+    sheets_path = base / "config" / "sheets.csv"
+    active_sheets_path = base / "config" / "active_sheets.csv"
+    sheets_output_dir = base / "data" / "processed" / "csv" / "cache" / "sheets"
+
+    try:
+        if not article_list_path.exists():
+            return {
+                "status": "error",
+                "message": "article_list.csv not found. Generate module structure first."
+            }
+
+        if not sheets_path.exists():
+            return {
+                "status": "error",
+                "message": "sheets.csv not found in config."
+            }
+
+        sheets_output_dir.mkdir(parents=True, exist_ok=True)
+
+        _, headers, aliases, _, _, rows = _load_sheets_config(base)
+        selected_set = {str(h).strip() for h in selected_headers if str(h).strip()}
+
+        unknown = [h for h in selected_set if h not in headers]
+        if unknown:
+            return {
+                "status": "error",
+                "message": f"Unknown sheet headers selected: {', '.join(sorted(unknown))}"
+            }
+
+        # Ensure at least 3 rows and normalize row lengths.
+        while len(rows) < 3:
+            rows.append([])
+        rows[0] = headers
+        if len(rows[1]) < len(headers):
+            rows[1] = rows[1] + [""] * (len(headers) - len(rows[1]))
+        rows[1] = rows[1][:len(headers)]
+        rows[2] = ["1" if header in selected_set else "0" for header in headers]
+
+        with open(sheets_path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f, delimiter=';')
+            for row in rows:
+                writer.writerow(row)
+
+        # Renew active_sheets.csv with only marked column headers.
+        selected_in_order = [h for h in headers if h in selected_set]
+        with open(active_sheets_path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.writer(f, delimiter=';')
+            writer.writerow(selected_in_order)
+
+        if not selected_in_order:
+            return {
+                "status": "error",
+                "message": "No sheets selected."
+            }
+
+        # Build using resolvable mapping names from selected columns.
+        build_sheet_names = []
+        for idx, header in enumerate(headers):
+            if header not in selected_set:
+                continue
+            alias = str(aliases[idx]).strip() if idx < len(aliases) else ""
+            resolved = _resolve_sheet_for_mapping(base, header, alias)
+            if resolved:
+                build_sheet_names.append(resolved)
+
+        build_sheet_names = list(dict.fromkeys(build_sheet_names))
+        if not build_sheet_names:
+            return {
+                "status": "error",
+                "message": "Selected sheets have no matching mapping_plan_*.csv files."
+            }
+
+        build_sheet_cache_CSV(str(article_list_path), build_sheet_names)
+        return {
+            "status": "success",
+            "message": f"Module data generated for {artnr} ({len(build_sheet_names)} mapped sheets)."
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

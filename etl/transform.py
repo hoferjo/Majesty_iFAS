@@ -171,92 +171,182 @@ def IstNichtAllgemeinNormteile(artnr):
 def build_sheet_cache_CSV(articlelist, active_sheets):
 
     import os
-    import re
-    # Helper to parse mapping_plan_{sheet}.csv and extract mapping entries
+    
+    table_cache = {}
+
+    def _load_table_by_artnr(filename):
+        cache_key = str(filename)
+        if cache_key in table_cache:
+            return table_cache[cache_key]
+
+        rows_by_artnr = {}
+        try:
+            with open(filename, mode='r', encoding='utf-8-sig') as csvfile:
+                reader = csv.DictReader(csvfile, delimiter=';')
+                for row in reader:
+                    art_key = (row.get('artnr') or '').strip()
+                    if art_key:
+                        rows_by_artnr[art_key] = row
+        except FileNotFoundError:
+            rows_by_artnr = {}
+
+        table_cache[cache_key] = rows_by_artnr
+        return rows_by_artnr
+
+    def get_entry_cached(filename, rowname, columnname):
+        rows_by_artnr = _load_table_by_artnr(filename)
+        row = rows_by_artnr.get(str(rowname))
+        if not row:
+            return 0
+        return row.get(columnname, '')
+
+    def get_group_cached(artnr, columnname):
+        zeichnr = get_entry_cached(artikelstamm, artnr, 'zeichnr')
+        zeichnr = str(zeichnr or '')
+        code = ''
+        code2 = ''
+        if len(zeichnr) >= 3:
+            code = zeichnr[:3]
+            if len(zeichnr) >= 6:
+                code2 = zeichnr[:3] + ' ' + zeichnr[3:6]
+
+        if columnname == 'Artikelgruppe 2':
+            return get_entry_cached(waren_artikelgruppe, code2, columnname)
+        return get_entry_cached(waren_artikelgruppe, code, columnname)
+
+    def ist_nicht_allgemein_normteile_cached(artnr):
+        warengruppe = get_group_cached(artnr, 'kürzel')
+        artikelgruppe1 = get_group_cached(artnr, 'Artikelgruppe1')
+        if warengruppe == 'ALLG' and artikelgruppe1 == 'Normteile':
+            return '0'
+        return '1'
+
+    def derive_wbz_cached(artnr):
+        letzt_lief = get_entry_cached(artikelstamm, artnr, 'letzt_lief')
+        wbz = get_entry_cached(lieferanten_mapping, letzt_lief, 'wbz')
+        if wbz and wbz != '0' and wbz != 0:
+            return wbz
+        return '0'
+
+    def mapping_bedingung_2o_cached(bedingung, output_if_true, output_else, filename, artnr, columnname):
+        status = get_entry_cached(filename, artnr, columnname)
+        if status == bedingung:
+            return output_if_true
+        return output_else
+
+    def _resolve_filename_token(token):
+        return globals().get(token, token)
+
     def parse_mapping_csv(csv_path):
         mappings = []
+
+        def _normalize_function_name(name):
+            normalized = str(name or '').strip()
+            aliases = {
+                'derive_WBZ': 'deriveWBZ',
+                'derive_wbz': 'deriveWBZ',
+                'defaultValue': 'defaultvalue',
+            }
+            return aliases.get(normalized, normalized)
+
         with open(csv_path, encoding='utf-8-sig') as f:
             reader = csv.DictReader(f, delimiter=';')
             for row in reader:
-                if not row.get('columnname'):
+                header = (row.get('columnname') or '').strip()
+                if not header:
                     continue
+
+                # Support legacy typo key "funtion" used in some mapping plans.
+                raw_func = row.get('function')
+                if raw_func is None:
+                    raw_func = row.get('funtion')
+                func = _normalize_function_name(raw_func)
+
+                argument = (row.get('arguments') or '').strip()
+                arglist = [a.strip().strip("'") for a in argument.split(',') if a and a.strip()]
                 mappings.append({
-                    'header': row['columnname'].strip(),
-                    'function': row.get('function', '').strip(),
-                    'argument': row.get('arguments', '').strip()
+                    'header': header,
+                    'function': func,
+                    'argument': argument,
+                    'arglist': arglist,
                 })
         if DEBUG:
             print(f"[DEBUG] Parsed {len(mappings)} mappings from {csv_path}")
         return mappings
 
     # Function dispatcher for mapping functions
-    def call_mapping_function(func, args, article, articlelist_headers=None):
-        if DEBUG:
-            print(f"[DEBUG] call_mapping_function: func={func}, args={args}, article artnr={article.get('artnr','')} ")
+    def call_mapping_function(mapping, article, articlelist_headers=None):
+        header = mapping['header']
+        func = mapping['function']
+        args = mapping['argument']
+        arglist = mapping['arglist']
+        func = (func or '').strip()
+        args = (args or '').strip()
+
         # Direct from articlelist if no function/args and column exists
         if (not func and not args) or (func == '' and args == ''):
             if articlelist_headers and header in articlelist_headers:
                 return article.get(header, '')
             return ''
+
         if func == '' and args == 'artnr':
             return article.get('artnr', '')
-        elif func == 'defaultvalue':
+        if func == 'defaultvalue':
             return args
-        elif func == 'getEntryFromCSV':
+        if func == 'getEntryFromCSV':
             # args: filename, artnr, columnname
-            arglist = [a.strip().strip("'") for a in args.split(',') if a.strip()]
             if len(arglist) == 3:
-                filename = eval(arglist[0]) if arglist[0] in globals() else arglist[0]
+                filename = _resolve_filename_token(arglist[0])
                 artnr_val = article.get(arglist[1], arglist[1])
-                columnname = arglist[2].strip("'")
-                return getEntryFromCSV(filename, artnr_val, columnname)
-            else:
-                return ''
-        elif func == 'getGroup':
+                columnname = arglist[2]
+                return get_entry_cached(filename, artnr_val, columnname)
+            return ''
+
+        if func == 'getGroup':
             # args: filename, artnr, columnname
-            arglist = [a.strip().strip("'") for a in args.split(',') if a.strip()]
             if len(arglist) == 3:
-                filename = eval(arglist[0]) if arglist[0] in globals() else arglist[0]
                 artnr_val = article.get(arglist[1], arglist[1])
-                columnname = arglist[2].strip("'")
-                return getGroup(filename, artnr_val, columnname)
-            else:
-                return ''
-        elif func == 'mapping_Bedingung_2o':
+                columnname = arglist[2]
+                return get_group_cached(artnr_val, columnname)
+            return ''
+
+        if func == 'mapping_Bedingung_2o':
             # args: Bedingung, outputIfTrue, outputElse, filename, artnr, columnname
-            arglist = [a.strip().strip("'") for a in args.split(',') if a.strip()]
             if len(arglist) >= 6:
-                return mapping_Bedingung_2o(arglist[0], arglist[1], arglist[2], eval(arglist[3]) if arglist[3] in globals() else arglist[3], article.get(arglist[4], arglist[4]), arglist[5])
-            else:
-                return ''
-        elif func == 'IstNichtAllgemeinNormteile':
+                resolved_filename = _resolve_filename_token(arglist[3])
+                target_artnr = article.get(arglist[4], arglist[4])
+                return mapping_bedingung_2o_cached(arglist[0], arglist[1], arglist[2], resolved_filename, target_artnr, arglist[5])
+            return ''
+
+        if func == 'IstNichtAllgemeinNormteile':
             # args: artnr
-            arglist = [a.strip().strip("'") for a in args.split(',') if a.strip()]
             if len(arglist) >= 1:
-                return IstNichtAllgemeinNormteile(article.get(arglist[0], arglist[0]))
-            else:
-                return ''
-        elif func == 'API_import':
+                return ist_nicht_allgemein_normteile_cached(article.get(arglist[0], arglist[0]))
+            return ''
+
+        if func == 'API_import':
             return API_import()
-        elif func == 'deriveWBZ':
+
+        if func == 'deriveWBZ':
             # args: artnr
-            arglist = [a.strip().strip("'") for a in args.split(',') if a.strip()]
             if len(arglist) >= 1:
-                return deriveWBZ(article.get(arglist[0], arglist[0]))
-            else:
-                return ''
+                return derive_wbz_cached(article.get(arglist[0], arglist[0]))
+            return ''
+
         # Add more function handlers as needed
+        return ''
+
+    # Read article list once (shared for all sheets)
+    with open(articlelist, encoding='utf-8-sig') as f:
+        reader = csv.DictReader(f, delimiter=';')
+        articles = list(reader)
+        articlelist_headers = set(reader.fieldnames or [])
 
     for sheet in active_sheets:
         mapping_csv = os.path.join('config', f'mapping_plan_{sheet}.csv')
         output_csv = os.path.join('data', 'processed', 'csv', 'cache', 'sheets', f'{sheet}_cache.csv')
         mappings = parse_mapping_csv(mapping_csv)
 
-        # Read article list
-        with open(articlelist, encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f, delimiter=';')
-            articles = list(reader)
-            articlelist_headers = reader.fieldnames if reader.fieldnames else []
         if DEBUG:
             print(f"[DEBUG] Processing sheet: {sheet}, articles: {len(articles)}, output: {output_csv}")
 
@@ -268,13 +358,8 @@ def build_sheet_cache_CSV(articlelist, active_sheets):
             for idx, article in enumerate(articles):
                 row = {}
                 for m in mappings:
-                    header = m['header']
-                    func = m['function']
-                    args = m['argument']
                     # Direct from articlelist if no function/args and column exists
-                    row[header] = call_mapping_function(func, args, article, articlelist_headers=articlelist_headers)
-                if DEBUG:
-                    print(f"[DEBUG] Writing row {idx+1}/{len(articles)}: {row}")
+                    row[m['header']] = call_mapping_function(m, article, articlelist_headers=articlelist_headers)
                 writer.writerow(row)
 
 
