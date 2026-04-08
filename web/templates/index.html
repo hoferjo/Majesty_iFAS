@@ -18,6 +18,19 @@
         </div>
         <button id="generateModuleBtn" type="button" style="margin-bottom:1em; display:block;">Generate Module Structure</button>
         <button id="generateModuleDataBtn" type="button" style="margin-bottom:1em; display:block;">Generate Module Data</button>
+        <div style="margin-bottom:1em; padding:0.6em; background:#f7f7f7; border:1px solid #ddd; border-radius:6px; max-width:520px;">
+            <div style="font-weight:bold; margin-bottom:0.35em;">Existing Article Target (optional)</div>
+            <label style="display:block; margin-bottom:0.2em;">
+                <input type="checkbox" id="existingArticlesProdChk" name="existingArticlesTarget" value="prod">
+                add to existing articles PROD
+            </label>
+            <label style="display:block;">
+                <input type="checkbox" id="existingArticlesTestChk" name="existingArticlesTarget" value="test">
+                add to existing articles TEST
+            </label>
+        </div>
+        <!-- <button id="downloadModuleExportBtn" type="button" style="margin-bottom:1em; display:block;">Download Module Export (ZIP)</button> -->
+        <button id="downloadModuleExcelBtn" type="button" style="margin-bottom:1em; display:block;">Download Module (XLSX)</button>
         <button id="downloadPartlistTreeBtn" type="button" style="margin-bottom:1em; display:block;">Download Partlist Tree</button>
         <form id="searchForm">
             <input type="text" id="searchInput" name="query" placeholder="Search by Artikelnummer, Zeichnungsnummer or description">
@@ -33,8 +46,14 @@
     </div>
     <div id="settingsTab" class="tabcontent" style="display:none;">
         <h2>Settings</h2>
-        <form id="uploadForm" enctype="multipart/form-data">
-            <label>Upload File: <input type="file" name="file" id="fileInput"></label>
+        <form id="uploadForm" enctype="multipart/form-data" style="margin-bottom:1em;">
+            <label>Upload iFAS artikelstamm.txt: <input type="file" name="file" id="fileInput"></label>
+            <label style="margin-left:0.7em;">Update target:
+                <select id="uploadTargetEnv" name="target_env">
+                    <option value="test" selected>TEST</option>
+                    <option value="prod">PROD</option>
+                </select>
+            </label>
             <button type="submit">Upload</button>
         </form>
         <div id="uploadStatus"></div>

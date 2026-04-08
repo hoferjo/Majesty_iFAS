@@ -17,6 +17,32 @@ document.addEventListener("DOMContentLoaded", function() {
     var defaultTab = document.getElementById("defaultTab");
     if (defaultTab) defaultTab.click();
 
+    function getExistingArticlesTarget() {
+        var prod = document.getElementById("existingArticlesProdChk");
+        var test = document.getElementById("existingArticlesTestChk");
+        if (prod && test && prod.checked && test.checked) {
+            return "invalid";
+        }
+        if (prod && prod.checked) return "prod";
+        if (test && test.checked) return "test";
+        return "none";
+    }
+
+    function wireExclusiveTargetCheckboxes() {
+        var prod = document.getElementById("existingArticlesProdChk");
+        var test = document.getElementById("existingArticlesTestChk");
+        if (!prod || !test) return;
+
+        prod.addEventListener("change", function() {
+            if (prod.checked) test.checked = false;
+        });
+        test.addEventListener("change", function() {
+            if (test.checked) prod.checked = false;
+        });
+    }
+
+    wireExclusiveTargetCheckboxes();
+
     function getSelectedSheetHeaders() {
         var checked = document.querySelectorAll('#sheetsCheckboxes input[name="sheetHeader"]:checked');
         return Array.from(checked).map(function(input) { return input.value; });
@@ -81,13 +107,21 @@ document.addEventListener("DOMContentLoaded", function() {
         uploadForm.addEventListener("submit", function(e) {
             e.preventDefault();
             var formData = new FormData(uploadForm);
-            fetch("/upload-file", {
+            var uploadTargetEnv = document.getElementById("uploadTargetEnv");
+            var targetEnv = uploadTargetEnv ? uploadTargetEnv.value : "test";
+            formData.set("target_env", targetEnv);
+
+            fetch("/upload-ifas-artikelstamm", {
                 method: "POST",
                 body: formData
             })
             .then(response => response.json())
             .then(data => {
-                document.getElementById("uploadStatus").innerText = data.status ? "Upload successful!" : "Upload failed.";
+                if (data.status === "success") {
+                    document.getElementById("uploadStatus").innerText = data.message || "Upload successful!";
+                } else {
+                    document.getElementById("uploadStatus").innerText = data.message || "Upload failed.";
+                }
             })
             .catch(() => {
                 document.getElementById("uploadStatus").innerText = "Upload failed.";
@@ -100,6 +134,73 @@ document.addEventListener("DOMContentLoaded", function() {
     var feedbackLog = document.getElementById("feedbackLog");
     var currentSelection = document.getElementById("currentSelection");
     var selectedResult = null;
+
+    // Download Module Excel (direct xlsx)
+    var downloadModuleExcelBtn = document.getElementById("downloadModuleExcelBtn");
+    if (downloadModuleExcelBtn && currentSelection) {
+        downloadModuleExcelBtn.addEventListener("click", function() {
+            if (searchMode !== "module") {
+                alert("Switch to Module mode to download module Excel.");
+                return;
+            }
+            if (!selectedResult || !selectedResult.artnr) {
+                alert("No module selected.");
+                return;
+            }
+
+            var artnr = selectedResult.artnr;
+            var existingArticlesTarget = getExistingArticlesTarget();
+            if (existingArticlesTarget === "invalid") {
+                alert("Only one existing-articles checkbox can be selected.");
+                return;
+            }
+
+            fetch(`/download-module-excel?artnr=${encodeURIComponent(artnr)}&existing_articles_target=${encodeURIComponent(existingArticlesTarget)}`)
+                .then(function(response) {
+                    if (!response.ok) {
+                        return response.text().then(function(text) {
+                            let message;
+                            try {
+                                const data = JSON.parse(text);
+                                message = data.message || "Failed to create Excel file.";
+                            } catch {
+                                message = text || "Failed to create Excel file.";
+                            }
+                            throw new Error(message);
+                        });
+                    }
+
+                    var disposition = response.headers.get("content-disposition") || "";
+                    var fileName = `module_export_${artnr}.xlsx`;
+                    var match = disposition.match(/filename="?([^";]+)"?/i);
+                    if (match && match[1]) {
+                        fileName = match[1];
+                    }
+
+                    return response.blob().then(function(blob) {
+                        return { blob: blob, fileName: fileName };
+                    });
+                })
+                .then(function(result) {
+                    var url = window.URL.createObjectURL(result.blob);
+                    var link = document.createElement("a");
+                    link.href = url;
+                    link.download = result.fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+
+                    let entry = `<div><b>Download Module Excel:</b> ${artnr} — <span style='color:#27ae60;'>Excel created and downloaded.</span></div>`;
+                    feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                })
+                .catch(function(err) {
+                    let entry = `<div><b>Download Module Excel:</b> ${artnr} — <span style='color:#c00;'>Error: ${err.message || err}</span></div>`;
+                    feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                });
+        });
+    }
+
     if (searchForm && feedbackLog && currentSelection) {
         searchForm.addEventListener("submit", function(e) {
             e.preventDefault();
@@ -167,17 +268,38 @@ document.addEventListener("DOMContentLoaded", function() {
                 alert("No module selected.");
                 return;
             }
+
+            var existingArticlesTarget = getExistingArticlesTarget();
+            if (existingArticlesTarget === "invalid") {
+                alert("Only one existing-articles checkbox can be selected.");
+                return;
+            }
+
             fetch("/generate-module", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ artnr: selectedResult.artnr })
+                body: JSON.stringify({
+                    artnr: selectedResult.artnr,
+                    existing_articles_target: existingArticlesTarget
+                })
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(function(response) {
+                // Try to parse JSON, with fallback to text if not JSON
+                return response.text().then(function(text) {
+                    try {
+                        var data = text ? JSON.parse(text) : { status: "error", message: "Empty response" };
+                        return { ok: response.ok, data: data };
+                    } catch (e) {
+                        return { ok: response.ok, data: { status: "error", message: text || "Invalid response format" } };
+                    }
+                });
+            })
+            .then(function(result) {
+                var data = result.data;
                 let entry = `<div><b>Generate Module:</b> ${selectedResult.artnr} — <span style='color:${data.status === 'success' ? '#27ae60' : '#c00'};'>${data.message}</span></div>`;
                 feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
             })
-            .catch(err => {
+            .catch(function(err) {
                 let entry = `<div><b>Generate Module:</b> ${selectedResult.artnr} — <span style='color:#c00;'>Error: ${err}</span></div>`;
                 feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
             });
@@ -222,6 +344,66 @@ document.addEventListener("DOMContentLoaded", function() {
                 });
             });
         }
+
+    // Download Module Export (zip with excel + partlist + tree)
+    var downloadModuleExportBtn = document.getElementById("downloadModuleExportBtn");
+    if (downloadModuleExportBtn && currentSelection) {
+        downloadModuleExportBtn.addEventListener("click", function() {
+            if (searchMode !== "module") {
+                alert("Switch to Module mode to download module export.");
+                return;
+            }
+            if (!selectedResult || !selectedResult.artnr) {
+                alert("No module selected.");
+                return;
+            }
+
+            var artnr = selectedResult.artnr;
+            var existingArticlesTarget = getExistingArticlesTarget();
+            if (existingArticlesTarget === "invalid") {
+                alert("Only one existing-articles checkbox can be selected.");
+                return;
+            }
+
+            fetch(`/download-module-export?artnr=${encodeURIComponent(artnr)}&existing_articles_target=${encodeURIComponent(existingArticlesTarget)}`)
+                .then(function(response) {
+                    if (!response.ok) {
+                        return response.json().then(function(err) {
+                            throw new Error(err.message || "Failed to create export zip.");
+                        });
+                    }
+
+                    var disposition = response.headers.get("content-disposition") || "";
+                    var fileName = `module_export_${artnr}.zip`;
+                    var match = disposition.match(/filename="?([^";]+)"?/i);
+                    if (match && match[1]) {
+                        fileName = match[1];
+                    }
+
+                    return response.blob().then(function(blob) {
+                        return { blob: blob, fileName: fileName };
+                    });
+                })
+                .then(function(result) {
+                    var url = window.URL.createObjectURL(result.blob);
+                    var link = document.createElement("a");
+                    link.href = url;
+                    link.download = result.fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+
+                    let entry = `<div><b>Download Module Export:</b> ${artnr} — <span style='color:#27ae60;'>ZIP created, archived, and downloaded.</span></div>`;
+                    feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                })
+                .catch(function(err) {
+                    let entry = `<div><b>Download Module Export:</b> ${artnr} — <span style='color:#c00;'>Error: ${err.message || err}</span></div>`;
+                    feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                });
+        });
+    }
+
     // Download Partlist Tree button
     var downloadPartlistTreeBtn = document.getElementById("downloadPartlistTreeBtn");
     if (downloadPartlistTreeBtn && currentSelection) {

@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 from fastapi import Body
 import sys
@@ -13,10 +14,22 @@ import csv
 settings_path = Path(__file__).parent.parent / "config" / "settings.yaml"
 etl_dir = Path(__file__).parent.parent / "etl"
 sys.path.append(str(etl_dir))
+article_list_path = Path(__file__).parent.parent / "data" / "processed" / "csv" / "cache" / "article_list.csv"
 
 from etl.transform import process_module_structure, build_sheet_cache_CSV
+from etl.load import (
+    create_import_excel_from_templates,
+    archive_module_export,
+    resolve_existing_articles_file,
+    append_article_list_to_existing,
+    update_existing_articles_from_ifas_upload,
+)
 
 app = FastAPI()
+
+# Keeps the latest generated module article rows per artnr in this process.
+_MODULE_ARTICLES_CACHE = {}
+_MODULE_EXISTING_TARGET_CACHE = {}
 
 
 def _strip_trailing_empty(values):
@@ -75,6 +88,33 @@ def _resolve_sheet_for_mapping(base: Path, header: str, alias: str):
         if _mapping_exists(base, candidate):
             return candidate
     return None
+
+
+def _read_article_list_rows(article_list_path: Path):
+    with open(article_list_path, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f, delimiter=';')
+        return list(reader)
+
+
+def _resolved_active_sheet_names(base: Path):
+    _, headers, aliases, _, active_headers, _ = _load_sheets_config(base)
+    active_set = set(active_headers)
+    resolved = []
+    for idx, header in enumerate(headers):
+        if header not in active_set:
+            continue
+        alias = str(aliases[idx]).strip() if idx < len(aliases) else ""
+        sheet_name = _resolve_sheet_for_mapping(base, header, alias)
+        if sheet_name:
+            resolved.append(sheet_name)
+    return list(dict.fromkeys(resolved))
+
+
+def _normalize_existing_target(value: str):
+    target = str(value or "none").strip().lower()
+    if target not in {"none", "prod", "test"}:
+        raise ValueError("existing_articles_target must be one of: none, prod, test")
+    return target
 
 # Get the absolute path to the web directory
 web_dir = Path(__file__).parent.absolute()
@@ -157,8 +197,10 @@ def sheets_config():
 @app.post("/generate-module")
 def generate_module(data: dict = Body(...)):
     artnr = data.get("artnr")
+    existing_articles_target = _normalize_existing_target(data.get("existing_articles_target", "none"))
     if not artnr:
-        return {"status": "error", "message": "No artnr provided"}
+        return JSONResponse(status_code=400, content={"status": "error", "message": "No artnr provided"})
+
     # Define paths
     base = Path(__file__).parent.parent
     artikelstamm_path = base / "data" / "raw" / "artikelstamm" / "artikelstamm_majesty_2026_03_30.csv"
@@ -166,10 +208,76 @@ def generate_module(data: dict = Body(...)):
     article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
     partlist_path = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
     try:
-        process_module_structure(str(artnr), str(artikelstamm_path), str(stueckliste_path), str(article_list_path), str(partlist_path))
-        return {"status": "success", "message": f"Module for {artnr} processed."}
+        existing_articles_file = resolve_existing_articles_file(base, existing_articles_target)
+        _MODULE_EXISTING_TARGET_CACHE[str(artnr)] = existing_articles_target
+
+        process_module_structure(
+            str(artnr),
+            str(artikelstamm_path),
+            str(stueckliste_path),
+            str(article_list_path),
+            str(partlist_path),
+            existing_articles_file=str(existing_articles_file) if existing_articles_file else None,
+        )
+        _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_path)
+
+        # Count rows in article_list.csv and partlist.csv (excluding header)
+        def count_csv_rows(path):
+            try:
+                with open(path, "r", encoding="utf-8-sig") as f:
+                    return sum(1 for _ in f) - 1
+            except Exception:
+                return 0
+
+        article_count = count_csv_rows(article_list_path)
+        partlist_count = count_csv_rows(partlist_path)
+
+        msg = f"Modulestructure generated for {artnr} articles to migrate: {article_count} partlist entries: {partlist_count}"
+        return JSONResponse(status_code=200, content={"status": "success", "message": msg})
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/upload-ifas-artikelstamm")
+def upload_ifas_artikelstamm(
+    file: UploadFile = File(...),
+    target_env: str = Form("test"),
+):
+    base = Path(__file__).parent.parent
+    env = str(target_env or "").strip().lower()
+    if env not in {"prod", "test"}:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "target_env must be prod or test"})
+
+    try:
+        target_file = resolve_existing_articles_file(base, env)
+        if not target_file:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "No target file resolved"})
+
+        upload_dir = base / "data" / "uploaded_files"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        uploaded_path = upload_dir / file.filename
+
+        with open(uploaded_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
+        summary = update_existing_articles_from_ifas_upload(
+            upload_path=uploaded_path,
+            existing_articles_path=target_file,
+            article_list_path=article_list_path,
+        )
+
+        return {
+            "status": "success",
+            "message": (
+                f"Updated existing articles {env.upper()}: "
+                f"uploaded={summary['uploaded_count']}, "
+                f"added={summary['added_count']}"
+            ),
+            "summary": summary,
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
 @app.post("/generate-module-data")
@@ -255,10 +363,23 @@ def generate_module_data(data: dict = Body(...)):
                 "message": "Selected sheets have no matching mapping_plan_*.csv files."
             }
 
-        build_sheet_cache_CSV(str(article_list_path), build_sheet_names)
+        cached_articles = _MODULE_ARTICLES_CACHE.get(str(artnr))
+        build_sheet_cache_CSV(str(article_list_path), build_sheet_names, articles=cached_articles)
+        # After generating, count entries in each sheet's cache CSV
+        sheet_entry_counts = []
+        for sheet in build_sheet_names:
+            cache_csv = base / "data" / "processed" / "csv" / "cache" / "sheets" / f"{sheet}_cache.csv"
+            count = 0
+            if cache_csv.exists():
+                with cache_csv.open("r", encoding="utf-8-sig", newline="") as f:
+                    reader = csv.reader(f, delimiter=";")
+                    next(reader, None)  # skip header
+                    count = sum(1 for _ in reader)
+            sheet_entry_counts.append(f"{sheet}: {count} entries")
+        msg = "Module data generated. " + ", ".join(sheet_entry_counts)
         return {
             "status": "success",
-            "message": f"Module data generated for {artnr} ({len(build_sheet_names)} mapped sheets)."
+            "message": msg
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -274,3 +395,134 @@ def download_partlist_tree(artnr: str):
     # Serve as partlist_tree(<rootnr>).txt
     download_name = f"partlist_tree({artnr}).txt"
     return FileResponse(str(tree_txt_path), filename=download_name, media_type="text/plain")
+
+
+@app.get("/download-module-export")
+def download_module_export(
+    artnr: str = Query(..., min_length=1),
+    existing_articles_target: str = Query("none"),
+):
+    requested_target = _normalize_existing_target(existing_articles_target)
+    cached_target = _MODULE_EXISTING_TARGET_CACHE.get(str(artnr), "none")
+    effective_target = requested_target if requested_target != "none" else cached_target
+    print(f"[DEBUG] /download-module-export triggered for artnr={artnr}, target={effective_target}")
+    base = Path(__file__).parent.parent
+
+    template_path = base / "data" / "raw" / "templates" / "Vorlage_edit_jhofer.xlsx"
+    cache_dir = base / "data" / "processed" / "csv" / "cache" / "sheets"
+    partlist_path = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
+    partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / "partlist_tree.txt"
+    article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
+    archive_dir = base / "data" / "archive"
+    temp_export_dir = base / "data" / "processed" / "csv" / "cache" / "export"
+    temp_export_dir.mkdir(parents=True, exist_ok=True)
+
+    if not template_path.exists():
+        return JSONResponse(status_code=404, content={"status": "error", "message": f"Template not found: {template_path}"})
+
+    try:
+        sheet_names = _resolved_active_sheet_names(base)
+        if not sheet_names:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": "No active sheets resolved. Generate module data first or check settings."},
+            )
+
+        temp_excel_path = temp_export_dir / f"{artnr}_iFAS_import.xlsx"
+        create_import_excel_from_templates(
+            template_path=template_path,
+            cache_dir=cache_dir,
+            active_sheet_names=sheet_names,
+            output_path=temp_excel_path,
+            default_column_width=14,
+        )
+
+        # Existing articles append now only happens in /download-module-excel
+
+        _, zip_path = archive_module_export(
+            module_artnr=artnr,
+            excel_path=temp_excel_path,
+            partlist_csv_path=partlist_path,
+            partlist_tree_path=partlist_tree_path,
+            archive_dir=archive_dir,
+        )
+
+        return FileResponse(
+            str(zip_path),
+            media_type="application/zip",
+            filename=zip_path.name,
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    
+
+@app.get("/download-module-excel")
+def download_module_excel(
+    artnr: str = Query(..., min_length=1),
+    existing_articles_target: str = Query("none"),
+):
+    requested_target = _normalize_existing_target(existing_articles_target)
+    cached_target = _MODULE_EXISTING_TARGET_CACHE.get(str(artnr), "none")
+    effective_target = requested_target if requested_target != "none" else cached_target
+    print(f"[DEBUG] /download-module-excel triggered for artnr={artnr}, target={effective_target}")
+    base = Path(__file__).parent.parent
+
+    template_path = base / "data" / "raw" / "templates" / "Vorlage_edit_jhofer.xlsx"
+    cache_dir = base / "data" / "processed" / "csv" / "cache" / "sheets"
+    partlist_path = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
+    partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / "partlist_tree.txt"
+    article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
+    archive_dir = base / "data" / "archive"
+    temp_export_dir = base / "data" / "processed" / "csv" / "cache" / "export"
+    temp_export_dir.mkdir(parents=True, exist_ok=True)
+
+    if not template_path.exists():
+        return JSONResponse(status_code=404, content={"status": "error", "message": f"Template not found: {template_path}"})
+
+    try:
+        sheet_names = _resolved_active_sheet_names(base)
+        if not sheet_names:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": "No active sheets resolved. Generate module data first or check settings."},
+            )
+
+        print(f"[DEBUG] /download-module-excel: artnr={artnr}, active_sheet_names={sheet_names}")
+        temp_excel_path = temp_export_dir / f"{artnr}_iFAS_import.xlsx"
+        print(f"[DEBUG] Creating Excel: template={template_path}, cache_dir={cache_dir}, output={temp_excel_path}")
+        create_import_excel_from_templates(
+            template_path=template_path,
+            cache_dir=cache_dir,
+            active_sheet_names=sheet_names,
+            output_path=temp_excel_path,
+            default_column_width=14,
+        )
+        print(f"[DEBUG] Excel creation complete for {artnr}")
+
+        if effective_target in {"prod", "test"}:
+            target_file = resolve_existing_articles_file(base, effective_target)
+            append_article_list_to_existing(article_list_path, target_file)
+
+        # Archive in background after sending Excel
+        def archive_job():
+            try:
+                archive_module_export(
+                    module_artnr=artnr,
+                    excel_path=temp_excel_path,
+                    partlist_csv_path=partlist_path,
+                    partlist_tree_path=partlist_tree_path,
+                    archive_dir=archive_dir,
+                )
+                print(f"[DEBUG] Archive complete for artnr={artnr}")
+            except Exception as e:
+                print(f"[ERROR] Archive failed for artnr={artnr}: {e}")
+
+        threading.Thread(target=archive_job, daemon=True).start()
+
+        return FileResponse(
+            str(temp_excel_path),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=temp_excel_path.name,
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
