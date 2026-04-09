@@ -3,48 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <title>Article/Module Search & Transform</title>
+    <link rel="icon" type="image/png" href="/static/img/jost_favicon.png">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Article/Module Search & Transform</h1>
-    <div class="tabs">
-        <button class="tablink" onclick="openTab(event, 'searchTab')" id="defaultTab">Search & Transform</button>
-        <button class="tablink" onclick="openTab(event, 'settingsTab')">Settings</button>
+    <div style="display:flex; justify-content:center; align-items:center; gap:2em; margin-bottom:1.5em; flex-wrap:wrap;">
+        <img src="/static/img/Jost.jpg" alt="Jost" style="height:64px; max-width:120px; object-fit:contain; background:#fff; border-radius:8px; box-shadow:0 2px 8px #0001; padding:4px;">
+        <img src="/static/img/majesty.jpeg" alt="Majesty" style="height:64px; max-width:120px; object-fit:contain; background:#fff; border-radius:8px; box-shadow:0 2px 8px #0001; padding:4px;">
+        <img src="/static/img/move_data.png" alt="Move_Data" style="height:64px; max-width:120px; object-fit:contain; background:#fff; border-radius:8px; box-shadow:0 2px 8px #0001; padding:4px;">
+        <img src="/static/img/iFAS.webp" alt="iFAS" style="height:64px; max-width:120px; object-fit:contain; background:#fff; border-radius:8px; box-shadow:0 2px 8px #0001; padding:4px;">
     </div>
-    <div id="searchTab" class="tabcontent">
-        <div style="margin-bottom:0.5em;">
-            <button type="button" id="toggleModeBtn">Switch to Module Search</button>
-            <span id="searchModeLabel" style="margin-left:1em; font-weight:bold;">Mode: Article</span>
+    <div class="tabs">
+        <button class="tablink" onclick="openTab(event, 'searchTab')">Search & Transform</button>
+        <button class="tablink" onclick="openTab(event, 'settingsTab')" id="defaultTab">Settings</button>
+    </div>
+    <div id="searchTab" class="tabcontent" style="display:none;">
+        <div style="margin-bottom:1.5em; display:flex; align-items:center; gap:1.5em;">
+            <button type="button" id="toggleModeBtn" class="modern-btn" style="display:flex;align-items:center;gap:0.7em;min-width:220px;justify-content:center;">
+                <span id="modeSwitchIcon" style="font-size:1.3em;">↔️</span>
+                <span style="font-size:1em; font-weight:500; margin-left:0.3em;">Change Mode</span>
+            </button>
+            <span id="searchModeLabel" class="mode-pill mode-article">
+                <span id="modePillIcon" style="font-size:1.2em;vertical-align:middle;">🔎</span>
+                <span id="modePillText" style="margin-left:0.5em;vertical-align:middle;">Article</span>
+            </span>
         </div>
-        <button id="generateModuleBtn" type="button" style="margin-bottom:1em; display:block;">Generate Module Structure</button>
-        <button id="generateModuleDataBtn" type="button" style="margin-bottom:1em; display:block;">Generate Module Data</button>
-        <div style="margin-bottom:1em; padding:0.6em; background:#f7f7f7; border:1px solid #ddd; border-radius:6px; max-width:520px;">
-            <div style="font-weight:bold; margin-bottom:0.35em;">Existing Article Target (optional)</div>
-            <label style="display:block; margin-bottom:0.2em;">
-                <input type="checkbox" id="existingArticlesProdChk" name="existingArticlesTarget" value="prod">
-                add to existing articles PROD
-            </label>
-            <label style="display:block;">
-                <input type="checkbox" id="existingArticlesTestChk" name="existingArticlesTarget" value="test">
-                add to existing articles TEST
-            </label>
-        </div>
-        <!-- <button id="downloadModuleExportBtn" type="button" style="margin-bottom:1em; display:block;">Download Module Export (ZIP)</button> -->
-        <button id="downloadModuleExcelBtn" type="button" style="margin-bottom:1em; display:block;">Download Module (XLSX)</button>
-        <button id="downloadPartlistTreeBtn" type="button" style="margin-bottom:1em; display:block;">Download Partlist Tree</button>
-        <form id="searchForm">
-            <input type="text" id="searchInput" name="query" placeholder="Search by Artikelnummer, Zeichnungsnummer or description">
-            <button type="submit">Search</button>
+        <form id="searchForm" style="display:flex; align-items:center; gap:0.7em; margin: 1.2em 0 0.7em 0; max-width:520px;">
+            <input type="text" id="searchInput" name="query" placeholder="Search by Artikelnummer, Zeichnungsnummer or description" style="flex:1; min-width:0; padding:10px 14px; font-size:15px; border:1.5px solid #b6c6d6; border-radius:6px; outline:none;">
+            <button type="submit" class="modern-btn" style="min-width:100px; min-height:36px; padding:8px 0; margin:0;">Search</button>
         </form>
-        <button id="transformBtn" style="display:none;">Transform to iFAS Format</button>
-        <div style="margin-top:1em;">
-            <label for="currentSelection">Current Selection:</label><br>
-            <textarea id="currentSelection" rows="2" style="width:100%; margin-bottom:1em;" readonly></textarea>
+        <div style="display:flex; flex-wrap:wrap; gap:0.7em; margin-bottom:1.2em; max-width:520px;">
+            <button id="generateModuleBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;">Generate Module Structure</button>
+            <button id="generateModuleDataBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;">Generate Module Data</button>
+            <button id="downloadModuleExcelBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;">Download Module (XLSX)</button>
+            <button id="downloadPartlistExcelBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;">Download Partlist Excel</button>
+            <button id="downloadPartlistTreeBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;">Download Partlist Tree</button>
+        </div>
+        <!-- Removed: <button id="transformBtn" style="display:none;">Transform to iFAS Format</button> -->
+        <div class="current-selection-container">
+            <div class="current-selection-label">Current Selection</div>
+            <div class="current-selection-box">
+                <textarea id="currentSelection" rows="2" readonly></textarea>
+            </div>
         </div>
         <!-- Feedback log area moved here -->
         <div id="feedbackLog" style="margin-top:1em; background:#f1f1f1; padding:1em; border-radius:5px; min-height:2em; max-height:200px; overflow-y:auto;"></div>
+        <div id="blockedArticlesContainer" style="display:none; margin-top:1em;">
+            <button id="showBlockedArticlesBtn" type="button" class="modern-btn" style="margin-bottom:0.5em;">Show Blocked Articles</button>
+            <textarea id="blockedArticlesArea" rows="8" readonly style="width:100%; display:none; font-family:monospace;"></textarea>
+        </div>
     </div>
-    <div id="settingsTab" class="tabcontent" style="display:none;">
+    <div id="settingsTab" class="tabcontent">
         <h2>Settings</h2>
         <form id="uploadForm" enctype="multipart/form-data" style="margin-bottom:1em;">
             <label>Upload iFAS artikelstamm.txt: <input type="file" name="file" id="fileInput"></label>
@@ -54,13 +63,38 @@
                     <option value="prod">PROD</option>
                 </select>
             </label>
-            <button type="submit">Upload</button>
+            <button type="submit" class="modern-btn" style="min-width:120px; min-height:40px; padding:10px 0; margin:0;">Upload</button>
         </form>
         <div id="uploadStatus"></div>
+        <div style="margin-bottom:1.5em; padding:0.6em; background:#f7f7f7; border:1px solid #ddd; border-radius:6px; max-width:520px;">
+            <div style="font-weight:bold; margin-bottom:0.35em;">Existing Article Target</div>
+            <label style="display:block; margin-bottom:0.2em;">
+                <input type="radio" id="existingArticlesNone" name="existingArticlesTarget" value="none" checked>
+                None
+            </label>
+            <label style="display:block; margin-bottom:0.2em;">
+                <input type="radio" id="existingArticlesProd" name="existingArticlesTarget" value="prod">
+                Add to existing articles PROD
+            </label>
+            <label style="display:block;">
+                <input type="radio" id="existingArticlesTest" name="existingArticlesTarget" value="test">
+                Add to existing articles TEST
+            </label>
+        </div>
+        <div style="margin-top:2em; margin-bottom:1em;">
+            <form id="updateMajestyForm" style="display:inline-block; margin-right:1em;">
+                <button type="submit" class="modern-btn" style="min-width:180px; min-height:40px;">Update Majesty Data</button>
+            </form>
+            <form id="hardUpdateMajestyForm" style="display:inline-block;">
+                <button type="submit" class="modern-btn" style="min-width:180px; min-height:40px; background:#e55; color:#fff;">Hard Update Majesty Data</button>
+            </form>
+            <span id="updateMajestyStatus" style="margin-left:1em; font-weight:500;"></span>
+        </div>
         <h3>Active Sheets</h3>
         <form id="sheetsForm">
             <div id="sheetsCheckboxes"></div>
         </form>
+        <!-- Removed duplicate Update Majesty Data button and status area -->
         <!-- Add more settings controls here -->
     </div>
     <script src="/static/script.js"></script>

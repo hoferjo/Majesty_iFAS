@@ -121,7 +121,7 @@ def getBeschaffungsart(artnr):
 def getKontierungsgruppe(artnr):    
     letzt_lief = getEntryFromCSV(artikelstamm, artnr, 'letzt_lief')
     if letzt_lief == '92005':
-        return 'Material getGroup'
+        return 'Material Gruppe'
     return 'Material'
 
 def getBezeichnung2(artnr):
@@ -183,8 +183,8 @@ def getGroup(filename, artnr, columnname):
     if not zeichnr:
         if columnname in ('Warengruppe', 'Kürzel'):
             return 'ALLG'
-#        if columnname == 'Artikelgruppe 1':
-#            return 'Normteile'
+        if columnname == 'Artikelgruppe 1':
+            return ''
         return ''
     parts = [part for part in zeichnr.split() if part]
     if parts:
@@ -283,7 +283,7 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             if columnname in ('Warengruppe', 'Kürzel'):
                 return 'ALLG'
             if columnname == 'Artikelgruppe 1':
-                return 'Normteile'
+                return ''  # No longer map to Normteile
             return ''
         code = ''
         code2 = ''
@@ -299,12 +299,26 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
                 if len(compact) >= 6:
                     code2 = f"{compact[:3]} {compact[3:6]}"
 
+        # If code is still empty after parsing, treat as unmappable
+        if not code:
+            if columnname in ('Warengruppe', 'Kürzel'):
+                return 'ALLG'
+            if columnname == 'Artikelgruppe 1':
+                return ''
+            return ''
+
         # Lookup and ensure empty field in lookup returns empty string
         if columnname == 'Artikelgruppe 2':
             val = get_entry_cached(waren_artikelgruppe, code2, columnname, key_column='Zeichnr')
-            return val if val and str(val).strip() != '' else ''
+            if val and str(val).strip() != '':
+                return val
+            # fallback if lookup fails
+            return 'ALLG' if columnname in ('Warengruppe', 'Kürzel') else ''
         val = get_entry_cached(waren_artikelgruppe, code, columnname, key_column='Zeichnr')
-        return val if val and str(val).strip() != '' else ''
+        if val and str(val).strip() != '':
+            return val
+        # fallback if lookup fails
+        return 'ALLG' if columnname in ('Warengruppe', 'Kürzel') else ''
 
     def ist_nicht_allgemein_normteile_cached(artnr):
         warengruppe = get_group_cached(artnr, 'Kürzel')
@@ -328,7 +342,7 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         status = get_entry_cached(filename, artnr, columnname)
         status_clean = (status or '').strip()
         bedingung_clean = (bedingung or '').strip()
-        if DEBUG and columnname == 'sperreart':
+        if DEBUG and columnname == 'sperre':
             print(f"[DEBUG] mapping_bedingung_2o_cached: artnr={artnr}, filename={filename}, column={columnname}, status={status!r}, status_clean={status_clean!r}, bedingung={bedingung!r}, bedingung_clean={bedingung_clean!r}")
         if bedingung_clean == '' and status_clean == '':
             return output_if_true
@@ -389,7 +403,7 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
 
     def get_kontierungsgruppe_cached(artnr):
         letzt_lief = get_entry_cached(artikelstamm, artnr, 'letzt_lief', key_column='artnr')
-        return 'Material getGroup' if letzt_lief == '92005' else 'Material'
+        return 'Material Gruppe' if letzt_lief == '92005' else 'Material'
 
     # Function dispatcher for mapping functions
     def call_mapping_function(mapping, article, articlelist_headers=None):
@@ -410,6 +424,7 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             return article.get('artnr', '')
         if func == 'defaultvalue':
             return args
+
         if func == 'getEntryFromCSV':
             # args: filename, artnr, columnname
             if len(arglist) == 3:
@@ -417,6 +432,16 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
                 artnr_val = article.get(arglist[1], arglist[1])
                 columnname = arglist[2]
                 return get_entry_cached(filename, artnr_val, columnname)
+            return ''
+
+        if func == 'getBezeichnung2':
+            # args: artnr
+            if len(arglist) >= 1:
+                artnr_val = article.get(arglist[0], arglist[0])
+                artbez2 = get_entry_cached(artikelstamm, artnr_val, 'artbez2', key_column='artnr')
+                artbez3 = get_entry_cached(artikelstamm, artnr_val, 'artbez3', key_column='artnr')
+                artbezmem = get_entry_cached(artikelstamm, artnr_val, 'artbezmem', key_column='artnr')
+                return mergeTexts(artbez2, artbez3, artbezmem)
             return ''
 
         if func == 'getArtikelnummer':
@@ -459,6 +484,18 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
                 return mapping_bedingung_2o_cached(arglist[0], arglist[1], arglist[2], resolved_filename, target_artnr, arglist[5])
             return ''
 
+        if func == 'IstNichtAllgemein':
+            # args: artnr
+            if len(arglist) >= 1:
+                warengruppe = get_group_cached(article.get(arglist[0], arglist[0]), 'Kürzel')
+                header = mapping['header'].lower()
+                if header == "lagerbewertungsverfahren":
+                    return '2' if warengruppe in ('ALLG', 'Allgemein') else '1'
+                if header == "inventurart":
+                    return '' if warengruppe in ('ALLG', 'Allgemein') else '1'
+                return '0' if warengruppe in ('ALLG', 'Allgemein') else '1'
+            return ''
+
         if func == 'IstNichtAllgemeinNormteile':
             # args: artnr
             if len(arglist) >= 1:
@@ -486,9 +523,17 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
     else:
         articlelist_headers = set(articles[0].keys()) if articles else set()
 
+    # Determine if this is for blocked articles by filename
+    is_blocked = False
+    if isinstance(articlelist, str) and articlelist.endswith('blocked_articles.csv'):
+        is_blocked = True
+
     for sheet in active_sheets:
         mapping_csv = os.path.join('config', f'mapping_plan_{sheet}.csv')
-        output_csv = os.path.join('data', 'processed', 'csv', 'cache', 'sheets', f'{sheet}_cache.csv')
+        if is_blocked:
+            output_csv = os.path.join('data', 'processed', 'csv', 'cache', 'sheets', f'{sheet}_cache_blocked.csv')
+        else:
+            output_csv = os.path.join('data', 'processed', 'csv', 'cache', 'sheets', f'{sheet}_cache.csv')
         mappings = parse_mapping_csv(mapping_csv)
 
         if DEBUG:
@@ -502,7 +547,6 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             for idx, article in enumerate(articles):
                 row = {}
                 for m in mappings:
-                    # Direct from articlelist if no function/args and column exists
                     row[m['header']] = call_mapping_function(m, article, articlelist_headers=articlelist_headers)
                 writer.writerow(row)
 
@@ -534,7 +578,7 @@ def process_module_structure(
         print(f"[ERROR] Skipping processing for {selected_artnr} due to stueckliste encoding.")
         return
 
-    # Overwrite article_list and partlist at the start of a new module generation (only on first call)
+    # Overwrite article_list, partlist, and blocked_articles at the start of a new module generation (only on first call)
     if visited is None:
         visited = set()
         # Truncate/overwrite files with ; delimiter
@@ -542,6 +586,9 @@ def process_module_structure(
             f.write('artnr;artbez1;zeichnr\n')
         with open(partlist_path, 'w', encoding='utf-8') as f:
             f.write('stulinr;posnr;menge;artnr;artbez1\n')
+        blocked_articles_path = str(article_list_path).replace('article_list.csv', 'blocked_articles.csv')
+        with open(blocked_articles_path, 'w', encoding='utf-8') as f:
+            f.write('artnr;artbez1;zeichnr\n')
 
     # Keep seen article numbers in memory to avoid scanning article_list.csv repeatedly.
     existing_articles_set = set()
@@ -593,6 +640,8 @@ def process_module_structure(
     stueckliste_rows = process_module_structure.stueckliste_rows
     stueckliste_children_map = getattr(process_module_structure, 'stueckliste_children_map', {})
 
+    blocked_articles_path = str(article_list_path).replace('article_list.csv', 'blocked_articles.csv')
+
     def append_unique_article(artnr, artbez1, zeichnr):
         if DEBUG:
             print(f"[DEBUG] append_unique_article called with: artnr={artnr}, artbez1={artbez1}, zeichnr={zeichnr}")
@@ -608,6 +657,14 @@ def process_module_structure(
                     print(f"[DEBUG] Article {artnr} already in current article list set, skipping.")
             return
         try:
+            # Check if blocked
+            sperre = artikel_map.get(artnr, {}).get('sperre', '').strip()
+            if sperre and sperre.upper() != 'FALSCH':
+                with open(blocked_articles_path, 'a', encoding='utf-8') as f:
+                    f.write(f"{artnr};{artbez1};{zeichnr}\n")
+                if DEBUG:
+                    print(f"[DEBUG] Blocked article: {artnr}; {artbez1}; {zeichnr}")
+                return
             with open(article_list_path, 'a', encoding='utf-8') as f:
                 f.write(f"{artnr};{artbez1};{zeichnr}\n")
             article_list_seen.add(artnr_key)
@@ -625,10 +682,15 @@ def process_module_structure(
 
     def append_partlist(stulinr, posnr, menge, artnr, artbez1, depth=0, is_last=False, prefix_stack=None, timer_start=None):
         t_stueck_start = time.time()
+        # Check if blocked
+        sperre = artikel_map.get(artnr, {}).get('sperre', '').strip()
+        menge_out = menge
+        if sperre and sperre.upper() != 'FALSCH':
+            menge_out = f"{menge}BLOCKED"
         with open(partlist_path, 'a', encoding='utf-8') as f:
-            f.write(f"{stulinr};{posnr};{menge};{artnr};{artbez1}\n")
+            f.write(f"{stulinr};{posnr};{menge_out};{artnr};{artbez1}\n")
         if DEBUG:
-            print(f"[DEBUG] Appended partlist: {stulinr}; {posnr}; {menge}; {artnr}; {artbez1}")
+            print(f"[DEBUG] Appended partlist: {stulinr}; {posnr}; {menge_out}; {artnr}; {artbez1}")
         # Write to tree file
         if prefix_stack is None:
             prefix_stack = []
@@ -639,7 +701,10 @@ def process_module_structure(
             prefix += '+---'
         # Get zeichnr for this artnr
         zeichnr = artikel_map.get(artnr, {}).get('zeichnr', '')
-        line = f"{prefix}{artnr}, {artbez1}, {zeichnr}"
+        if sperre and sperre.upper() != 'FALSCH':
+            line = f"{prefix}BLOCKED {artnr}, {artbez1}, {zeichnr}"
+        else:
+            line = f"{prefix}{artnr}, {artbez1}, {zeichnr}"
         getattr(process_module_structure, '_tree_file').write(line + '\n')
         t_stueck_end = time.time()
         if DEBUG:

@@ -1,3 +1,34 @@
+    // Update Majesty Data button
+    var updateMajestyForm = document.getElementById("updateMajestyForm");
+    if (updateMajestyForm) {
+        updateMajestyForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            fetch("/update-majesty-data", { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("updateMajestyStatus").innerText = data.message || (data.status === "success" ? "Update complete." : "Update failed.");
+                })
+                .catch(() => {
+                    document.getElementById("updateMajestyStatus").innerText = "Update failed.";
+                });
+        });
+    }
+
+    // Hard Update Majesty Data button
+    var hardUpdateMajestyForm = document.getElementById("hardUpdateMajestyForm");
+    if (hardUpdateMajestyForm) {
+        hardUpdateMajestyForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            fetch("/hard-update-majesty-data", { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("updateMajestyStatus").innerText = data.message || (data.status === "success" ? "Hard update complete." : "Update failed.");
+                })
+                .catch(() => {
+                    document.getElementById("updateMajestyStatus").innerText = "Update failed.";
+                });
+        });
+    }
 // Tab switching logic
 function openTab(evt, tabName) {
     var i, tabcontent, tablinks;
@@ -14,34 +45,81 @@ function openTab(evt, tabName) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    var defaultTab = document.getElementById("defaultTab");
-    if (defaultTab) defaultTab.click();
+
+            // Download Partlist Excel button
+            var downloadPartlistExcelBtn = document.getElementById("downloadPartlistExcelBtn");
+            if (downloadPartlistExcelBtn) {
+                downloadPartlistExcelBtn.addEventListener("click", function() {
+                    fetch("/download-partlist-excel")
+                        .then(function(response) {
+                            if (!response.ok) {
+                                return response.text().then(function(text) {
+                                    let message = text || "Failed to create Excel file.";
+                                    throw new Error(message);
+                                });
+                            }
+                            var disposition = response.headers.get("content-disposition") || "";
+                            var fileName = "partlist_export.xlsx";
+                            var match = disposition.match(/filename="?([^";]+)"?/i);
+                            if (match && match[1]) {
+                                fileName = match[1];
+                            }
+                            return response.blob().then(function(blob) {
+                                return { blob: blob, fileName: fileName };
+                            });
+                        })
+                        .then(function(result) {
+                            var url = window.URL.createObjectURL(result.blob);
+                            var link = document.createElement("a");
+                            link.href = url;
+                            link.download = result.fileName;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            window.URL.revokeObjectURL(url);
+                            let entry = `<div><b>Download Partlist Excel:</b> <span style='color:#27ae60;'>Excel created and downloaded.</span></div>`;
+                            feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                        })
+                        .catch(function(err) {
+                            let entry = `<div><b>Download Partlist Excel:</b> <span style='color:#c00;'>Error: ${err.message || err}</span></div>`;
+                            feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                        });
+                });
+            }
+        // Blocked articles UI logic
+        var blockedArticlesContainer = document.getElementById("blockedArticlesContainer");
+        var showBlockedArticlesBtn = document.getElementById("showBlockedArticlesBtn");
+        var blockedArticlesArea = document.getElementById("blockedArticlesArea");
+        if (blockedArticlesContainer && showBlockedArticlesBtn && blockedArticlesArea) {
+            showBlockedArticlesBtn.addEventListener("click", function() {
+                if (blockedArticlesArea.style.display === "none") {
+                    blockedArticlesArea.style.display = "block";
+                    showBlockedArticlesBtn.textContent = "Hide Blocked Articles";
+                } else {
+                    blockedArticlesArea.style.display = "none";
+                    showBlockedArticlesBtn.textContent = "Show Blocked Articles";
+                }
+            });
+            blockedArticlesContainer.style.display = "none";
+            blockedArticlesArea.style.display = "none";
+        }
+    // Set Search & Transform as default tab
+    var tablinks = document.getElementsByClassName("tablink");
+    if (tablinks && tablinks.length > 0) {
+        tablinks[0].click();
+    }
 
     function getExistingArticlesTarget() {
-        var prod = document.getElementById("existingArticlesProdChk");
-        var test = document.getElementById("existingArticlesTestChk");
-        if (prod && test && prod.checked && test.checked) {
-            return "invalid";
+        var radios = document.getElementsByName("existingArticlesTarget");
+        for (var i = 0; i < radios.length; i++) {
+            if (radios[i].checked) {
+                return radios[i].value;
+            }
         }
-        if (prod && prod.checked) return "prod";
-        if (test && test.checked) return "test";
         return "none";
     }
 
-    function wireExclusiveTargetCheckboxes() {
-        var prod = document.getElementById("existingArticlesProdChk");
-        var test = document.getElementById("existingArticlesTestChk");
-        if (!prod || !test) return;
-
-        prod.addEventListener("change", function() {
-            if (prod.checked) test.checked = false;
-        });
-        test.addEventListener("change", function() {
-            if (test.checked) prod.checked = false;
-        });
-    }
-
-    wireExclusiveTargetCheckboxes();
+    // No need for wireExclusiveTargetCheckboxes with radios
 
     function getSelectedSheetHeaders() {
         var checked = document.querySelectorAll('#sheetsCheckboxes input[name="sheetHeader"]:checked');
@@ -87,17 +165,31 @@ document.addEventListener("DOMContentLoaded", function() {
     var searchMode = "article";
     var toggleModeBtn = document.getElementById("toggleModeBtn");
     var searchModeLabel = document.getElementById("searchModeLabel");
-    if (toggleModeBtn && searchModeLabel) {
-        toggleModeBtn.addEventListener("click", function() {
+    var modeSwitchIcon = document.getElementById("modeSwitchIcon");
+    var modePillIcon = document.getElementById("modePillIcon");
+    var modePillText = document.getElementById("modePillText");
+    if (toggleModeBtn && searchModeLabel && modeSwitchIcon && modePillIcon && modePillText) {
+        function updateModeUI() {
             if (searchMode === "article") {
-                searchMode = "module";
-                toggleModeBtn.innerText = "Switch to Article Search";
-                searchModeLabel.innerText = "Mode: Module";
+                modeSwitchIcon.textContent = "↔️";
+                toggleModeBtn.style.background = "linear-gradient(90deg, #3498db 0%, #6dd5ed 100%)";
+                searchModeLabel.classList.remove("mode-module");
+                searchModeLabel.classList.add("mode-article");
+                modePillIcon.textContent = "🔎";
+                modePillText.textContent = "Article";
             } else {
-                searchMode = "article";
-                toggleModeBtn.innerText = "Switch to Module Search";
-                searchModeLabel.innerText = "Mode: Article";
+                modeSwitchIcon.textContent = "↔️";
+                toggleModeBtn.style.background = "linear-gradient(90deg, #43c6ac 0%, #217dbb 100%)";
+                searchModeLabel.classList.remove("mode-article");
+                searchModeLabel.classList.add("mode-module");
+                modePillIcon.textContent = "📦";
+                modePillText.textContent = "Module";
             }
+        }
+        updateModeUI();
+        toggleModeBtn.addEventListener("click", function() {
+            searchMode = (searchMode === "article") ? "module" : "article";
+            updateModeUI();
         });
     }
 
@@ -228,7 +320,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
                     entry += `</div>`;
                     feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
-                    document.getElementById("transformBtn").style.display = "block";
+                    // Removed: document.getElementById("transformBtn").style.display = "block";
 
                     // Add click listeners to results for selection
                     setTimeout(function() {
@@ -298,6 +390,19 @@ document.addEventListener("DOMContentLoaded", function() {
                 var data = result.data;
                 let entry = `<div><b>Generate Module:</b> ${selectedResult.artnr} — <span style='color:${data.status === 'success' ? '#27ae60' : '#c00'};'>${data.message}</span></div>`;
                 feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                // Blocked articles UI
+                if (blockedArticlesContainer && showBlockedArticlesBtn && blockedArticlesArea) {
+                    if (data.blocked_articles && data.blocked_articles.trim().length > 0) {
+                        blockedArticlesArea.value = data.blocked_articles;
+                        blockedArticlesContainer.style.display = "block";
+                        blockedArticlesArea.style.display = "none";
+                        showBlockedArticlesBtn.style.display = "inline-block";
+                        showBlockedArticlesBtn.textContent = "Show Blocked Articles";
+                    } else {
+                        blockedArticlesContainer.style.display = "none";
+                        blockedArticlesArea.value = "";
+                    }
+                }
             })
             .catch(function(err) {
                 let entry = `<div><b>Generate Module:</b> ${selectedResult.artnr} — <span style='color:#c00;'>Error: ${err}</span></div>`;

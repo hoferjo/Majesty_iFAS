@@ -1,3 +1,5 @@
+from etl.extract import auto_update_dbf_csv
+from etl.extract import extract_dbf_headers_and_rows
 import threading
 from pathlib import Path
 from fastapi import Body
@@ -9,6 +11,9 @@ import shutil
 import os
 import json
 import csv
+from fastapi import Query
+from fastapi.responses import JSONResponse
+
 
 
 settings_path = Path(__file__).parent.parent / "config" / "settings.yaml"
@@ -23,6 +28,7 @@ from etl.load import (
     resolve_existing_articles_file,
     append_article_list_to_existing,
     update_existing_articles_from_ifas_upload,
+    create_partlist_excel_from_template,
 )
 
 app = FastAPI()
@@ -143,11 +149,7 @@ def upload_file(file: UploadFile = File(...)):
     return {"filename": file.filename, "status": "uploaded"}
 
 
-# --- Search endpoint ---
-from fastapi import Query
-from fastapi.responses import JSONResponse
 
-from fastapi import Query
 @app.get("/search")
 def search(query: str = Query(..., min_length=1), mode: str = Query("article")):
     # Path to the artikelstamm CSV (adjust as needed)
@@ -231,9 +233,19 @@ def generate_module(data: dict = Body(...)):
 
         article_count = count_csv_rows(article_list_path)
         partlist_count = count_csv_rows(partlist_path)
+        blocked_articles_path = base / "data" / "processed" / "csv" / "cache" / "blocked_articles.csv"
+        blocked_count = count_csv_rows(blocked_articles_path)
+        blocked_articles_data = ""
+        if blocked_count > 0 and blocked_articles_path.exists():
+            with open(blocked_articles_path, "r", encoding="utf-8-sig") as f:
+                blocked_articles_data = f.read()
 
-        msg = f"Modulestructure generated for {artnr} articles to migrate: {article_count} partlist entries: {partlist_count}"
-        return JSONResponse(status_code=200, content={"status": "success", "message": msg})
+        msg = f"Modulestructure generated for {artnr} articles to migrate: {article_count} partlist entries: {partlist_count} blocked articles: {blocked_count}"
+        return JSONResponse(status_code=200, content={
+            "status": "success",
+            "message": msg,
+            "blocked_articles": blocked_articles_data
+        })
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -365,17 +377,33 @@ def generate_module_data(data: dict = Body(...)):
 
         cached_articles = _MODULE_ARTICLES_CACHE.get(str(artnr))
         build_sheet_cache_CSV(str(article_list_path), build_sheet_names, articles=cached_articles)
+        # Also generate for blocked articles
+        blocked_articles_path = base / "data" / "processed" / "csv" / "cache" / "blocked_articles.csv"
+        if blocked_articles_path.exists():
+            with blocked_articles_path.open("r", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f, delimiter=';')
+                blocked_articles = list(reader)
+            if blocked_articles:
+                build_sheet_cache_CSV(str(blocked_articles_path), build_sheet_names, articles=blocked_articles)
         # After generating, count entries in each sheet's cache CSV
         sheet_entry_counts = []
         for sheet in build_sheet_names:
-            cache_csv = base / "data" / "processed" / "csv" / "cache" / "sheets" / f"{sheet}_cache.csv"
+            cache_csv = base / "data" / "processed" / "csv" / "cache" / "sheets" / f'{sheet}_cache.csv'
             count = 0
             if cache_csv.exists():
                 with cache_csv.open("r", encoding="utf-8-sig", newline="") as f:
                     reader = csv.reader(f, delimiter=";")
                     next(reader, None)  # skip header
                     count = sum(1 for _ in reader)
-            sheet_entry_counts.append(f"{sheet}: {count} entries")
+            # Count blocked from *_cache_blocked.csv
+            blocked_cache_csv = base / "data" / "processed" / "csv" / "cache" / "sheets" / f'{sheet}_cache_blocked.csv'
+            blocked_count = 0
+            if blocked_cache_csv.exists():
+                with blocked_cache_csv.open("r", encoding="utf-8-sig", newline="") as f:
+                    reader = csv.reader(f, delimiter=";")
+                    next(reader, None)
+                    blocked_count = sum(1 for _ in reader)
+            sheet_entry_counts.append(f"{sheet}: {count} entries, blocked: {blocked_count}")
         msg = "Module data generated. " + ", ".join(sheet_entry_counts)
         return {
             "status": "success",
@@ -385,16 +413,18 @@ def generate_module_data(data: dict = Body(...)):
         return {"status": "error", "message": str(e)}
 
 
-@app.get("/download-partlist-tree")
-def download_partlist_tree(artnr: str):
+
+# New endpoint: Download Partlist Excel
+@app.get("/download-partlist-excel")
+def download_partlist_excel():
     base = Path(__file__).parent.parent
-    tree_txt_path = base / "data" / "processed" / "csv" / "cache" / "partlist_tree.txt"
-    if not tree_txt_path.exists():
-        print(f"[ERROR] partlist_tree.txt not found at {tree_txt_path}")
-        return JSONResponse(status_code=404, content={"error": f"partlist_tree.txt not found."})
-    # Serve as partlist_tree(<rootnr>).txt
-    download_name = f"partlist_tree({artnr}).txt"
-    return FileResponse(str(tree_txt_path), filename=download_name, media_type="text/plain")
+    partlist_csv = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
+    template_xlsx = base / "data" / "raw" / "templates" / "VorlageStücklisteV1.xlsx"
+    output_xlsx = base / "data" / "processed" / "csv" / "cache" / "partlist_export.xlsx"
+    if not partlist_csv.exists() or not template_xlsx.exists():
+        return JSONResponse(status_code=404, content={"error": "partlist.csv or template not found."})
+    create_partlist_excel_from_template(partlist_csv, template_xlsx, output_xlsx)
+    return FileResponse(str(output_xlsx), filename="partlist_export.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @app.get("/download-module-export")
@@ -526,3 +556,63 @@ def download_module_excel(
         )
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    
+    
+# --- Majesty DBF Extraction Endpoint ---
+from etl.extract import auto_update_dbf_csv
+
+@app.post("/update-majesty-data")
+def update_majesty_data():
+    try:
+        updated = auto_update_dbf_csv()
+        if updated:
+            return {"status": "success", "message": f"Updated: {', '.join(updated)}"}
+        else:
+            return {"status": "success", "message": "No DBF files needed updating."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    
+    
+@app.post("/hard-update-majesty-data")
+def hard_update_majesty_data():
+    try:
+        updated = auto_update_dbf_csv(force=True)
+        if updated:
+            return {"status": "success", "message": f"Hard updated: {', '.join(updated)}"}
+        else:
+            # Check if there are any DBF files at all
+            from pathlib import Path
+            from etl.extract import dbfs_path
+            dbf_dir = Path(dbfs_path)
+            dbf_files = list(dbf_dir.glob("*.dbf"))
+            if not dbf_files:
+                return {"status": "error", "message": "No DBF files found in the Majesty DBF directory. Check your configuration and file locations."}
+            else:
+                return {"status": "success", "message": "No DBF files needed updating."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    
+@app.get("/download-partlist-tree")
+def download_partlist_tree(artnr: str = Query(..., min_length=1)):
+    base = Path(__file__).parent.parent
+    partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / "partlist_tree.txt"
+    # Optionally, support per-artnr tree files if needed:
+    # partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / f"partlist_tree_{artnr}.txt"
+    if not partlist_tree_path.exists():
+        return JSONResponse(status_code=404, content={"error": f"partlist_tree.txt not found for {artnr}"})
+    try:
+        return FileResponse(str(partlist_tree_path), filename=f"partlist_tree_{artnr}.txt", media_type="text/plain")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    
+
+
+
+
+
+
+
+
+
+
+

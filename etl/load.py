@@ -319,7 +319,6 @@ def create_import_excel_from_templates(
 
         # Explicit mapping for headers that differ between cache and template
         header_aliases = {
-            "bezeichnung 1": "Bezeichnung 1 [de]",
             "zusatztextart 1": "Zusatztextart 1_x000d_\n(ISZTAId)",
             "zusatztextart 2": "Zusatztextart 2_x000d_\n(ISZTAId)",
             "sind zusatztexte rtf text?": "Sind Zusatztexte RTF Text? _x000d_\n(0 = nein, 1 = ja)",
@@ -432,3 +431,52 @@ def archive_module_export(module_artnr, excel_path, partlist_csv_path, partlist_
                 zf.write(p, arcname=f"{archive_folder.name}/{p.name}")
 
     return archive_folder, zip_path
+
+def create_partlist_excel_from_template(
+    partlist_csv_path: Path,
+    template_xlsx_path: Path,
+    output_xlsx_path: Path,
+    first_rows_to_copy: int = 7
+):
+    """
+    Generate an Excel file from partlist.csv using the first 7 rows of the template.
+    Maps columns: stulinr, posnr, menge, artnr, artbez1.
+    """
+    import openpyxl
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.load_workbook(template_xlsx_path)
+    ws_template = wb.active
+    ws_out = wb.copy_worksheet(ws_template)
+    ws_out.title = "Stückliste"
+
+    # Remove all other sheets except the output
+    for sheet in wb.sheetnames:
+        if sheet != ws_out.title:
+            std = wb[sheet]
+            wb.remove(std)
+
+    # Copy first N rows from template (including formatting)
+    for r in range(1, first_rows_to_copy + 1):
+        for c in range(1, ws_template.max_column + 1):
+            ws_out.cell(row=r, column=c).value = ws_template.cell(row=r, column=c).value
+            ws_out.cell(row=r, column=c)._style = ws_template.cell(row=r, column=c)._style
+
+    # Read partlist.csv
+    with open(partlist_csv_path, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f, delimiter=';')
+        part_rows = list(reader)
+
+    # Find where to start writing data (after template rows)
+    start_row = first_rows_to_copy + 1
+
+    # Map CSV columns to Excel columns (assume order: stulinr, posnr, menge, artnr, artbez1)
+    for idx, row in enumerate(part_rows):
+        ws_out.cell(row=start_row + idx, column=1).value = row.get('stulinr', '')
+        ws_out.cell(row=start_row + idx, column=2).value = row.get('posnr', '')
+        ws_out.cell(row=start_row + idx, column=3).value = row.get('menge', '')
+        ws_out.cell(row=start_row + idx, column=4).value = row.get('artnr', '')
+        ws_out.cell(row=start_row + idx, column=5).value = row.get('artbez1', '')
+
+    wb.save(output_xlsx_path)
+    return output_xlsx_path
