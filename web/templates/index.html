@@ -7,6 +7,13 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <div style="display:flex; justify-content:flex-end; margin-bottom:0.6em;">
+        <label for="languageSwitch" style="font-weight:600; margin-right:0.5em;">Language</label>
+        <select id="languageSwitch" style="padding:4px 8px; border-radius:4px; border:1px solid #b6c6d6;">
+            <option value="en" selected>English</option>
+            <option value="de">Deutsch</option>
+        </select>
+    </div>
     <div style="display:flex; justify-content:center; align-items:center; gap:2em; margin-bottom:1.5em; flex-wrap:wrap;">
         <img src="/static/img/Jost.jpg" alt="Jost" style="height:64px; max-width:120px; object-fit:contain; background:#fff; border-radius:8px; box-shadow:0 2px 8px #0001; padding:4px;">
         <img src="/static/img/majesty.jpeg" alt="Majesty" style="height:64px; max-width:120px; object-fit:contain; background:#fff; border-radius:8px; box-shadow:0 2px 8px #0001; padding:4px;">
@@ -14,7 +21,7 @@
         <img src="/static/img/iFAS.webp" alt="iFAS" style="height:64px; max-width:120px; object-fit:contain; background:#fff; border-radius:8px; box-shadow:0 2px 8px #0001; padding:4px;">
     </div>
     <div class="tabs">
-        <button class="tablink" onclick="openTab(event, 'searchTab')">Search & Transform</button>
+        <button id="tabSearchBtn" class="tablink" onclick="openTab(event, 'searchTab')">Search & Transform</button>
         <button class="tablink" onclick="openTab(event, 'settingsTab')" id="defaultTab">Settings</button>
     </div>
     <div id="searchTab" class="tabcontent" style="display:none;">
@@ -30,7 +37,7 @@
         </div>
         <form id="searchForm" style="display:flex; align-items:center; gap:0.7em; margin: 1.2em 0 0.7em 0; max-width:520px;">
             <input type="text" id="searchInput" name="query" placeholder="Search by Artikelnummer, Zeichnungsnummer or description" style="flex:1; min-width:0; padding:10px 14px; font-size:15px; border:1.5px solid #b6c6d6; border-radius:6px; outline:none;">
-            <button type="submit" class="modern-btn" style="min-width:100px; min-height:36px; padding:8px 0; margin:0;">Search</button>
+            <button id="searchSubmitBtn" type="submit" class="modern-btn" style="min-width:100px; min-height:36px; padding:8px 0; margin:0;">Search</button>
         </form>
         <div style="display:flex; flex-wrap:wrap; gap:0.7em; margin-bottom:1.2em; max-width:520px;">
             <button id="generateModuleBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;">Generate Module Structure</button>
@@ -41,7 +48,7 @@
         </div>
         <!-- Removed: <button id="transformBtn" style="display:none;">Transform to iFAS Format</button> -->
         <div class="current-selection-container">
-            <div class="current-selection-label">Current Selection</div>
+            <div id="currentSelectionLabel" class="current-selection-label">Current Selection</div>
             <div class="current-selection-box">
                 <textarea id="currentSelection" rows="2" readonly></textarea>
             </div>
@@ -52,9 +59,33 @@
             <button id="showBlockedArticlesBtn" type="button" class="modern-btn" style="margin-bottom:0.5em;">Show Blocked Articles</button>
             <textarea id="blockedArticlesArea" rows="8" readonly style="width:100%; display:none; font-family:monospace;"></textarea>
         </div>
+
+        <div id="blockedReplacementModal" class="blocked-modal-overlay" style="display:none;">
+            <div class="blocked-modal-dialog">
+                <h3 id="blockedModalTitle" style="margin-top:0;">Blocked Article Replacement</h3>
+                <div id="blockedModalDetails" class="blocked-modal-details"></div>
+                <div style="margin-top:0.8em;">
+                    <label for="blockedSearchInput" style="display:block; font-weight:600; margin-bottom:0.35em;">Search replacement</label>
+                    <div style="display:flex; gap:0.5em; flex-wrap:wrap;">
+                        <input id="blockedSearchInput" type="text" placeholder="Search by artnr / zeichnr / text" style="flex:1; min-width:220px; padding:8px 10px; border:1px solid #b6c6d6; border-radius:5px;" />
+                        <button id="blockedSearchBtn" type="button" class="modern-btn" style="min-width:110px; margin:0;">Search</button>
+                    </div>
+                    <div id="blockedSearchResults" class="blocked-search-results"></div>
+                </div>
+                <div style="margin-top:0.8em;">
+                    <label for="blockedReplacementArtnr" style="display:block; font-weight:600; margin-bottom:0.35em;">Replacement artnr</label>
+                    <input id="blockedReplacementArtnr" type="text" placeholder="Enter replacement artnr" style="width:100%; padding:8px 10px; border:1px solid #b6c6d6; border-radius:5px;" />
+                </div>
+                <div style="display:flex; gap:0.6em; justify-content:flex-end; margin-top:1em; flex-wrap:wrap;">
+                    <button id="blockedTextBtn" type="button" class="modern-btn tertiary" style="min-width:180px; margin:0;">Als Textartikel verwenden</button>
+                    <button id="blockedIgnoreBtn" type="button" class="modern-btn secondary" style="min-width:130px; margin:0;">Ignore</button>
+                    <button id="blockedConfirmBtn" type="button" class="modern-btn" style="min-width:130px; margin:0;">Confirm</button>
+                </div>
+            </div>
+        </div>
     </div>
     <div id="settingsTab" class="tabcontent">
-        <h2>Settings</h2>
+        <h2 id="settingsHeading">Settings</h2>
         <form id="uploadForm" enctype="multipart/form-data" style="margin-bottom:1em;">
             <label>Upload iFAS artikelstamm.txt: <input type="file" name="file" id="fileInput"></label>
             <label style="margin-left:0.7em;">Update target:

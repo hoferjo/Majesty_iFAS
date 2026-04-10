@@ -102,6 +102,56 @@ def _read_article_list_rows(article_list_path: Path):
         return list(reader)
 
 
+def _load_artikelstamm_details_map(artikelstamm_path: Path):
+    details = {}
+    if not artikelstamm_path.exists():
+        return details
+    with open(artikelstamm_path, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f, delimiter=';')
+        for row in reader:
+            artnr = str(row.get("artnr", "")).strip()
+            if not artnr:
+                continue
+            details[artnr] = {
+                "artnr": artnr,
+                "artbez1": row.get("artbez1", "") or "",
+                "artbez2": row.get("artbez2", "") or "",
+                "artbez3": row.get("artbez3", "") or "",
+                "artbezmem": row.get("artbezmem", "") or "",
+                "zeichnr": row.get("zeichnr", "") or "",
+            }
+    return details
+
+
+def _read_blocked_article_details(blocked_articles_path: Path, artikelstamm_path: Path):
+    if not blocked_articles_path.exists():
+        return []
+
+    details_map = _load_artikelstamm_details_map(artikelstamm_path)
+    blocked_items = []
+    seen = set()
+
+    with open(blocked_articles_path, "r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f, delimiter=';')
+        for row in reader:
+            artnr = str(row.get("artnr", "")).strip()
+            if not artnr or artnr in seen:
+                continue
+            seen.add(artnr)
+
+            enriched = details_map.get(artnr, {
+                "artnr": artnr,
+                "artbez1": row.get("artbez1", "") or "",
+                "artbez2": "",
+                "artbez3": "",
+                "artbezmem": "",
+                "zeichnr": row.get("zeichnr", "") or "",
+            })
+            blocked_items.append(enriched)
+
+    return blocked_items
+
+
 def _resolved_active_sheet_names(base: Path):
     _, headers, aliases, _, active_headers, _ = _load_sheets_config(base)
     active_set = set(active_headers)
@@ -200,6 +250,17 @@ def sheets_config():
 def generate_module(data: dict = Body(...)):
     artnr = data.get("artnr")
     existing_articles_target = _normalize_existing_target(data.get("existing_articles_target", "none"))
+    replacement_map = data.get("replacement_map") or {}
+    if not isinstance(replacement_map, dict):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "replacement_map must be an object"})
+
+    normalized_replacement_map = {}
+    for key, value in replacement_map.items():
+        key_s = str(key or "").strip()
+        value_s = str(value or "").strip()
+        if key_s and value_s:
+            normalized_replacement_map[key_s] = value_s
+
     if not artnr:
         return JSONResponse(status_code=400, content={"status": "error", "message": "No artnr provided"})
 
@@ -220,6 +281,7 @@ def generate_module(data: dict = Body(...)):
             str(article_list_path),
             str(partlist_path),
             existing_articles_file=str(existing_articles_file) if existing_articles_file else None,
+            replacement_map=normalized_replacement_map,
         )
         _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_path)
 
@@ -239,12 +301,91 @@ def generate_module(data: dict = Body(...)):
         if blocked_count > 0 and blocked_articles_path.exists():
             with open(blocked_articles_path, "r", encoding="utf-8-sig") as f:
                 blocked_articles_data = f.read()
+        blocked_items = _read_blocked_article_details(blocked_articles_path, artikelstamm_path)
 
         msg = f"Modulestructure generated for {artnr} articles to migrate: {article_count} partlist entries: {partlist_count} blocked articles: {blocked_count}"
         return JSONResponse(status_code=200, content={
             "status": "success",
             "message": msg,
-            "blocked_articles": blocked_articles_data
+            "blocked_articles": blocked_articles_data,
+            "blocked_items": blocked_items
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/generate-module-apply-replacements")
+def generate_module_apply_replacements(data: dict = Body(...)):
+    artnr = data.get("artnr")
+    existing_articles_target = _normalize_existing_target(data.get("existing_articles_target", "none"))
+    replacement_map = data.get("replacement_map") or {}
+
+    if not artnr:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "No artnr provided"})
+    if not isinstance(replacement_map, dict):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "replacement_map must be an object"})
+
+    normalized_replacement_map = {}
+    for key, value in replacement_map.items():
+        key_s = str(key or "").strip()
+        # Accept dict for textartikel action
+        if isinstance(value, dict) and value.get("textartikel"):
+            normalized_replacement_map[key_s] = {"textartikel": True}
+        else:
+            value_s = str(value or "").strip()
+            if key_s and value_s:
+                normalized_replacement_map[key_s] = value_s
+
+    base = Path(__file__).parent.parent
+    artikelstamm_path = base / "data" / "raw" / "artikelstamm" / "artikelstamm_majesty_2026_03_30.csv"
+    stueckliste_path = base / "data" / "raw" / "stücklistenstamm" / "20410917_stuelipo.csv"
+    article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
+    partlist_path = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
+    blocked_articles_path = base / "data" / "processed" / "csv" / "cache" / "blocked_articles.csv"
+
+    try:
+        existing_articles_file = resolve_existing_articles_file(base, existing_articles_target)
+        _MODULE_EXISTING_TARGET_CACHE[str(artnr)] = existing_articles_target
+
+        process_module_structure(
+            str(artnr),
+            str(artikelstamm_path),
+            str(stueckliste_path),
+            str(article_list_path),
+            str(partlist_path),
+            existing_articles_file=str(existing_articles_file) if existing_articles_file else None,
+            replacement_map=normalized_replacement_map,
+        )
+
+        _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_path)
+
+        def count_csv_rows(path):
+            try:
+                with open(path, "r", encoding="utf-8-sig") as f:
+                    return sum(1 for _ in f) - 1
+            except Exception:
+                return 0
+
+        article_count = count_csv_rows(article_list_path)
+        partlist_count = count_csv_rows(partlist_path)
+        blocked_count = count_csv_rows(blocked_articles_path)
+        blocked_articles_data = ""
+        if blocked_count > 0 and blocked_articles_path.exists():
+            with open(blocked_articles_path, "r", encoding="utf-8-sig") as f:
+                blocked_articles_data = f.read()
+
+        blocked_items = _read_blocked_article_details(blocked_articles_path, artikelstamm_path)
+
+        msg = (
+            f"Modulestructure generated for {artnr} articles to migrate: {article_count} "
+            f"partlist entries: {partlist_count} blocked articles: {blocked_count}"
+        )
+
+        return JSONResponse(status_code=200, content={
+            "status": "success",
+            "message": msg,
+            "blocked_articles": blocked_articles_data,
+            "blocked_items": blocked_items,
         })
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})

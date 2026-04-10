@@ -46,6 +46,128 @@ function openTab(evt, tabName) {
 
 document.addEventListener("DOMContentLoaded", function() {
 
+        var i18n = {
+            en: {
+                tabSearch: "Search & Transform",
+                tabSettings: "Settings",
+                searchPlaceholder: "Search by Artikelnummer, Zeichnungsnummer or description",
+                searchButton: "Search",
+                currentSelection: "Current Selection",
+                generateModule: "Generate Module Structure",
+                generateModuleData: "Generate Module Data",
+                downloadModuleExcel: "Download Module (XLSX)",
+                downloadPartlistExcel: "Download Partlist Excel",
+                downloadPartlistTree: "Download Partlist Tree",
+                settingsHeading: "Settings",
+                alertNoModule: "No module selected.",
+                alertSwitchModule: "Switch to Module mode to generate a module.",
+                alertOneTarget: "Only one existing-articles checkbox can be selected.",
+                modalTitle: "Blocked Article Replacement",
+                modalSearchLabel: "Search replacement",
+                modalReplacementLabel: "Replacement artnr",
+                modalSearchPlaceholder: "Search by artnr / zeichnr / text",
+                modalReplacementPlaceholder: "Enter replacement artnr",
+                modalConfirm: "Confirm",
+                modalIgnore: "Ignore",
+                modalSearch: "Search",
+                modalNoResults: "No results found.",
+                modalNeedReplacement: "Please enter a replacement artnr or click Ignore."
+            },
+            de: {
+                tabSearch: "Suche & Transformation",
+                tabSettings: "Einstellungen",
+                searchPlaceholder: "Suche nach Artikelnr, Zeichnungsnr oder Beschreibung",
+                searchButton: "Suchen",
+                currentSelection: "Aktuelle Auswahl",
+                generateModule: "Modulstruktur generieren",
+                generateModuleData: "Moduldaten generieren",
+                downloadModuleExcel: "Modul herunterladen (XLSX)",
+                downloadPartlistExcel: "Stückliste Excel herunterladen",
+                downloadPartlistTree: "Stücklistenbaum herunterladen",
+                settingsHeading: "Einstellungen",
+                alertNoModule: "Kein Modul ausgewählt.",
+                alertSwitchModule: "Für die Modulgenerierung bitte in den Modulmodus wechseln.",
+                alertOneTarget: "Es darf nur ein Existing-Articles Ziel ausgewählt sein.",
+                modalTitle: "Ersatz für gesperrten Artikel",
+                modalSearchLabel: "Ersatz suchen",
+                modalReplacementLabel: "Ersatz-Artikelnr",
+                modalSearchPlaceholder: "Suche nach Artnr / Zeichnr / Text",
+                modalReplacementPlaceholder: "Ersatz-Artikelnr eingeben",
+                modalConfirm: "Bestätigen",
+                modalIgnore: "Ignorieren",
+                modalSearch: "Suchen",
+                modalNoResults: "Keine Ergebnisse gefunden.",
+                modalNeedReplacement: "Bitte Ersatz-Artikelnr eingeben oder Ignorieren klicken."
+            }
+        };
+        var currentLanguage = "en";
+
+        function t(key) {
+            return (i18n[currentLanguage] && i18n[currentLanguage][key]) || (i18n.en[key] || key);
+        }
+
+        function applyLanguage() {
+            var tabSearchBtn = document.getElementById("tabSearchBtn");
+            if (tabSearchBtn) tabSearchBtn.textContent = t("tabSearch");
+
+            var defaultTab = document.getElementById("defaultTab");
+            if (defaultTab) defaultTab.textContent = t("tabSettings");
+
+            var searchInput = document.getElementById("searchInput");
+            if (searchInput) searchInput.placeholder = t("searchPlaceholder");
+
+            var searchSubmitBtn = document.getElementById("searchSubmitBtn");
+            if (searchSubmitBtn) searchSubmitBtn.textContent = t("searchButton");
+
+            var currentSelectionLabel = document.getElementById("currentSelectionLabel");
+            if (currentSelectionLabel) currentSelectionLabel.textContent = t("currentSelection");
+
+            var generateModuleBtn = document.getElementById("generateModuleBtn");
+            if (generateModuleBtn) generateModuleBtn.textContent = t("generateModule");
+
+            var generateModuleDataBtn = document.getElementById("generateModuleDataBtn");
+            if (generateModuleDataBtn) generateModuleDataBtn.textContent = t("generateModuleData");
+
+            var downloadModuleExcelBtn = document.getElementById("downloadModuleExcelBtn");
+            if (downloadModuleExcelBtn) downloadModuleExcelBtn.textContent = t("downloadModuleExcel");
+
+            var downloadPartlistExcelBtn = document.getElementById("downloadPartlistExcelBtn");
+            if (downloadPartlistExcelBtn) downloadPartlistExcelBtn.textContent = t("downloadPartlistExcel");
+
+            var downloadPartlistTreeBtn = document.getElementById("downloadPartlistTreeBtn");
+            if (downloadPartlistTreeBtn) downloadPartlistTreeBtn.textContent = t("downloadPartlistTree");
+
+            var settingsHeading = document.getElementById("settingsHeading");
+            if (settingsHeading) settingsHeading.textContent = t("settingsHeading");
+
+            var modalTitle = document.getElementById("blockedModalTitle");
+            if (modalTitle) modalTitle.textContent = t("modalTitle");
+
+            var searchBtn = document.getElementById("blockedSearchBtn");
+            if (searchBtn) searchBtn.textContent = t("modalSearch");
+
+            var confirmBtn = document.getElementById("blockedConfirmBtn");
+            if (confirmBtn) confirmBtn.textContent = t("modalConfirm");
+
+            var ignoreBtn = document.getElementById("blockedIgnoreBtn");
+            if (ignoreBtn) ignoreBtn.textContent = t("modalIgnore");
+
+            var blockedSearchInput = document.getElementById("blockedSearchInput");
+            if (blockedSearchInput) blockedSearchInput.placeholder = t("modalSearchPlaceholder");
+
+            var replacementInput = document.getElementById("blockedReplacementArtnr");
+            if (replacementInput) replacementInput.placeholder = t("modalReplacementPlaceholder");
+        }
+
+        var languageSwitch = document.getElementById("languageSwitch");
+        if (languageSwitch) {
+            languageSwitch.addEventListener("change", function() {
+                currentLanguage = languageSwitch.value || "en";
+                applyLanguage();
+            });
+        }
+        applyLanguage();
+
             // Download Partlist Excel button
             var downloadPartlistExcelBtn = document.getElementById("downloadPartlistExcelBtn");
             if (downloadPartlistExcelBtn) {
@@ -90,6 +212,15 @@ document.addEventListener("DOMContentLoaded", function() {
         var blockedArticlesContainer = document.getElementById("blockedArticlesContainer");
         var showBlockedArticlesBtn = document.getElementById("showBlockedArticlesBtn");
         var blockedArticlesArea = document.getElementById("blockedArticlesArea");
+        var blockedReplacementModal = document.getElementById("blockedReplacementModal");
+        var blockedModalDetails = document.getElementById("blockedModalDetails");
+        var blockedSearchInput = document.getElementById("blockedSearchInput");
+        var blockedSearchBtn = document.getElementById("blockedSearchBtn");
+        var blockedSearchResults = document.getElementById("blockedSearchResults");
+        var blockedReplacementArtnr = document.getElementById("blockedReplacementArtnr");
+        var blockedConfirmBtn = document.getElementById("blockedConfirmBtn");
+        var blockedIgnoreBtn = document.getElementById("blockedIgnoreBtn");
+        var blockedTextBtn = document.getElementById("blockedTextBtn");
         if (blockedArticlesContainer && showBlockedArticlesBtn && blockedArticlesArea) {
             showBlockedArticlesBtn.addEventListener("click", function() {
                 if (blockedArticlesArea.style.display === "none") {
@@ -102,6 +233,155 @@ document.addEventListener("DOMContentLoaded", function() {
             });
             blockedArticlesContainer.style.display = "none";
             blockedArticlesArea.style.display = "none";
+        }
+
+        function updateBlockedArticlesPanel(data) {
+            if (blockedArticlesContainer && showBlockedArticlesBtn && blockedArticlesArea) {
+                if (data.blocked_articles && data.blocked_articles.trim().length > 0) {
+                    blockedArticlesArea.value = data.blocked_articles;
+                    blockedArticlesContainer.style.display = "block";
+                    blockedArticlesArea.style.display = "none";
+                    showBlockedArticlesBtn.style.display = "inline-block";
+                    showBlockedArticlesBtn.textContent = "Show Blocked Articles";
+                } else {
+                    blockedArticlesContainer.style.display = "none";
+                    blockedArticlesArea.value = "";
+                }
+            }
+        }
+
+        function renderBlockedDetails(item) {
+            var lines = [
+                `artnr: ${item.artnr || ""}`,
+                `artbez1: ${item.artbez1 || ""}`,
+                `artbez2: ${item.artbez2 || ""}`,
+                `artbez3: ${item.artbez3 || ""}`,
+                `artbezmem: ${item.artbezmem || ""}`,
+                `zeichnr: ${item.zeichnr || ""}`
+            ];
+            return lines.join("\n");
+        }
+
+        function searchReplacementArticles(query) {
+            return fetch(`/search?query=${encodeURIComponent(query)}&mode=article`)
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (!data || !Array.isArray(data.results)) {
+                        return [];
+                    }
+                    return data.results;
+                })
+                .catch(function() { return []; });
+        }
+
+        function showBlockedReplacementFlow(moduleArtnr, existingArticlesTarget, blockedItems) {
+            if (!blockedReplacementModal || !blockedModalDetails || !blockedSearchBtn || !blockedConfirmBtn || !blockedIgnoreBtn) {
+                return Promise.resolve(null);
+            }
+            if (!Array.isArray(blockedItems) || blockedItems.length === 0) {
+                return Promise.resolve(null);
+            }
+
+            var replacementMap = {};
+            var idx = 0;
+
+            return new Promise(function(resolve) {
+                function finishFlow() {
+                    blockedReplacementModal.style.display = "none";
+                    if (!Object.keys(replacementMap).length) {
+                        resolve(null);
+                        return;
+                    }
+
+                    fetch("/generate-module-apply-replacements", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            artnr: moduleArtnr,
+                            existing_articles_target: existingArticlesTarget,
+                            replacement_map: replacementMap
+                        })
+                    })
+                    .then(function(response) {
+                        return response.text().then(function(text) {
+                            try {
+                                return text ? JSON.parse(text) : { status: "error", message: "Empty response" };
+                            } catch (e) {
+                                return { status: "error", message: text || "Invalid response format" };
+                            }
+                        });
+                    })
+                    .then(function(data) { resolve(data); })
+                    .catch(function(err) {
+                        resolve({ status: "error", message: err.message || String(err) });
+                    });
+                }
+
+                function showCurrentBlockedItem() {
+                    if (idx >= blockedItems.length) {
+                        finishFlow();
+                        return;
+                    }
+
+                    var item = blockedItems[idx] || {};
+                    blockedModalDetails.textContent = renderBlockedDetails(item);
+                    blockedSearchResults.innerHTML = "";
+                    blockedSearchInput.value = "";
+                    blockedReplacementArtnr.value = "";
+                    blockedReplacementModal.style.display = "flex";
+
+                    blockedSearchBtn.onclick = function() {
+                        var q = (blockedSearchInput.value || "").trim();
+                        if (!q) {
+                            blockedSearchResults.innerHTML = "";
+                            return;
+                        }
+                        searchReplacementArticles(q).then(function(results) {
+                            if (!results.length) {
+                                blockedSearchResults.innerHTML = `<div class='blocked-search-results-item'>${t("modalNoResults")}</div>`;
+                                return;
+                            }
+                            blockedSearchResults.innerHTML = "";
+                            results.slice(0, 20).forEach(function(r) {
+                                var row = document.createElement("div");
+                                row.className = "blocked-search-results-item";
+                                row.textContent = `${r.artnr || ""} | ${r.artbez1 || ""} | ${r.zeichnr || ""}`;
+                                row.addEventListener("click", function() {
+                                    blockedReplacementArtnr.value = r.artnr || "";
+                                });
+                                blockedSearchResults.appendChild(row);
+                            });
+                        });
+                    };
+
+                    blockedConfirmBtn.onclick = function() {
+                        var repl = (blockedReplacementArtnr.value || "").trim();
+                        if (!repl) {
+                            alert(t("modalNeedReplacement"));
+                            return;
+                        }
+                        replacementMap[item.artnr] = repl;
+                        idx += 1;
+                        showCurrentBlockedItem();
+                    };
+
+                    blockedIgnoreBtn.onclick = function() {
+                        idx += 1;
+                        showCurrentBlockedItem();
+                    };
+
+                    if (blockedTextBtn) {
+                        blockedTextBtn.onclick = function() {
+                            // Mark this blocked article as Textartikel
+                            replacementMap[item.artnr] = { textartikel: true };
+                            idx += 1;
+                            showCurrentBlockedItem();
+                        };
+                    }
+                }
+
+                showCurrentBlockedItem();
+            });
         }
     // Set Search & Transform as default tab
     var tablinks = document.getElementsByClassName("tablink");
@@ -353,17 +633,17 @@ document.addEventListener("DOMContentLoaded", function() {
     if (generateModuleBtn && currentSelection) {
         generateModuleBtn.addEventListener("click", function() {
             if (searchMode !== "module") {
-                alert("Switch to Module mode to generate a module.");
+                alert(t("alertSwitchModule"));
                 return;
             }
             if (!selectedResult || !selectedResult.artnr) {
-                alert("No module selected.");
+                alert(t("alertNoModule"));
                 return;
             }
 
             var existingArticlesTarget = getExistingArticlesTarget();
             if (existingArticlesTarget === "invalid") {
-                alert("Only one existing-articles checkbox can be selected.");
+                alert(t("alertOneTarget"));
                 return;
             }
 
@@ -390,19 +670,19 @@ document.addEventListener("DOMContentLoaded", function() {
                 var data = result.data;
                 let entry = `<div><b>Generate Module:</b> ${selectedResult.artnr} — <span style='color:${data.status === 'success' ? '#27ae60' : '#c00'};'>${data.message}</span></div>`;
                 feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
-                // Blocked articles UI
-                if (blockedArticlesContainer && showBlockedArticlesBtn && blockedArticlesArea) {
-                    if (data.blocked_articles && data.blocked_articles.trim().length > 0) {
-                        blockedArticlesArea.value = data.blocked_articles;
-                        blockedArticlesContainer.style.display = "block";
-                        blockedArticlesArea.style.display = "none";
-                        showBlockedArticlesBtn.style.display = "inline-block";
-                        showBlockedArticlesBtn.textContent = "Show Blocked Articles";
-                    } else {
-                        blockedArticlesContainer.style.display = "none";
-                        blockedArticlesArea.value = "";
-                    }
-                }
+
+                updateBlockedArticlesPanel(data);
+
+                return showBlockedReplacementFlow(selectedResult.artnr, existingArticlesTarget, data.blocked_items || [])
+                    .then(function(replacementResult) {
+                        if (!replacementResult) {
+                            return;
+                        }
+
+                        let replacementEntry = `<div><b>Apply Replacements:</b> ${selectedResult.artnr} — <span style='color:${replacementResult.status === 'success' ? '#27ae60' : '#c00'};'>${replacementResult.message}</span></div>`;
+                        feedbackLog.innerHTML = replacementEntry + feedbackLog.innerHTML;
+                        updateBlockedArticlesPanel(replacementResult);
+                    });
             })
             .catch(function(err) {
                 let entry = `<div><b>Generate Module:</b> ${selectedResult.artnr} — <span style='color:#c00;'>Error: ${err}</span></div>`;

@@ -2,18 +2,18 @@ file_mappings:
   ABBESTBEI.DBF:
   ABSENDER.DBF: 
   ABTEIL.DBF: 
-  ADRESS.DBF: 
-  AENDART.DBF: 
-  AENDLOG.DBF: 
+  ADRESS.DBF: Adressen
+  AENDART.DBF: Artikeländerungen
+  AENDLOG.DBF: ÄnderungsVerzeichnis
   AHAPLA.DBF: 
   AHLIEF.DBF: 
   ANABFMDE.DBF: 
-  ANABMELD.DBF: 
+  ANABMELD.DBF: An- und Abmeldungsverzeichnis
   ANFKO.DBF: 
   ANFPO.DBF: 
-  ANGKO.DBF: 
-  ANGPO.DBF: 
-  ANGTXT.DBF: 
+  ANGKO.DBF: AngebotsKonto
+  ANGPO.DBF: Angebotsposition
+  ANGTXT.DBF: AngebotsText
   ANNAHMKO.DBF: 
   ANNAHMPO.DBF: 
   ANREDEN.DBF: 

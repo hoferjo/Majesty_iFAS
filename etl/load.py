@@ -407,30 +407,29 @@ def archive_module_export(module_artnr, excel_path, partlist_csv_path, partlist_
     archive_dir = Path(archive_dir)
     archive_dir.mkdir(parents=True, exist_ok=True)
 
-    archive_folder = archive_dir / f"{module_name}_{stamp}"
-    archive_folder.mkdir(parents=True, exist_ok=True)
-
+    # Instead of creating a folder, just zip the files directly and remove any temp folders
     excel_path = Path(excel_path)
     partlist_csv_path = Path(partlist_csv_path)
     partlist_tree_path = Path(partlist_tree_path)
 
-    out_excel = archive_folder / f"{module_name}_iFAS_import.xlsx"
-    out_partlist = archive_folder / f"partlist_{module_name}.csv"
-    out_tree = archive_folder / f"partlist_tree_{module_name}.txt"
-
-    shutil.copy2(excel_path, out_excel)
-    if partlist_csv_path.exists():
-        shutil.copy2(partlist_csv_path, out_partlist)
-    if partlist_tree_path.exists():
-        shutil.copy2(partlist_tree_path, out_tree)
-
     zip_path = archive_dir / f"{module_name}_{stamp}.zip"
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for p in archive_folder.rglob("*"):
-            if p.is_file():
-                zf.write(p, arcname=f"{archive_folder.name}/{p.name}")
+        # Add Excel
+        if excel_path.exists():
+            zf.write(excel_path, arcname=f"{module_name}_iFAS_import.xlsx")
+        # Add partlist CSV
+        if partlist_csv_path.exists():
+            zf.write(partlist_csv_path, arcname=f"partlist_{module_name}.csv")
+        # Add partlist tree
+        if partlist_tree_path.exists():
+            zf.write(partlist_tree_path, arcname=f"partlist_tree_{module_name}.txt")
 
-    return archive_folder, zip_path
+    # Optionally, remove any old archive folders for this module (cleanup)
+    # for folder in archive_dir.glob(f"{module_name}_*"):
+    #     if folder.is_dir():
+    #         shutil.rmtree(folder, ignore_errors=True)
+
+    return None, zip_path
 
 def create_partlist_excel_from_template(
     partlist_csv_path: Path,

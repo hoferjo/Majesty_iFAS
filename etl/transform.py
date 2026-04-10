@@ -8,6 +8,8 @@ etl_dir = BASE_DIR / "etl"
 
 # Debug flag for easy log removal
 DEBUG = True
+# Separate flag for timer output
+TIMER = True
 
 # Shared in-process caches survive across endpoint calls in the same worker.
 _GLOBAL_TABLE_CACHE = {}
@@ -109,9 +111,12 @@ def mergeTexts(text1, text2, text3=None, text4=None):
     else:
         return ''
 
-def getArtikelnummer(artnr):
+def getLieferantennummer(artnr):
     letzt_lief = getEntryFromCSV(artikelstamm, artnr, 'letzt_lief')
-    return getEntryFromCSV(lieferanten_mapping, letzt_lief, 'artikelnummer')
+    # Use as string, no padding
+    if letzt_lief is not None:
+        letzt_lief = str(letzt_lief).strip()
+    return getEntryFromCSV(lieferanten_mapping, letzt_lief, 'ifas_nummer')
 
 def getBeschaffungsart(artnr):
     if isParent(artnr, stueckliste_path):
@@ -131,13 +136,15 @@ def getBezeichnung2(artnr):
     return mergeTexts(artbez2, artbez3, artbezmem)
 
 
-def API_import():
+def API_import(first_parent_artnr=None):
     import_date = "Import_via_API_" + datetime.now().strftime("%Y-%m-%d")
+    if first_parent_artnr:
+        return f"{import_date}{first_parent_artnr}"
     return import_date
 
-def getArtikelnummer(artnr):
+def getLieferantennummer(artnr):
     letzt_lief = getEntryFromCSV(artikelstamm, artnr, 'letzt_lief')
-    return getEntryFromCSV(lieferanten_mapping, letzt_lief, 'artikelnummer')
+    return getEntryFromCSV(lieferanten_mapping, letzt_lief, 'ifas_nummer')
 
 
 def deriveWBZ(artnr):
@@ -408,6 +415,14 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
     # Function dispatcher for mapping functions
     def call_mapping_function(mapping, article, articlelist_headers=None):
         header = mapping['header']
+        # If this article is a textartikel (from replacement), override certain fields
+        textartikel_map = getattr(process_module_structure, '_textartikel_map', {})
+        artnr_key = article.get('artnr', '').strip()
+        if artnr_key in textartikel_map:
+            override = textartikel_map[artnr_key]
+            # Map header to override value if present
+            if header in override:
+                return override[header]
         func = mapping['function']
         args = mapping['argument']
         arglist = mapping['arglist']
@@ -444,17 +459,17 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
                 return mergeTexts(artbez2, artbez3, artbezmem)
             return ''
 
-        if func == 'getArtikelnummer':
+        if func == 'getLieferantennummer':
             # args: artnr
             if len(arglist) >= 1:
                 artnr_val = article.get(arglist[-1], arglist[-1])
                 letzt_lief = get_entry_cached(artikelstamm, artnr_val, 'letzt_lief', key_column='artnr')
+                if letzt_lief is not None:
+                    letzt_lief = str(letzt_lief).strip()
                 if not letzt_lief or letzt_lief == 0:
                     return ''
-                val = get_entry_cached(lieferanten_mapping, letzt_lief, 'artikelnummer', key_column='liefnr')
-                if not val or val == 0:
-                    val = get_entry_cached(lieferanten_mapping, letzt_lief, 'ifas_nummer', key_column='liefnr')
-                return '' if val == 0 else val
+                val = get_entry_cached(lieferanten_mapping, letzt_lief, 'ifas_nummer', key_column='liefnr')
+                return '' if not val or val == 0 else val
             return ''
 
         if func == 'getBeschaffungsart':
@@ -503,7 +518,12 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             return ''
 
         if func == 'API_import':
-            return API_import()
+            # For Freier Text 10, append the uppermost parent (root module artnr).
+            header = mapping['header'].lower()
+            root_module_artnr = None
+            if header == 'freier text 10':
+                root_module_artnr = article.get('root_module_artnr')
+            return API_import(root_module_artnr)
 
         if func == 'deriveWBZ':
             # args: artnr
@@ -522,6 +542,25 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             articlelist_headers = set(reader.fieldnames or [])
     else:
         articlelist_headers = set(articles[0].keys()) if articles else set()
+
+    # Try to determine the root module artnr (uppermost parent) from the first article or from filename.
+    root_module_artnr = None
+    if articles and 'stulinr' in articles[0]:
+        root_module_artnr = articles[0]['stulinr']
+    elif articles and 'root_module_artnr' in articles[0]:
+        root_module_artnr = articles[0]['root_module_artnr']
+    elif articles and 'artnr' in articles[0]:
+        root_module_artnr = articles[0]['artnr']
+    if not root_module_artnr and isinstance(articlelist, str):
+        import re
+        m = re.search(r'article_list_([\w\d]+)\\.csv', articlelist)
+        if m:
+            root_module_artnr = m.group(1)
+
+    # Inject root_module_artnr into every article row for mapping use.
+    if root_module_artnr:
+        for a in articles:
+            a['root_module_artnr'] = root_module_artnr
 
     # Determine if this is for blocked articles by filename
     is_blocked = False
@@ -560,6 +599,7 @@ def process_module_structure(
     visited=None,
     artikel_map=None,
     existing_articles_file=None,
+    replacement_map=None,
 ):
 
     import time
@@ -604,6 +644,7 @@ def process_module_structure(
             pass
 
     article_list_seen = set(existing_articles_set)
+    replacement_map = replacement_map or {}
 
     # Only load artikel_map once and pass through recursion
     if artikel_map is None:
@@ -645,31 +686,51 @@ def process_module_structure(
     def append_unique_article(artnr, artbez1, zeichnr):
         if DEBUG:
             print(f"[DEBUG] append_unique_article called with: artnr={artnr}, artbez1={artbez1}, zeichnr={zeichnr}")
-        # Only add if not already present in memory-tracked set and not in existing IFAS.
         artnr_key = str(artnr or '').strip()
+        repl_val = replacement_map.get(artnr_key, artnr_key)
+        # Handle textartikel special case
+        is_textartikel = False
+        if isinstance(repl_val, dict) and repl_val.get("textartikel"):
+            is_textartikel = True
+            effective_artnr = artnr_key
+        else:
+            effective_artnr = str(repl_val or '').strip()
         if not artnr_key:
             return
-        if artnr_key in article_list_seen:
+        if effective_artnr in article_list_seen:
             if DEBUG:
                 if existing_articles_file:
-                    print(f"[DEBUG] Article {artnr} already in existing articles file ({existing_articles_file}), skipping.")
+                    print(f"[DEBUG] Article {effective_artnr} already in existing articles file ({existing_articles_file}), skipping.")
                 else:
-                    print(f"[DEBUG] Article {artnr} already in current article list set, skipping.")
+                    print(f"[DEBUG] Article {effective_artnr} already in current article list set, skipping.")
             return
         try:
-            # Check if blocked
-            sperre = artikel_map.get(artnr, {}).get('sperre', '').strip()
-            if sperre and sperre.upper() != 'FALSCH':
+            effective_row = artikel_map.get(effective_artnr, {})
+            effective_artbez1 = effective_row.get('artbez1', '') or artbez1
+            effective_zeichnr = effective_row.get('zeichnr', '') or zeichnr
+            # Check if blocked, unless textartikel override
+            sperre = (effective_row.get('sperre', '') or '').strip()
+            if sperre and sperre.upper() != 'FALSCH' and not is_textartikel:
                 with open(blocked_articles_path, 'a', encoding='utf-8') as f:
-                    f.write(f"{artnr};{artbez1};{zeichnr}\n")
+                    f.write(f"{effective_artnr};{effective_artbez1};{effective_zeichnr}\n")
                 if DEBUG:
-                    print(f"[DEBUG] Blocked article: {artnr}; {artbez1}; {zeichnr}")
+                    print(f"[DEBUG] Blocked article: {effective_artnr}; {effective_artbez1}; {effective_zeichnr}")
                 return
             with open(article_list_path, 'a', encoding='utf-8') as f:
-                f.write(f"{artnr};{artbez1};{zeichnr}\n")
-            article_list_seen.add(artnr_key)
+                f.write(f"{effective_artnr};{effective_artbez1};{effective_zeichnr}\n")
+            article_list_seen.add(effective_artnr)
             if DEBUG:
-                print(f"[DEBUG] Appended article: {artnr}; {artbez1}; {zeichnr}")
+                print(f"[DEBUG] Appended article: {effective_artnr}; {effective_artbez1}; {effective_zeichnr}")
+            # If textartikel, set mapping fields for later use
+            if is_textartikel:
+                if not hasattr(process_module_structure, '_textartikel_map'):
+                    process_module_structure._textartikel_map = {}
+                process_module_structure._textartikel_map[effective_artnr] = {
+                    'istTextartikel': '1',
+                    'produktionsartikel': '1',
+                    'einkaufsartikel': '0',
+                    'verkaufsartikel': '1',
+                }
         except Exception as e:
             print(f"[ERROR] Failed to append article: {e}")
 
@@ -682,15 +743,19 @@ def process_module_structure(
 
     def append_partlist(stulinr, posnr, menge, artnr, artbez1, depth=0, is_last=False, prefix_stack=None, timer_start=None):
         t_stueck_start = time.time()
+        artnr_key = str(artnr or '').strip()
+        effective_artnr = str(replacement_map.get(artnr_key, artnr_key) or '').strip()
+        effective_row = artikel_map.get(effective_artnr, {})
+        effective_artbez1 = effective_row.get('artbez1', '') or artbez1
         # Check if blocked
-        sperre = artikel_map.get(artnr, {}).get('sperre', '').strip()
+        sperre = (effective_row.get('sperre', '') or '').strip()
         menge_out = menge
         if sperre and sperre.upper() != 'FALSCH':
             menge_out = f"{menge}BLOCKED"
         with open(partlist_path, 'a', encoding='utf-8') as f:
-            f.write(f"{stulinr};{posnr};{menge_out};{artnr};{artbez1}\n")
+            f.write(f"{stulinr};{posnr};{menge_out};{effective_artnr};{effective_artbez1}\n")
         if DEBUG:
-            print(f"[DEBUG] Appended partlist: {stulinr}; {posnr}; {menge_out}; {artnr}; {artbez1}")
+            print(f"[DEBUG] Appended partlist: {stulinr}; {posnr}; {menge_out}; {effective_artnr}; {effective_artbez1}")
         # Write to tree file
         if prefix_stack is None:
             prefix_stack = []
@@ -700,16 +765,16 @@ def process_module_structure(
         if depth > 0:
             prefix += '+---'
         # Get zeichnr for this artnr
-        zeichnr = artikel_map.get(artnr, {}).get('zeichnr', '')
+        zeichnr = effective_row.get('zeichnr', '')
         if sperre and sperre.upper() != 'FALSCH':
-            line = f"{prefix}BLOCKED {artnr}, {artbez1}, {zeichnr}"
+            line = f"{prefix}BLOCKED {effective_artnr}, {effective_artbez1}, {zeichnr}"
         else:
-            line = f"{prefix}{artnr}, {artbez1}, {zeichnr}"
+            line = f"{prefix}{effective_artnr}, {effective_artbez1}, {zeichnr}"
         getattr(process_module_structure, '_tree_file').write(line + '\n')
         t_stueck_end = time.time()
-        if DEBUG:
+        if TIMER:
             print(f"[TIMER] Stückliste processing: {t_stueck_end - t_stueck_start:.3f}s for {stulinr}")
-        if timer_start is not None and DEBUG:
+        if timer_start is not None and TIMER:
             print(f"[TIMER] Total time for {stulinr}: {t_stueck_end - timer_start:.3f}s")
 
     # Helper to find children for a given parent
