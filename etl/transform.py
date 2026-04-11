@@ -600,6 +600,7 @@ def process_module_structure(
     artikel_map=None,
     existing_articles_file=None,
     replacement_map=None,
+    reset_files=False,
 ):
 
     import time
@@ -618,15 +619,17 @@ def process_module_structure(
         print(f"[ERROR] Skipping processing for {selected_artnr} due to stueckliste encoding.")
         return
 
-    # Overwrite article_list, partlist, and blocked_articles at the start of a new module generation (only on first call)
+    # Always ensure visited is a set
     if visited is None:
         visited = set()
-        # Truncate/overwrite files with ; delimiter
+    # Overwrite article_list, partlist, and blocked_articles only if reset_files is True
+    if reset_files:
         with open(article_list_path, 'w', encoding='utf-8') as f:
             f.write('artnr;artbez1;zeichnr\n')
         with open(partlist_path, 'w', encoding='utf-8') as f:
             f.write('stulinr;posnr;menge;artnr;artbez1\n')
-        blocked_articles_path = str(article_list_path).replace('article_list.csv', 'blocked_articles.csv')
+        blocked_articles_path = str(article_list_path).replace('article_list', 'blocked_articles')
+        # Always clear the blocked articles file (write header), even if there are no blocked articles in the new run
         with open(blocked_articles_path, 'w', encoding='utf-8') as f:
             f.write('artnr;artbez1;zeichnr\n')
 
@@ -681,7 +684,7 @@ def process_module_structure(
     stueckliste_rows = process_module_structure.stueckliste_rows
     stueckliste_children_map = getattr(process_module_structure, 'stueckliste_children_map', {})
 
-    blocked_articles_path = str(article_list_path).replace('article_list.csv', 'blocked_articles.csv')
+    blocked_articles_path = str(article_list_path).replace('article_list', 'blocked_articles')
 
     def append_unique_article(artnr, artbez1, zeichnr):
         if DEBUG:

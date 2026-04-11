@@ -19,7 +19,6 @@ from fastapi.responses import JSONResponse
 settings_path = Path(__file__).parent.parent / "config" / "settings.yaml"
 etl_dir = Path(__file__).parent.parent / "etl"
 sys.path.append(str(etl_dir))
-article_list_path = Path(__file__).parent.parent / "data" / "processed" / "csv" / "cache" / "article_list.csv"
 
 from etl.transform import process_module_structure, build_sheet_cache_CSV
 from etl.load import (
@@ -31,7 +30,11 @@ from etl.load import (
     create_partlist_excel_from_template,
 )
 
+
 app = FastAPI()
+
+# Global flag to clear article cache files after import
+ARTICLE_CACHE_CLEAR = 0
 
 # Keeps the latest generated module article rows per artnr in this process.
 _MODULE_ARTICLES_CACHE = {}
@@ -166,6 +169,46 @@ def _resolved_active_sheet_names(base: Path):
     return list(dict.fromkeys(resolved))
 
 
+def _normalize_mode(mode: str | None, default: str = "module"):
+    mode_value = str(mode or default).strip().lower()
+    return "article" if mode_value == "article" else "module"
+
+
+def _cache_paths(base: Path, mode: str):
+    normalized_mode = _normalize_mode(mode)
+    suffix = "article_mode" if normalized_mode == "article" else "module_mode"
+    return {
+        "mode": normalized_mode,
+        "article_list": base / "data" / "processed" / "csv" / "cache" / f"article_list_{suffix}.csv",
+        "blocked_articles": base / "data" / "processed" / "csv" / "cache" / f"blocked_articles_{suffix}.csv",
+        "partlist": base / "data" / "processed" / "csv" / "cache" / f"partlist_{suffix}.csv",
+        "partlist_tree": base / "data" / "processed" / "csv" / "cache" / f"partlist_{suffix}_tree.txt",
+    }
+
+
+def _reset_mode_cache_files(base: Path, mode: str):
+    paths = _cache_paths(base, mode)
+    headers = {
+        "article_list": "artnr;artbez1;zeichnr\n",
+        "blocked_articles": "artnr;artbez1;zeichnr\n",
+        "partlist": "stulinr;posnr;menge;artnr;artbez1\n",
+    }
+    for key, header in headers.items():
+        with open(paths[key], "w", encoding="utf-8") as f:
+            f.write(header)
+    if paths["partlist_tree"].exists():
+        paths["partlist_tree"].unlink()
+    return paths
+
+
+def _count_csv_rows(path: Path):
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            return max(sum(1 for _ in f) - 1, 0)
+    except Exception:
+        return 0
+
+
 def _normalize_existing_target(value: str):
     target = str(value or "none").strip().lower()
     if target not in {"none", "prod", "test"}:
@@ -268,8 +311,10 @@ def generate_module(data: dict = Body(...)):
     base = Path(__file__).parent.parent
     artikelstamm_path = base / "data" / "raw" / "artikelstamm" / "artikelstamm_majesty_2026_03_30.csv"
     stueckliste_path = base / "data" / "raw" / "stücklistenstamm" / "20410917_stuelipo.csv"
-    article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
-    partlist_path = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
+    cache_paths = _cache_paths(base, "module")
+    article_list_path = cache_paths["article_list"]
+    partlist_path = cache_paths["partlist"]
+    blocked_articles_path = cache_paths["blocked_articles"]
     try:
         existing_articles_file = resolve_existing_articles_file(base, existing_articles_target)
         _MODULE_EXISTING_TARGET_CACHE[str(artnr)] = existing_articles_target
@@ -282,21 +327,13 @@ def generate_module(data: dict = Body(...)):
             str(partlist_path),
             existing_articles_file=str(existing_articles_file) if existing_articles_file else None,
             replacement_map=normalized_replacement_map,
+            reset_files=True,
         )
         _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_path)
 
-        # Count rows in article_list.csv and partlist.csv (excluding header)
-        def count_csv_rows(path):
-            try:
-                with open(path, "r", encoding="utf-8-sig") as f:
-                    return sum(1 for _ in f) - 1
-            except Exception:
-                return 0
-
-        article_count = count_csv_rows(article_list_path)
-        partlist_count = count_csv_rows(partlist_path)
-        blocked_articles_path = base / "data" / "processed" / "csv" / "cache" / "blocked_articles.csv"
-        blocked_count = count_csv_rows(blocked_articles_path)
+        article_count = _count_csv_rows(article_list_path)
+        partlist_count = _count_csv_rows(partlist_path)
+        blocked_count = _count_csv_rows(blocked_articles_path)
         blocked_articles_data = ""
         if blocked_count > 0 and blocked_articles_path.exists():
             with open(blocked_articles_path, "r", encoding="utf-8-sig") as f:
@@ -339,9 +376,10 @@ def generate_module_apply_replacements(data: dict = Body(...)):
     base = Path(__file__).parent.parent
     artikelstamm_path = base / "data" / "raw" / "artikelstamm" / "artikelstamm_majesty_2026_03_30.csv"
     stueckliste_path = base / "data" / "raw" / "stücklistenstamm" / "20410917_stuelipo.csv"
-    article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
-    partlist_path = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
-    blocked_articles_path = base / "data" / "processed" / "csv" / "cache" / "blocked_articles.csv"
+    cache_paths = _cache_paths(base, "module")
+    article_list_path = cache_paths["article_list"]
+    partlist_path = cache_paths["partlist"]
+    blocked_articles_path = cache_paths["blocked_articles"]
 
     try:
         existing_articles_file = resolve_existing_articles_file(base, existing_articles_target)
@@ -355,20 +393,14 @@ def generate_module_apply_replacements(data: dict = Body(...)):
             str(partlist_path),
             existing_articles_file=str(existing_articles_file) if existing_articles_file else None,
             replacement_map=normalized_replacement_map,
+            reset_files=True,
         )
 
         _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_path)
 
-        def count_csv_rows(path):
-            try:
-                with open(path, "r", encoding="utf-8-sig") as f:
-                    return sum(1 for _ in f) - 1
-            except Exception:
-                return 0
-
-        article_count = count_csv_rows(article_list_path)
-        partlist_count = count_csv_rows(partlist_path)
-        blocked_count = count_csv_rows(blocked_articles_path)
+        article_count = _count_csv_rows(article_list_path)
+        partlist_count = _count_csv_rows(partlist_path)
+        blocked_count = _count_csv_rows(blocked_articles_path)
         blocked_articles_data = ""
         if blocked_count > 0 and blocked_articles_path.exists():
             with open(blocked_articles_path, "r", encoding="utf-8-sig") as f:
@@ -377,8 +409,8 @@ def generate_module_apply_replacements(data: dict = Body(...)):
         blocked_items = _read_blocked_article_details(blocked_articles_path, artikelstamm_path)
 
         msg = (
-            f"Modulestructure generated for {artnr} articles to migrate: {article_count} "
-            f"partlist entries: {partlist_count} blocked articles: {blocked_count}"
+            f"Modulestructure generated for {artnr}: "
+            f"articles to migrate: {article_count}, partlist entries: {partlist_count}, blocked articles: {blocked_count}"
         )
 
         return JSONResponse(status_code=200, content={
@@ -437,13 +469,16 @@ def upload_ifas_artikelstamm(
 def generate_module_data(data: dict = Body(...)):
     artnr = data.get("artnr")
     selected_headers = data.get("selected_headers", [])
+    mode = _normalize_mode(data.get("mode"), "module")
     if not artnr:
         return {"status": "error", "message": "No artnr provided"}
     if not isinstance(selected_headers, list):
         return {"status": "error", "message": "selected_headers must be a list"}
 
     base = Path(__file__).parent.parent
-    article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
+    cache_paths = _cache_paths(base, mode)
+    article_list_path = cache_paths["article_list"]
+    blocked_articles_path = cache_paths["blocked_articles"]
     sheets_path = base / "config" / "sheets.csv"
     active_sheets_path = base / "config" / "active_sheets.csv"
     sheets_output_dir = base / "data" / "processed" / "csv" / "cache" / "sheets"
@@ -452,7 +487,7 @@ def generate_module_data(data: dict = Body(...)):
         if not article_list_path.exists():
             return {
                 "status": "error",
-                "message": "article_list.csv not found. Generate module structure first."
+                "message": f"{article_list_path.name} not found. Generate {mode} structure first."
             }
 
         if not sheets_path.exists():
@@ -519,7 +554,6 @@ def generate_module_data(data: dict = Body(...)):
         cached_articles = _MODULE_ARTICLES_CACHE.get(str(artnr))
         build_sheet_cache_CSV(str(article_list_path), build_sheet_names, articles=cached_articles)
         # Also generate for blocked articles
-        blocked_articles_path = base / "data" / "processed" / "csv" / "cache" / "blocked_articles.csv"
         if blocked_articles_path.exists():
             with blocked_articles_path.open("r", encoding="utf-8-sig") as f:
                 reader = csv.DictReader(f, delimiter=';')
@@ -557,9 +591,9 @@ def generate_module_data(data: dict = Body(...)):
 
 # New endpoint: Download Partlist Excel
 @app.get("/download-partlist-excel")
-def download_partlist_excel():
+def download_partlist_excel(mode: str = Query("module")):
     base = Path(__file__).parent.parent
-    partlist_csv = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
+    partlist_csv = _cache_paths(base, mode)["partlist"]
     template_xlsx = base / "data" / "raw" / "templates" / "VorlageStücklisteV1.xlsx"
     output_xlsx = base / "data" / "processed" / "csv" / "cache" / "partlist_export.xlsx"
     if not partlist_csv.exists() or not template_xlsx.exists():
@@ -581,9 +615,10 @@ def download_module_export(
 
     template_path = base / "data" / "raw" / "templates" / "Vorlage_edit_jhofer.xlsx"
     cache_dir = base / "data" / "processed" / "csv" / "cache" / "sheets"
-    partlist_path = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
-    partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / "partlist_tree.txt"
-    article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
+    cache_paths = _cache_paths(base, "module")
+    partlist_path = cache_paths["partlist"]
+    partlist_tree_path = cache_paths["partlist_tree"]
+    article_list_path = cache_paths["article_list"]
     archive_dir = base / "data" / "archive"
     temp_export_dir = base / "data" / "processed" / "csv" / "cache" / "export"
     temp_export_dir.mkdir(parents=True, exist_ok=True)
@@ -631,18 +666,21 @@ def download_module_export(
 def download_module_excel(
     artnr: str = Query(..., min_length=1),
     existing_articles_target: str = Query("none"),
+    mode: str = Query("module"),
 ):
+    mode = _normalize_mode(mode, "module")
     requested_target = _normalize_existing_target(existing_articles_target)
     cached_target = _MODULE_EXISTING_TARGET_CACHE.get(str(artnr), "none")
     effective_target = requested_target if requested_target != "none" else cached_target
-    print(f"[DEBUG] /download-module-excel triggered for artnr={artnr}, target={effective_target}")
+    print(f"[DEBUG] /download-module-excel triggered for artnr={artnr}, target={effective_target}, mode={mode}")
     base = Path(__file__).parent.parent
 
     template_path = base / "data" / "raw" / "templates" / "Vorlage_edit_jhofer.xlsx"
     cache_dir = base / "data" / "processed" / "csv" / "cache" / "sheets"
-    partlist_path = base / "data" / "processed" / "csv" / "cache" / "partlist.csv"
-    partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / "partlist_tree.txt"
-    article_list_path = base / "data" / "processed" / "csv" / "cache" / "article_list.csv"
+    cache_paths = _cache_paths(base, mode)
+    partlist_path = cache_paths["partlist"]
+    partlist_tree_path = cache_paths["partlist_tree"]
+    article_list_path = cache_paths["article_list"]
     archive_dir = base / "data" / "archive"
     temp_export_dir = base / "data" / "processed" / "csv" / "cache" / "export"
     temp_export_dir.mkdir(parents=True, exist_ok=True)
@@ -650,6 +688,7 @@ def download_module_excel(
     if not template_path.exists():
         return JSONResponse(status_code=404, content={"status": "error", "message": f"Template not found: {template_path}"})
 
+    global ARTICLE_CACHE_CLEAR
     try:
         sheet_names = _resolved_active_sheet_names(base)
         if not sheet_names:
@@ -670,7 +709,7 @@ def download_module_excel(
         )
         print(f"[DEBUG] Excel creation complete for {artnr}")
 
-        if effective_target in {"prod", "test"}:
+        if mode == "module" and effective_target in {"prod", "test"}:
             target_file = resolve_existing_articles_file(base, effective_target)
             append_article_list_to_existing(article_list_path, target_file)
 
@@ -689,6 +728,10 @@ def download_module_excel(
                 print(f"[ERROR] Archive failed for artnr={artnr}: {e}")
 
         threading.Thread(target=archive_job, daemon=True).start()
+
+        if mode == "article":
+            _reset_mode_cache_files(base, "article")
+            ARTICLE_CACHE_CLEAR = 1
 
         return FileResponse(
             str(temp_excel_path),
@@ -734,9 +777,9 @@ def hard_update_majesty_data():
         return {"status": "error", "message": str(e)}
     
 @app.get("/download-partlist-tree")
-def download_partlist_tree(artnr: str = Query(..., min_length=1)):
+def download_partlist_tree(artnr: str = Query(..., min_length=1), mode: str = Query("module")):
     base = Path(__file__).parent.parent
-    partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / "partlist_tree.txt"
+    partlist_tree_path = _cache_paths(base, mode)["partlist_tree"]
     # Optionally, support per-artnr tree files if needed:
     # partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / f"partlist_tree_{artnr}.txt"
     if not partlist_tree_path.exists():
@@ -747,13 +790,178 @@ def download_partlist_tree(artnr: str = Query(..., min_length=1)):
         return JSONResponse(status_code=500, content={"error": str(e)})
     
 
+@app.post("/add-article")
+def add_article(data: dict = Body(...)):
+    artnr = data.get("artnr")
+    if not artnr:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "No artnr provided"})
 
+    base = Path(__file__).parent.parent
+    artikelstamm_path = base / "data" / "raw" / "artikelstamm" / "artikelstamm_majesty_2026_03_30.csv"
+    cache_paths = _cache_paths(base, "article")
+    article_list_path = cache_paths["article_list"]
+    global ARTICLE_CACHE_CLEAR
+    try:
+        # If cache clear flag is set, clear article mode cache files and reset flag
+        if ARTICLE_CACHE_CLEAR == 1:
+            _reset_mode_cache_files(base, "article")
+            ARTICLE_CACHE_CLEAR = 0
+        import csv
+        from etl.transform import check_utf8_file
+        if not check_utf8_file(artikelstamm_path):
+            return JSONResponse(status_code=500, content={"status": "error", "message": f"artikelstamm not valid UTF-8: {artikelstamm_path}"})
+        # Read article-mode list entries to avoid duplicates
+        existing_artnr = set()
+        if article_list_path.exists():
+            with open(article_list_path, 'r', encoding='utf-8-sig') as f:
+                next(f, None)
+                for line in f:
+                    key = line.strip().split(';')[0].strip()
+                    if key:
+                        existing_artnr.add(key)
+        # Also check both existing-articles targets, because these should not be appended either.
+        existing_targets_artnr = set()
+        for target in ["prod", "test"]:
+            target_file = resolve_existing_articles_file(base, target)
+            if not target_file or not target_file.exists():
+                continue
+            with open(target_file, 'r', encoding='utf-8-sig') as f:
+                next(f, None)
+                for line in f:
+                    key = line.strip().split(',')[0].strip()
+                    if key:
+                        existing_targets_artnr.add(key)
+        # Find the article in artikelstamm
+        found = False
+        with open(artikelstamm_path, encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                if str(row.get('artnr', '')).strip() == str(artnr).strip():
+                    artbez1 = row.get('artbez1', '')
+                    zeichnr = row.get('zeichnr', '')
+                    if artnr in existing_artnr:
+                        return {
+                            "status": "success",
+                            "message": f"Article {artnr} already exists in article_list_article_mode.csv. Nothing appended."
+                        }
+                    if artnr in existing_targets_artnr:
+                        return {
+                            "status": "success",
+                            "message": f"Article {artnr} already exists in existing articles (PROD/TEST). Nothing appended."
+                        }
+                    if artnr not in existing_artnr:
+                        # Write header if file does not exist or is empty
+                        write_header = not article_list_path.exists() or article_list_path.stat().st_size == 0
+                        with open(article_list_path, 'a', encoding='utf-8') as out:
+                            if write_header:
+                                out.write('artnr;artbez1;zeichnr\n')
+                            out.write(f"{artnr};{artbez1};{zeichnr}\n")
+                    found = True
+                    break
+        if not found:
+            return JSONResponse(status_code=404, content={"status": "error", "message": f"Article {artnr} not found in artikelstamm."})
+        return {"status": "success", "message": f"Added article {artnr} to article_list_article_mode.csv."}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
+# --- Article Mode: Generate Article Export and Partlist ---
+@app.post("/generate-article")
+def generate_article(data: dict = Body(...)):
+    artnr_list = data.get("artnr_list")
+    if not artnr_list or not isinstance(artnr_list, list):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "No article list provided"})
 
+    base = Path(__file__).parent.parent
+    artikelstamm_path = base / "data" / "raw" / "artikelstamm" / "artikelstamm_majesty_2026_03_30.csv"
+    cache_paths = _cache_paths(base, "article")
+    article_list_path = cache_paths["article_list"]
+    partlist_path = cache_paths["partlist"]
+    try:
+        import csv
+        # Read existing articles to avoid duplicates
+        existing_artnr = set()
+        if article_list_path.exists():
+            with open(article_list_path, 'r', encoding='utf-8-sig') as f:
+                next(f, None)
+                for line in f:
+                    key = line.strip().split(';')[0].strip()
+                    if key:
+                        existing_artnr.add(key)
+        # Generate export and partlist for all articles in the list
+        write_header = not article_list_path.exists() or article_list_path.stat().st_size == 0
+        for idx, artnr in enumerate(artnr_list):
+            from etl.transform import check_utf8_file
+            if not check_utf8_file(artikelstamm_path):
+                return JSONResponse(status_code=500, content={"status": "error", "message": f"artikelstamm not valid UTF-8: {artikelstamm_path}"})
+            # Find the article in artikelstamm
+            found = False
+            with open(artikelstamm_path, encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for row in reader:
+                    if str(row.get('artnr', '')).strip() == str(artnr).strip():
+                        artbez1 = row.get('artbez1', '')
+                        zeichnr = row.get('zeichnr', '')
+                        if artnr not in existing_artnr:
+                            with open(article_list_path, 'a', encoding='utf-8') as out:
+                                if write_header:
+                                    out.write('artnr;artbez1;zeichnr\n')
+                                    write_header = False
+                                out.write(f"{artnr};{artbez1};{zeichnr}\n")
+                            existing_artnr.add(artnr)
+                        found = True
+                        break
+            if not found:
+                return JSONResponse(status_code=404, content={"status": "error", "message": f"Article {artnr} not found in artikelstamm."})
+        # Return download links (assuming same as module endpoints)
+        return {
+            "status": "success",
+            "message": f"Generated export and partlist for {len(artnr_list)} articles.",
+            "download_article_export": "/download-module-excel",
+            "download_partlist": "/download-partlist-excel"
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+    
+    
+@app.post("/reset-article-list")
+def reset_article_list():
+    """Truncate article-mode list files and write only the headers."""
+    base = Path(__file__).parent.parent
+    _reset_mode_cache_files(base, "article")
+    return {"status": "success", "message": "Article list reset."}
 
+@app.get("/article-list-preview")
+def article_list_preview():
+    """Return the current contents of article_list_article_mode.csv as JSON."""
+    try:
+        base = Path(__file__).parent.parent
+        article_list_path = _cache_paths(base, "article")["article_list"]
+        with open(article_list_path, 'r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            rows = list(reader)
+        return {"status": "success", "rows": rows}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "rows": []}
 
-
-
-
-
-
+@app.post("/remove-article-from-list")
+def remove_article_from_list(data: dict = Body(...)):
+    """Remove an article by artnr from article_list_article_mode.csv."""
+    artnr = str(data.get("artnr", "")).strip()
+    if not artnr:
+        return {"status": "error", "message": "No artnr provided."}
+    base = Path(__file__).parent.parent
+    article_list_path = _cache_paths(base, "article")["article_list"]
+    try:
+        # Read all rows except the one to remove
+        with open(article_list_path, 'r', encoding='utf-8-sig') as f:
+            rows = list(csv.DictReader(f, delimiter=';'))
+        new_rows = [row for row in rows if str(row.get("artnr", "")).strip() != artnr]
+        # Write back, preserving header
+        with open(article_list_path, 'w', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=["artnr", "artbez1", "zeichnr"], delimiter=';')
+            writer.writeheader()
+            for row in new_rows:
+                writer.writerow(row)
+        return {"status": "success", "message": f"Removed article {artnr} from list."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

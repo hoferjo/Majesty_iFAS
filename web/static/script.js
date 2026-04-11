@@ -1,4 +1,4 @@
-    // Update Majesty Data button
+// Update Majesty Data button
     var updateMajestyForm = document.getElementById("updateMajestyForm");
     if (updateMajestyForm) {
         updateMajestyForm.addEventListener("submit", function(e) {
@@ -29,7 +29,7 @@
                 });
         });
     }
-// Tab switching logic
+    // Tab switching logic
 function openTab(evt, tabName) {
     var i, tabcontent, tablinks;
     tabcontent = document.getElementsByClassName("tabcontent");
@@ -45,6 +45,256 @@ function openTab(evt, tabName) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
+        // --- Article List Preview logic ---
+        function fetchAndRenderArticleListPreview() {
+            fetch('/article-list-preview')
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.getElementById('articleListPreviewTable');
+                    if (!table) return;
+                    const tbody = table.querySelector('tbody');
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+                    const rows = Array.isArray(data.rows) ? data.rows : [];
+                    if (rows.length > 0) {
+                        rows.forEach(row => {
+                            const tr = document.createElement('tr');
+                            const artnr = row.artnr || '';
+                            const artbez1 = row.artbez1 || '';
+                            const zeichnr = row.zeichnr || '';
+                            tr.innerHTML = `<td>${artnr}</td><td>${artbez1}</td><td>${zeichnr}</td><td><button class="remove-article-btn" data-artnr="${artnr}" style="color:#c00; background:none; border:none; cursor:pointer; font-size:1em;">✖</button></td>`;
+                            tbody.appendChild(tr);
+                        });
+                        // Add event listeners for remove buttons
+                        tbody.querySelectorAll('.remove-article-btn').forEach(btn => {
+                            btn.addEventListener('click', function(e) {
+                                const artnr = this.getAttribute('data-artnr');
+                                if (confirm(`Remove article ${artnr} from list?`)) {
+                                    fetch('/remove-article-from-list', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ artnr })
+                                    })
+                                    .then(res => res.json())
+                                    .then(result => {
+                                        let feedbackLog = document.getElementById('feedbackLog');
+                                        if (feedbackLog && result && result.message) {
+                                            let entry = `<div><b>Remove Article:</b> ${artnr} — <span style='color:${result.status === 'success' ? '#27ae60' : '#c00'};'>${result.message}</span></div>`;
+                                            feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                                        }
+                                        fetchAndRenderArticleListPreview();
+                                    });
+                                }
+                                e.stopPropagation();
+                            });
+                        });
+                    } else {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td colspan="4" style="text-align:center;color:#888;">No articles in list.</td>`;
+                        tbody.appendChild(tr);
+                    }
+                })
+                .catch(() => {
+                    const table = document.getElementById('articleListPreviewTable');
+                    if (!table) return;
+                    const tbody = table.querySelector('tbody');
+                    if (!tbody) return;
+                    tbody.innerHTML = '';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td colspan="4" style="text-align:center;color:#c00;">Failed to load preview.</td>`;
+                    tbody.appendChild(tr);
+                });
+        }
+
+        // Wire up refresh button
+        var refreshArticleListPreviewBtn = document.getElementById('refreshArticleListPreviewBtn');
+                // Wire up reset button
+                var resetArticleListBtn = document.getElementById('resetArticleListBtn');
+                if (resetArticleListBtn) {
+                    resetArticleListBtn.addEventListener('click', function() {
+                        if (confirm('Are you sure you want to reset the article list?')) {
+                            fetch('/reset-article-list', { method: 'POST' })
+                                .then(res => res.json())
+                                .then(() => fetchAndRenderArticleListPreview());
+                        }
+                    });
+                }
+        if (refreshArticleListPreviewBtn) {
+            refreshArticleListPreviewBtn.addEventListener('click', fetchAndRenderArticleListPreview);
+        }
+        // Initial load
+        fetchAndRenderArticleListPreview();
+    // --- Article mode buttons logic ---
+    var addArticleBtn = document.getElementById("addArticleBtn");
+    var generateArticleDataBtn = document.getElementById("generateArticleDataBtn");
+    var downloadArticleExcelBtn = document.getElementById("downloadArticleExcelBtn");
+    var downloadArticlePartlistBtn = document.getElementById("downloadArticlePartlistBtn");
+    var downloadArticlePartlistTreeBtn = document.getElementById("downloadArticlePartlistTreeBtn");
+
+    if (addArticleBtn) {
+        addArticleBtn.addEventListener("click", function() {
+            console.log("Add Article button clicked");
+            if (searchMode !== "article") {
+                alert("Switch to Article mode to add article.");
+                return;
+            }
+            if (!selectedResult || !selectedResult.artnr) {
+                alert("No article selected.");
+                return;
+            }
+            fetch("/add-article", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ artnr: selectedResult.artnr })
+            })
+            .then(response => response.json())
+            .then(data => {
+                let entry = `<div><b>Add Article:</b> ${selectedResult.artnr} — <span style='color:${data.status === 'success' ? '#27ae60' : '#c00'};'>${data.message}</span></div>`;
+                feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+            })
+            .catch(err => {
+                let entry = `<div><b>Add Article:</b> ${selectedResult.artnr} — <span style='color:#c00;'>Error: ${err}</span></div>`;
+                feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+            });
+        });
+    }
+
+    if (generateArticleDataBtn) {
+        generateArticleDataBtn.addEventListener("click", function() {
+            console.log("Generate Data button clicked");
+            if (searchMode !== "article") {
+                alert("Switch to Article mode to generate data.");
+                return;
+            }
+            if (!selectedResult || !selectedResult.artnr) {
+                alert("No article selected.");
+                return;
+            }
+            var selectedHeaders = getSelectedSheetHeaders ? getSelectedSheetHeaders() : [];
+            if (!selectedHeaders.length) {
+                alert("No sheets selected in Settings.");
+                return;
+            }
+            fetch("/generate-module-data", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ artnr: selectedResult.artnr, selected_headers: selectedHeaders, mode: "article" })
+            })
+            .then(response => response.json())
+            .then(data => {
+                let entry = `<div><b>Generate Data:</b> ${selectedResult.artnr} — <span style='color:${data.status === 'success' ? '#27ae60' : '#c00'};'>${data.message}</span></div>`;
+                feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+            })
+            .catch(err => {
+                let entry = `<div><b>Generate Data:</b> ${selectedResult.artnr} — <span style='color:#c00;'>Error: ${err}</span></div>`;
+                feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+            });
+        });
+    }
+
+    if (downloadArticleExcelBtn) {
+        downloadArticleExcelBtn.addEventListener("click", function() {
+            console.log("Download Article Import button clicked");
+            if (searchMode !== "article") {
+                alert("Switch to Article mode to download XLSX.");
+                return;
+            }
+            if (!selectedResult || !selectedResult.artnr) {
+                alert("No article selected.");
+                return;
+            }
+            fetch(`/download-module-excel?artnr=${encodeURIComponent(selectedResult.artnr)}&mode=article`)
+                .then(function(response) {
+                    if (!response.ok) {
+                        return response.text().then(function(text) {
+                            let message = text || "Failed to create Excel file.";
+                            throw new Error(message);
+                        });
+                    }
+                    var disposition = response.headers.get("content-disposition") || "";
+                    var fileName = `module_export_${selectedResult.artnr}.xlsx`;
+                    var match = disposition.match(/filename="?([^";]+)"?/i);
+                    if (match && match[1]) {
+                        fileName = match[1];
+                    }
+                    return response.blob().then(function(blob) {
+                        return { blob: blob, fileName: fileName };
+                    });
+                })
+                .then(function(result) {
+                    var url = window.URL.createObjectURL(result.blob);
+                    var link = document.createElement("a");
+                    link.href = url;
+                    link.download = result.fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                    let entry = `<div><b>Download XLSX:</b> ${selectedResult.artnr} — <span style='color:#27ae60;'>Excel created and downloaded.</span></div>`;
+                    feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                })
+                .catch(function(err) {
+                    let entry = `<div><b>Download XLSX:</b> ${selectedResult.artnr} — <span style='color:#c00;'>Error: ${err.message || err}</span></div>`;
+                    feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                });
+        });
+    }
+
+    if (downloadArticlePartlistBtn) {
+        downloadArticlePartlistBtn.addEventListener("click", function() {
+            console.log("Download Partlist Import button clicked");
+            if (searchMode !== "article") {
+                alert("Switch to Article mode to download partlist.");
+                return;
+            }
+            if (!selectedResult || !selectedResult.artnr) {
+                alert("No article selected.");
+                return;
+            }
+            const url = `/download-partlist-excel?mode=article&artnr=${encodeURIComponent(selectedResult.artnr)}`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `partlist_export_${selectedResult.artnr}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    }
+
+    if (downloadArticlePartlistTreeBtn) {
+        downloadArticlePartlistTreeBtn.addEventListener("click", function() {
+            console.log("Download Partlist Tree button clicked");
+            if (searchMode !== "article") {
+                alert("Switch to Article mode to download partlist tree.");
+                return;
+            }
+            if (!selectedResult || !selectedResult.artnr) {
+                alert("No article selected.");
+                return;
+            }
+            const url = `/download-partlist-tree?mode=article&artnr=${encodeURIComponent(selectedResult.artnr)}`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `partlist_tree_${selectedResult.artnr}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    }
+
+    // --- Mode visibility logic ---
+    var articleModeContainer = document.getElementById("articleModeContainer");
+    var moduleModeContainer = document.getElementById("moduleModeContainer");
+    window.searchMode = "article";
+    function updateArticleModeUI() {
+        if (articleModeContainer) {
+            articleModeContainer.style.display = (window.searchMode === "article") ? "flex" : "none";
+        }
+        if (moduleModeContainer) {
+            moduleModeContainer.style.display = (window.searchMode === "module") ? "flex" : "none";
+        }
+    }
+    updateArticleModeUI();
 
         var i18n = {
             en: {
@@ -52,12 +302,18 @@ document.addEventListener("DOMContentLoaded", function() {
                 tabSettings: "Settings",
                 searchPlaceholder: "Search by Artikelnummer, Zeichnungsnummer or description",
                 searchButton: "Search",
+                addArticle: "Add Article",
+                generateData: "Generate Data",
+                downloadArticleImport: "Download Article Import",
+                downloadPartlistImport: "Download Partlist Import",
+                downloadPartlistTree: "Download Partlist Tree",
+                modeArticle: "Article",
+                changeMode: "Change Mode",
                 currentSelection: "Current Selection",
                 generateModule: "Generate Module Structure",
                 generateModuleData: "Generate Module Data",
                 downloadModuleExcel: "Download Module (XLSX)",
                 downloadPartlistExcel: "Download Partlist Excel",
-                downloadPartlistTree: "Download Partlist Tree",
                 settingsHeading: "Settings",
                 alertNoModule: "No module selected.",
                 alertSwitchModule: "Switch to Module mode to generate a module.",
@@ -70,20 +326,40 @@ document.addEventListener("DOMContentLoaded", function() {
                 modalConfirm: "Confirm",
                 modalIgnore: "Ignore",
                 modalSearch: "Search",
+                modalTextBtn: "Use as text article",
                 modalNoResults: "No results found.",
-                modalNeedReplacement: "Please enter a replacement artnr or click Ignore."
+                modalNeedReplacement: "Please enter a replacement artnr or click Ignore.",
+                showBlockedArticles: "Show Blocked Articles",
+                langEnglish: "English",
+                langGerman: "German",
+                uploadIfas: "Upload iFAS artikelstamm.txt:",
+                updateTarget: "Update target:",
+                uploadButton: "Upload",
+                existingArticleTarget: "Existing Article Target",
+                none: "None",
+                addToProd: "Add to existing articles PROD",
+                addToTest: "Add to existing articles TEST",
+                updateMajesty: "Update Majesty Data",
+                hardUpdateMajesty: "Hard Update Majesty Data",
+                activeSheets: "Active Sheets"
             },
             de: {
                 tabSearch: "Suche & Transformation",
                 tabSettings: "Einstellungen",
                 searchPlaceholder: "Suche nach Artikelnr, Zeichnungsnr oder Beschreibung",
                 searchButton: "Suchen",
+                addArticle: "Artikel hinzufügen",
+                generateData: "Daten generieren",
+                downloadArticleImport: "Artikel-Import herunterladen",
+                downloadPartlistImport: "Stücklisten-Import herunterladen",
+                downloadPartlistTree: "Stücklistenbaum herunterladen",
+                modeArticle: "Artikel",
+                changeMode: "Modus wechseln",
                 currentSelection: "Aktuelle Auswahl",
                 generateModule: "Modulstruktur generieren",
                 generateModuleData: "Moduldaten generieren",
                 downloadModuleExcel: "Modul herunterladen (XLSX)",
                 downloadPartlistExcel: "Stückliste Excel herunterladen",
-                downloadPartlistTree: "Stücklistenbaum herunterladen",
                 settingsHeading: "Einstellungen",
                 alertNoModule: "Kein Modul ausgewählt.",
                 alertSwitchModule: "Für die Modulgenerierung bitte in den Modulmodus wechseln.",
@@ -96,8 +372,22 @@ document.addEventListener("DOMContentLoaded", function() {
                 modalConfirm: "Bestätigen",
                 modalIgnore: "Ignorieren",
                 modalSearch: "Suchen",
+                modalTextBtn: "Als Textartikel verwenden",
                 modalNoResults: "Keine Ergebnisse gefunden.",
-                modalNeedReplacement: "Bitte Ersatz-Artikelnr eingeben oder Ignorieren klicken."
+                modalNeedReplacement: "Bitte Ersatz-Artikelnr eingeben oder Ignorieren klicken.",
+                showBlockedArticles: "Gesperrte Artikel anzeigen",
+                langEnglish: "Englisch",
+                langGerman: "Deutsch",
+                uploadIfas: "iFAS artikelstamm.txt hochladen:",
+                updateTarget: "Ziel aktualisieren:",
+                uploadButton: "Hochladen",
+                existingArticleTarget: "Ziel für bestehende Artikel",
+                none: "Keine",
+                addToProd: "Zu bestehenden Artikeln PROD hinzufügen",
+                addToTest: "Zu bestehenden Artikeln TEST hinzufügen",
+                updateMajesty: "Majesty-Daten aktualisieren",
+                hardUpdateMajesty: "Majesty-Daten hart aktualisieren",
+                activeSheets: "Aktive Sheets"
             }
         };
         var currentLanguage = "en";
@@ -107,56 +397,25 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         function applyLanguage() {
-            var tabSearchBtn = document.getElementById("tabSearchBtn");
-            if (tabSearchBtn) tabSearchBtn.textContent = t("tabSearch");
-
-            var defaultTab = document.getElementById("defaultTab");
-            if (defaultTab) defaultTab.textContent = t("tabSettings");
-
-            var searchInput = document.getElementById("searchInput");
-            if (searchInput) searchInput.placeholder = t("searchPlaceholder");
-
-            var searchSubmitBtn = document.getElementById("searchSubmitBtn");
-            if (searchSubmitBtn) searchSubmitBtn.textContent = t("searchButton");
-
-            var currentSelectionLabel = document.getElementById("currentSelectionLabel");
-            if (currentSelectionLabel) currentSelectionLabel.textContent = t("currentSelection");
-
-            var generateModuleBtn = document.getElementById("generateModuleBtn");
-            if (generateModuleBtn) generateModuleBtn.textContent = t("generateModule");
-
-            var generateModuleDataBtn = document.getElementById("generateModuleDataBtn");
-            if (generateModuleDataBtn) generateModuleDataBtn.textContent = t("generateModuleData");
-
-            var downloadModuleExcelBtn = document.getElementById("downloadModuleExcelBtn");
-            if (downloadModuleExcelBtn) downloadModuleExcelBtn.textContent = t("downloadModuleExcel");
-
-            var downloadPartlistExcelBtn = document.getElementById("downloadPartlistExcelBtn");
-            if (downloadPartlistExcelBtn) downloadPartlistExcelBtn.textContent = t("downloadPartlistExcel");
-
-            var downloadPartlistTreeBtn = document.getElementById("downloadPartlistTreeBtn");
-            if (downloadPartlistTreeBtn) downloadPartlistTreeBtn.textContent = t("downloadPartlistTree");
-
-            var settingsHeading = document.getElementById("settingsHeading");
-            if (settingsHeading) settingsHeading.textContent = t("settingsHeading");
-
-            var modalTitle = document.getElementById("blockedModalTitle");
-            if (modalTitle) modalTitle.textContent = t("modalTitle");
-
-            var searchBtn = document.getElementById("blockedSearchBtn");
-            if (searchBtn) searchBtn.textContent = t("modalSearch");
-
-            var confirmBtn = document.getElementById("blockedConfirmBtn");
-            if (confirmBtn) confirmBtn.textContent = t("modalConfirm");
-
-            var ignoreBtn = document.getElementById("blockedIgnoreBtn");
-            if (ignoreBtn) ignoreBtn.textContent = t("modalIgnore");
-
-            var blockedSearchInput = document.getElementById("blockedSearchInput");
-            if (blockedSearchInput) blockedSearchInput.placeholder = t("modalSearchPlaceholder");
-
-            var replacementInput = document.getElementById("blockedReplacementArtnr");
-            if (replacementInput) replacementInput.placeholder = t("modalReplacementPlaceholder");
+            // Update all elements with data-i18n
+            document.querySelectorAll('[data-i18n]').forEach(function(el) {
+                var key = el.getAttribute('data-i18n');
+                if (key && i18n[currentLanguage][key]) {
+                    el.textContent = i18n[currentLanguage][key];
+                }
+                // Show/hide based on language
+                var showFor = el.getAttribute('data-lang');
+                if (showFor) {
+                    el.style.display = (showFor === currentLanguage) ? '' : 'none';
+                }
+            });
+            // Update placeholders with data-i18n-placeholder
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+                var key = el.getAttribute('data-i18n-placeholder');
+                if (key && i18n[currentLanguage][key]) {
+                    el.setAttribute('placeholder', i18n[currentLanguage][key]);
+                }
+            });
         }
 
         var languageSwitch = document.getElementById("languageSwitch");
@@ -172,7 +431,7 @@ document.addEventListener("DOMContentLoaded", function() {
             var downloadPartlistExcelBtn = document.getElementById("downloadPartlistExcelBtn");
             if (downloadPartlistExcelBtn) {
                 downloadPartlistExcelBtn.addEventListener("click", function() {
-                    fetch("/download-partlist-excel")
+                    fetch("/download-partlist-excel?mode=module")
                         .then(function(response) {
                             if (!response.ok) {
                                 return response.text().then(function(text) {
@@ -326,27 +585,44 @@ document.addEventListener("DOMContentLoaded", function() {
                     var item = blockedItems[idx] || {};
                     blockedModalDetails.textContent = renderBlockedDetails(item);
                     blockedSearchResults.innerHTML = "";
+                    // Do NOT pre-fill search or replacement fields with the blocked article's artnr.
                     blockedSearchInput.value = "";
                     blockedReplacementArtnr.value = "";
                     blockedReplacementModal.style.display = "flex";
 
+                    // Add style for selected search result if not present
+                    if (!document.getElementById('blocked-search-result-style')) {
+                        var style = document.createElement('style');
+                        style.id = 'blocked-search-result-style';
+                        style.innerHTML = `.selected-blocked-search-result { background: #d0eaff; font-weight: bold; }`;
+                        document.head.appendChild(style);
+                    }
+
+                    let selectedRow = null;
                     blockedSearchBtn.onclick = function() {
                         var q = (blockedSearchInput.value || "").trim();
                         if (!q) {
                             blockedSearchResults.innerHTML = "";
+                            selectedRow = null;
                             return;
                         }
                         searchReplacementArticles(q).then(function(results) {
                             if (!results.length) {
                                 blockedSearchResults.innerHTML = `<div class='blocked-search-results-item'>${t("modalNoResults")}</div>`;
+                                selectedRow = null;
                                 return;
                             }
                             blockedSearchResults.innerHTML = "";
+                            selectedRow = null;
                             results.slice(0, 20).forEach(function(r) {
                                 var row = document.createElement("div");
                                 row.className = "blocked-search-results-item";
                                 row.textContent = `${r.artnr || ""} | ${r.artbez1 || ""} | ${r.zeichnr || ""}`;
                                 row.addEventListener("click", function() {
+                                    // Remove highlight from previous
+                                    if (selectedRow) selectedRow.classList.remove("selected-blocked-search-result");
+                                    row.classList.add("selected-blocked-search-result");
+                                    selectedRow = row;
                                     blockedReplacementArtnr.value = r.artnr || "";
                                 });
                                 blockedSearchResults.appendChild(row);
@@ -442,7 +718,6 @@ document.addEventListener("DOMContentLoaded", function() {
     loadSheetCheckboxes();
 
     // Search mode toggle
-    var searchMode = "article";
     var toggleModeBtn = document.getElementById("toggleModeBtn");
     var searchModeLabel = document.getElementById("searchModeLabel");
     var modeSwitchIcon = document.getElementById("modeSwitchIcon");
@@ -450,7 +725,7 @@ document.addEventListener("DOMContentLoaded", function() {
     var modePillText = document.getElementById("modePillText");
     if (toggleModeBtn && searchModeLabel && modeSwitchIcon && modePillIcon && modePillText) {
         function updateModeUI() {
-            if (searchMode === "article") {
+            if (window.searchMode === "article") {
                 modeSwitchIcon.textContent = "↔️";
                 toggleModeBtn.style.background = "linear-gradient(90deg, #3498db 0%, #6dd5ed 100%)";
                 searchModeLabel.classList.remove("mode-module");
@@ -465,11 +740,13 @@ document.addEventListener("DOMContentLoaded", function() {
                 modePillIcon.textContent = "📦";
                 modePillText.textContent = "Module";
             }
+            updateArticleModeUI();
         }
         updateModeUI();
         toggleModeBtn.addEventListener("click", function() {
-            searchMode = (searchMode === "article") ? "module" : "article";
+            window.searchMode = (window.searchMode === "article") ? "module" : "article";
             updateModeUI();
+            updateArticleModeUI();
         });
     }
 
@@ -527,7 +804,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 return;
             }
 
-            fetch(`/download-module-excel?artnr=${encodeURIComponent(artnr)}&existing_articles_target=${encodeURIComponent(existingArticlesTarget)}`)
+            fetch(`/download-module-excel?artnr=${encodeURIComponent(artnr)}&existing_articles_target=${encodeURIComponent(existingArticlesTarget)}&mode=module`)
                 .then(function(response) {
                     if (!response.ok) {
                         return response.text().then(function(text) {
@@ -715,7 +992,8 @@ document.addEventListener("DOMContentLoaded", function() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         artnr: selectedResult.artnr,
-                        selected_headers: selectedHeaders
+                        selected_headers: selectedHeaders,
+                        mode: "module"
                     })
                 })
                 .then(response => response.json())
@@ -798,7 +1076,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 return;
             }
             const artnr = selectedResult.artnr;
-            const url = `/download-partlist-tree?artnr=${encodeURIComponent(artnr)}`;
+            const url = `/download-partlist-tree?mode=module&artnr=${encodeURIComponent(artnr)}`;
             // Create a hidden link and trigger download
             const link = document.createElement('a');
             link.href = url;

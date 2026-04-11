@@ -1,9 +1,22 @@
-columnname,function,arguments
-Artikelnummer,,
-Dispositionsbereich,,
-Wiederbeschaffungszeit,,
-Sicherheitsbestand LE,,
-Meldebestand LE,,
-Maximalbestand LE,,
-Standard Lagerort/Platz,,
-Org.Einheit Identifier,,
+columnname;function;arguments
+Artikelnummer;;artnr;
+Lieferantennummer;getLieferantendaten;artnr;
+Artikelnummer Lieferant;getEntryFromCSV;atnrlief;
+Artikelbezeichnung Lieferant;getEntryFromCSV;artbez1;
+Artikel-Zusatz-Bezeichnung Lieferant;getBezeichnung2;artnr;
+Artikelbemerkung Lieferant;;;
+Hersteller;;;
+Bewertungskatalog;;;
+Masseinheit Einkauf Lieferant;;;
+Preiseinheit Lieferant;;;
+Umrechnungsfaktor Preis;;;
+Umrechnungsfaktor EE/LVE;;;
+Zeichnungs Nr. Lieferant;;;
+Mindestebestellmenge EE;;;
+Optimale Losgrösse EE;;;
+Kontaktnummer Kontakt Lieferant;;;
+Verpackungseinheit;;;
+Ursprungszeugnis;;;
+Zolltarifnummer;;;
+Ursprungsland;getEntryFromCSV;artikelstamm,artnr,'ursprland';
+Org.Einheit Identifier;;;
