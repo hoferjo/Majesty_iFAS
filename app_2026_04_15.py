@@ -1,5 +1,3 @@
-###imports
-from statistics import mode
 import yaml
 from etl.create import ArticleCreator
 from etl.extract import auto_update_dbf_csv
@@ -18,9 +16,6 @@ import csv
 from fastapi import Query
 from fastapi.responses import JSONResponse
 
-
-
-### Path setup, 
 BASE_DIR = Path(__file__).parent.parent
 
 def load_yaml(path: Path):
@@ -33,128 +28,30 @@ if not settings:
     raise RuntimeError(f"Failed to load settings from {settings_path}. File is empty or invalid.")
 try:
     raw_dir = settings["paths"]["raw_dir"]
-    artikelstamm_path = settings["files"]["artikelstamm"]
+    artikelstamm_file = settings["files"]["artikelstamm"]
 except Exception as e:
     raise RuntimeError(f"Error reading keys from settings.yaml: {e}")
 etl_dir = BASE_DIR / settings["paths"]["etl_dir"]
 sys.path.append(str(etl_dir))
- 
 
-def get_sheet_cache_csv(sheet: str, blocked: bool = False):
-    if not blocked:
-        return sheets_output_dir / f'{sheet}_cache.csv'
-    else:
-        return sheets_output_dir / f'{sheet}_cache_blocked.csv'
-    
+artikelstamm_path = BASE_DIR / settings["paths"]["raw_dir"] / settings["files"]["artikelstamm"]
+#waren_artikelgruppe_path = BASE_DIR / settings["paths"]["waren_artikelgruppe_dir"] / settings["files"]["waren_artikelgruppe"]
+#lieferanten_mapping_path = BASE_DIR / settings["paths"]["lieferanten_mapping_dir"] / settings["files"]["lieferanten_mapping"]
 
-
-def get_path(file: str = None, mode: str = None, base: str = BASE_DIR):
-    
-    normalized_mode = str(mode or "").strip().lower()
-    if normalized_mode.endswith("_mode"):
-        normalized_mode = normalized_mode[:-5]
-
-    file_key = file
-    folder_key = f"{file}_dir"
-
-    if file == "article list":
-        folder_key = "article_list_dir"
-        file_key = f"article_list_{normalized_mode}_mode"
-
-    if file == "blocked articles":
-        folder_key = "article_list_dir"
-        file_key = f"blocked_articles_{normalized_mode}_mode"
-
-    if file == "existing articles":
-        if normalized_mode in {"", "none"}:
-            return None
-        folder_key = "existing_articles_dir"
-        file_key = f"existing_articles_{normalized_mode}"
-
-    if file == "partlist":
-        folder_key = "partlist_dir"
-        file_key = f"partlist_{normalized_mode}_mode"
-
-    if file == "partlisttree":
-        folder_key = "partlist_tree_dir"
-        file_key = f"partlist_{normalized_mode}_mode_tree"
-
-    if file in {"artikelstamm_import_template", "partlist_import_template"}:
-        folder_key = "template_dir"
-        file_key = file
-
-    if file_key and folder_key:
-        return base / settings["paths"][folder_key] / settings["files"][file_key]
-
-    return os.error(f"Invalid file key: {file}. No matching path configuration found in settings.yaml.")
-
-
-      
-
-#raw paths
-
-artikelstamm_path = get_path("artikelstamm")
-stuecklistenstamm_path = get_path("stuecklistenstamm")
-waren_artikelgruppe_path = get_path("waren_artikelgruppe")
-lieferanten_mapping_path = get_path("lieferanten_mapping")
-
-#processed paths
-cache_dir_path = BASE_DIR / settings["paths"]["cache_dir"]
-sheets_path = BASE_DIR / "config" / "sheets.csv"
-active_sheets_path = BASE_DIR / "config" / "active_sheets.csv"
-sheets_output_dir = BASE_DIR / settings["paths"]["sheets_dir"]
-
-#template paths
-template_dir = BASE_DIR / settings["paths"]["template_dir"]
-artikelstamm_import_template_path = get_path("artikelstamm_import_template")
-partlist_import_template_path = get_path("partlist_import_template")
-
-#output_paths
-output_dir = BASE_DIR / settings["paths"]["output_dir"]
-artikelstamm_output_path = output_dir / settings["files"]["artikelstamm_output"]
-partlist_output_path = output_dir / settings["files"]["partlist_output"]
-
-#article list paths
-"""
-article_list_article_path = get_path(BASE_DIR, "article list", "article")
-article_list_module_path = get_path(BASE_DIR, "article list", "module")
-article_list_creation_path = get_path(BASE_DIR, "article list", "creation")
-"""
-#blocked articles paths
-""" 
-blocked_articles_article_path = get_path(BASE_DIR, "blocked articles", "article")
-blocked_articles_module_path = get_path(BASE_DIR, "blocked articles", "module")
-blocked_articles_creation_path = get_path(BASE_DIR, "blocked articles", "creation")
-"""
-
-#existing articles paths
-"""
-existing_articles_PROD_path = get_path(BASE_DIR, "existing articles", "PROD")
-existing_articles_TEST_path = get_path(BASE_DIR, "existing articles", "TEST")
-"""
-
-#partlist paths
-"""
-partlist_article_mode_path = get_path("partlist", "article", BASE_DIR)
-partlist_module_mode_path = get_path("partlist", "module", BASE_DIR)
-partlist_creation_mode_path = get_path("partlist", "creation", BASE_DIR)
-"""
-
-#partlisttree paths
-"""
-partlist_article_mode_tree_path = get_path("partlisttree", "article", BASE_DIR)
-partlist_module_mode_tree_path = get_path("partlisttree", "module", BASE_DIR)
-partlist_creation_mode_tree_path = get_path("partlisttree", "creation", BASE_DIR)
-"""
+article_list_article_mode_path = BASE_DIR / settings["paths"]["article_list_dir"] / settings["files"]["article_list_article_mode"]
+article_list_module_mode_path = BASE_DIR / settings["paths"]["article_list_dir"] / settings["files"]["article_list_module_mode"]
+article_list_creation_mode_path = BASE_DIR / settings["paths"]["article_list_dir"] / settings["files"]["article_list_creation_mode"]
 
 
 
-#output paths
+existing_articles_PROD_path = BASE_DIR / settings["paths"]["existing_articles_dir"] / settings["files"]["existing_articles_PROD"]
+existing_articles_TEST_path = BASE_DIR / settings["paths"]["existing_articles_dir"] / settings["files"]["existing_articles_TEST"]
 
 from etl.transform import process_module_structure, build_sheet_cache_CSV
 from etl.load import (
     create_import_excel_from_templates,
     archive_module_export,
+    resolve_existing_articles_file,
     append_article_list_to_existing,
     update_existing_articles_from_ifas_upload,
     create_partlist_excel_from_template,
@@ -173,20 +70,20 @@ def api_create_root_article():
     """
     Returns the required fields for all active sheets, with default values if available.
     """
-    BASE_DIR = Path(__file__).parent.parent
-    _, headers, aliases, flags, active_headers, _ = _load_sheets_config(BASE_DIR)
+    base = Path(__file__).parent.parent
+    _, headers, aliases, flags, active_headers, _ = _load_sheets_config(base)
     # For each active sheet, collect its fields (headers)
     active_sheets = []
     for idx, header in enumerate(headers):
         if header not in active_headers:
             continue
         alias = str(aliases[idx]).strip() if idx < len(aliases) else ""
-        sheet_name = _resolve_sheet_for_mapping(BASE_DIR, header, alias)
+        sheet_name = _resolve_sheet_for_mapping(base, header, alias)
         if not sheet_name:
             continue
         # Try to load default values from config/create_defaults.yaml if present
         defaults = {}
-        defaults_path = BASE_DIR/ "config" / "create_defaults.yaml"
+        defaults_path = base / "config" / "create_defaults.yaml"
         if defaults_path.exists():
             import yaml
             with open(defaults_path, "r", encoding="utf-8") as f:
@@ -216,6 +113,7 @@ def _strip_trailing_empty(values):
 
 
 def _load_sheets_config(base: Path):
+    sheets_path = base / "config" / "sheets.csv"
     if not sheets_path.exists():
         raise FileNotFoundError(f"sheets.csv not found at {sheets_path}")
 
@@ -342,13 +240,21 @@ def _normalize_mode(mode: str | None, default: str = "module"):
 
 def _cache_paths(base: Path, mode: str):
     normalized_mode = _normalize_mode(mode)
-
+    if normalized_mode == "creation":
+        return {
+            "mode": normalized_mode,
+            "article_list": base / "data" / "processed" / "csv" / "cache" / "article_list_creation_mode.csv",
+            "blocked_articles": base / "data" / "processed" / "csv" / "cache" / "blocked_articles_creation_mode.csv",
+            "partlist": base / "data" / "processed" / "csv" / "cache" / "partlist_creation_mode.csv",
+            "partlist_tree": base / "data" / "processed" / "csv" / "cache" / "partlist_creation_mode_tree.txt",
+        }
+    suffix = "article_mode" if normalized_mode == "article" else "module_mode"
     return {
         "mode": normalized_mode,
-        "article_list": get_path("article list", normalized_mode, base),
-        "blocked_articles": get_path("blocked articles", normalized_mode, base),
-        "partlist": get_path("partlist", normalized_mode, base),
-        "partlist_tree": get_path("partlisttree", normalized_mode, base),
+        "article_list": base / "data" / "processed" / "csv" / "cache" / f"article_list_{suffix}.csv",
+        "blocked_articles": base / "data" / "processed" / "csv" / "cache" / f"blocked_articles_{suffix}.csv",
+        "partlist": base / "data" / "processed" / "csv" / "cache" / f"partlist_{suffix}.csv",
+        "partlist_tree": base / "data" / "processed" / "csv" / "cache" / f"partlist_{suffix}_tree.txt",
     }
 
 
@@ -394,7 +300,7 @@ def index():
     return open(template_path, "r", encoding="utf-8").read()
 
 @app.get("/settings", response_class=HTMLResponse)
-def settings_page():
+def settings():
     template_path = web_dir / "templates" / "settings.html"
     return open(template_path, "r", encoding="utf-8").read()
 
@@ -457,7 +363,6 @@ def sheets_config():
 # --- Generate Module endpoint ---
 @app.post("/generate-module")
 def generate_module(data: dict = Body(...)):
-
     artnr = data.get("artnr")
     existing_articles_target = _normalize_existing_target(data.get("existing_articles_target", "none"))
     replacement_map = data.get("replacement_map") or {}
@@ -474,34 +379,33 @@ def generate_module(data: dict = Body(...)):
     if not artnr:
         return JSONResponse(status_code=400, content={"status": "error", "message": "No artnr provided"})
 
-
+    # Define paths
+    base = Path(__file__).parent.parent
+    stueckliste_path = base / "data" / "raw" / "stücklistenstamm" / "20410917_stuelipo.csv"
 
     ####
-    cache_paths = _cache_paths(BASE_DIR, "module")
+    cache_paths = _cache_paths(base, "module")
     ####
 
-    partlist_path = get_path("partlist", "module")
-    article_list_path = get_path("article list", "module")
-    blocked_articles_path = get_path("blocked articles", "module")
+    partlist_path = cache_paths["partlist"]
+    blocked_articles_path = cache_paths["blocked_articles"]
     try:
-        existing_articles_path = None
-        if existing_articles_target != "none":
-            existing_articles_path = get_path("existing articles", existing_articles_target, BASE_DIR)
+        existing_articles_file = resolve_existing_articles_file(base, existing_articles_target)
         _MODULE_EXISTING_TARGET_CACHE[str(artnr)] = existing_articles_target
 
         process_module_structure(
             str(artnr),
             str(artikelstamm_path),
-            str(stuecklistenstamm_path),
-            str(article_list_path),
+            str(stueckliste_path),
+            str(article_list_module_mode_path),
             str(partlist_path),
-            existing_articles_path=str(existing_articles_path) if existing_articles_path else None,
+            existing_articles_file=str(existing_articles_file) if existing_articles_file else None,
             replacement_map=normalized_replacement_map,
             reset_files=True,
         )
-        _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_path)
+        _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_module_mode_path)
 
-        article_count = _count_csv_rows(article_list_path)
+        article_count = _count_csv_rows(article_list_module_mode_path)
         partlist_count = _count_csv_rows(partlist_path)
         blocked_count = _count_csv_rows(blocked_articles_path)
         blocked_articles_data = ""
@@ -543,31 +447,30 @@ def generate_module_apply_replacements(data: dict = Body(...)):
             if key_s and value_s:
                 normalized_replacement_map[key_s] = value_s
 
-    cache_paths = _cache_paths(BASE_DIR, "module")
+    base = Path(__file__).parent.parent
+    stueckliste_path = base / "data" / "raw" / "stücklistenstamm" / "20410917_stuelipo.csv"
+    cache_paths = _cache_paths(base, "module")
     partlist_path = cache_paths["partlist"]
     blocked_articles_path = cache_paths["blocked_articles"]
-    article_list_path = cache_paths["article_list"]
 
     try:
-        existing_articles_path = None
-        if existing_articles_target != "none":
-            existing_articles_path = get_path("existing articles", existing_articles_target, BASE_DIR)
+        existing_articles_file = resolve_existing_articles_file(base, existing_articles_target)
         _MODULE_EXISTING_TARGET_CACHE[str(artnr)] = existing_articles_target
 
         process_module_structure(
             str(artnr),
             str(artikelstamm_path),
-            str(stuecklistenstamm_path),
-            str(article_list_path),
+            str(stueckliste_path),
+            str(article_list_module_mode_path),
             str(partlist_path),
-            existing_articles_path=str(existing_articles_path) if existing_articles_path else None,
+            existing_articles_file=str(existing_articles_file) if existing_articles_file else None,
             replacement_map=normalized_replacement_map,
             reset_files=True,
         )
 
-        _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_path)
+        _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_module_mode_path)
 
-        article_count = _count_csv_rows(article_list_path)
+        article_count = _count_csv_rows(article_list_module_mode_path)
         partlist_count = _count_csv_rows(partlist_path)
         blocked_count = _count_csv_rows(blocked_articles_path)
         blocked_articles_data = ""
@@ -597,16 +500,17 @@ def upload_ifas_artikelstamm(
     file: UploadFile = File(...),
     target_env: str = Form("test"),
 ):
+    base = Path(__file__).parent.parent
     env = str(target_env or "").strip().lower()
     if env not in {"prod", "test"}:
         return JSONResponse(status_code=400, content={"status": "error", "message": "target_env must be prod or test"})
 
     try:
-        target_file = get_path("existing articles", env, BASE_DIR)
+        target_file = resolve_existing_articles_file(base, env)
         if not target_file:
             return JSONResponse(status_code=400, content={"status": "error", "message": "No target file resolved"})
 
-        upload_dir = BASE_DIR / "data" / "uploaded_files"
+        upload_dir = base / "data" / "uploaded_files"
         upload_dir.mkdir(parents=True, exist_ok=True)
         uploaded_path = upload_dir / file.filename
 
@@ -642,15 +546,19 @@ def generate_module_data(data: dict = Body(...)):
     if not isinstance(selected_headers, list):
         return {"status": "error", "message": "selected_headers must be a list"}
 
-    cache_paths = _cache_paths(BASE_DIR, mode)
+    base = Path(__file__).parent.parent
+    cache_paths = _cache_paths(base, mode)
     blocked_articles_path = cache_paths["blocked_articles"]
-    article_list_path = cache_paths["article_list"]
+    sheets_path = base / "config" / "sheets.csv"
+    active_sheets_path = base / "config" / "active_sheets.csv"
+    sheets_output_dir = base / "data" / "processed" / "csv" / "cache" / "sheets"
+
 
     try:
-        if not article_list_path.exists():
+        if not article_list_module_mode_path.exists():
             return {
                 "status": "error",
-                "message": f"{article_list_path.name} not found. Generate {mode} structure first."
+                "message": f"{article_list_module_mode_path.name} not found. Generate {mode} structure first."
             }
 
         if not sheets_path.exists():
@@ -661,7 +569,7 @@ def generate_module_data(data: dict = Body(...)):
 
         sheets_output_dir.mkdir(parents=True, exist_ok=True)
 
-        _, headers, aliases, _, _, rows = _load_sheets_config(BASE_DIR)
+        _, headers, aliases, _, _, rows = _load_sheets_config(base)
         selected_set = {str(h).strip() for h in selected_headers if str(h).strip()}
 
         unknown = [h for h in selected_set if h not in headers]
@@ -703,7 +611,7 @@ def generate_module_data(data: dict = Body(...)):
             if header not in selected_set:
                 continue
             alias = str(aliases[idx]).strip() if idx < len(aliases) else ""
-            resolved = _resolve_sheet_for_mapping(BASE_DIR, header, alias)
+            resolved = _resolve_sheet_for_mapping(base, header, alias)
             if resolved:
                 build_sheet_names.append(resolved)
 
@@ -715,7 +623,7 @@ def generate_module_data(data: dict = Body(...)):
             }
 
         cached_articles = _MODULE_ARTICLES_CACHE.get(str(artnr))
-        build_sheet_cache_CSV(str(article_list_path), build_sheet_names, articles=cached_articles)
+        build_sheet_cache_CSV(str(article_list_module_mode_path), build_sheet_names, articles=cached_articles)
         # Also generate for blocked articles
         if blocked_articles_path.exists():
             with blocked_articles_path.open("r", encoding="utf-8-sig") as f:
@@ -726,7 +634,7 @@ def generate_module_data(data: dict = Body(...)):
         # After generating, count entries in each sheet's cache CSV
         sheet_entry_counts = []
         for sheet in build_sheet_names:
-            cache_csv = get_sheet_cache_csv(sheet)
+            cache_csv = base / "data" / "processed" / "csv" / "cache" / "sheets" / f'{sheet}_cache.csv'
             count = 0
             if cache_csv.exists():
                 with cache_csv.open("r", encoding="utf-8-sig", newline="") as f:
@@ -734,7 +642,7 @@ def generate_module_data(data: dict = Body(...)):
                     next(reader, None)  # skip header
                     count = sum(1 for _ in reader)
             # Count blocked from *_cache_blocked.csv
-            blocked_cache_csv = get_sheet_cache_csv(sheet, blocked = True)
+            blocked_cache_csv = base / "data" / "processed" / "csv" / "cache" / "sheets" / f'{sheet}_cache_blocked.csv'
             blocked_count = 0
             if blocked_cache_csv.exists():
                 with blocked_cache_csv.open("r", encoding="utf-8-sig", newline="") as f:
@@ -755,11 +663,14 @@ def generate_module_data(data: dict = Body(...)):
 # New endpoint: Download Partlist Excel
 @app.get("/download-partlist-excel")
 def download_partlist_excel(mode: str = Query("module")):
-    partlist_csv = _cache_paths(BASE_DIR, mode)["partlist"]
-    if not partlist_csv.exists() or not partlist_import_template_path.exists():
+    base = Path(__file__).parent.parent
+    partlist_csv = _cache_paths(base, mode)["partlist"]
+    template_xlsx = base / "data" / "raw" / "templates" / "VorlageStücklisteV1.xlsx"
+    output_xlsx = base / "data" / "processed" / "csv" / "cache" / "partlist_export.xlsx"
+    if not partlist_csv.exists() or not template_xlsx.exists():
         return JSONResponse(status_code=404, content={"error": "partlist.csv or template not found."})
-    create_partlist_excel_from_template(partlist_csv, partlist_import_template_path, partlist_output_path)
-    return FileResponse(str(partlist_output_path), filename="partlist_export.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    create_partlist_excel_from_template(partlist_csv, template_xlsx, output_xlsx)
+    return FileResponse(str(output_xlsx), filename="partlist_export.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @app.get("/download-module-export")
@@ -774,7 +685,7 @@ def download_module_export(
     base = Path(__file__).parent.parent
 
     template_path = base / "data" / "raw" / "templates" / "Vorlage_edit_jhofer.xlsx"
-    cache_dir = sheets_output_dir
+    cache_dir = base / "data" / "processed" / "csv" / "cache" / "sheets"
     cache_paths = _cache_paths(base, "module")
     partlist_path = cache_paths["partlist"]
     partlist_tree_path = cache_paths["partlist_tree"]
@@ -828,7 +739,6 @@ def download_module_excel(
     mode: str = Query("module"),
 ):
     mode = _normalize_mode(mode, "module")
-    article_list_path = _cache_paths(BASE_DIR, mode)["article_list"]
     requested_target = _normalize_existing_target(existing_articles_target)
     cached_target = _MODULE_EXISTING_TARGET_CACHE.get(str(artnr), "none")
     effective_target = requested_target if requested_target != "none" else cached_target
@@ -836,7 +746,7 @@ def download_module_excel(
     base = Path(__file__).parent.parent
 
     template_path = base / "data" / "raw" / "templates" / "Vorlage_edit_jhofer.xlsx"
-    cache_dir = sheets_output_dir
+    cache_dir = base / "data" / "processed" / "csv" / "cache" / "sheets"
     cache_paths = _cache_paths(base, mode)
     partlist_path = cache_paths["partlist"]
     partlist_tree_path = cache_paths["partlist_tree"]
@@ -869,8 +779,8 @@ def download_module_excel(
         print(f"[DEBUG] Excel creation complete for {artnr}")
 
         if mode == "module" and effective_target in {"prod", "test"}:
-            target_file = get_path("existing articles", effective_target, base)
-            append_article_list_to_existing(article_list_path, target_file)
+            target_file = resolve_existing_articles_file(base, effective_target)
+            append_article_list_to_existing(article_list_module_mode_path, target_file)
 
         # Archive in background after sending Excel
         def archive_job():
@@ -954,11 +864,10 @@ def add_article(data: dict = Body(...)):
     artnr = data.get("artnr")
     if not artnr:
         return JSONResponse(status_code=400, content={"status": "error", "message": "No artnr provided"})
-    base= BASE_DIR
-    article_list_path = get_path("article list", "article")
-    artikelstamm_path = get_path("artikelstamm")
+
+    base = Path(__file__).parent.parent
+    artikelstamm_path = base / "data" / "raw" / "artikelstamm" / "artikelstamm_majesty_2026_03_30.csv"
     cache_paths = _cache_paths(base, "article")
-    article_list_path = cache_paths["article_list"]
     global ARTICLE_CACHE_CLEAR
     try:
         # If cache clear flag is set, clear article mode cache files and reset flag
@@ -971,8 +880,8 @@ def add_article(data: dict = Body(...)):
             return JSONResponse(status_code=500, content={"status": "error", "message": f"artikelstamm not valid UTF-8: {artikelstamm_path}"})
         # Read article-mode list entries to avoid duplicates
         existing_artnr = set()
-        if article_list_path.exists():
-            with open(article_list_path, 'r', encoding='utf-8-sig') as f:
+        if article_list_article_mode_path.exists():
+            with open(article_list_article_mode_path, 'r', encoding='utf-8-sig') as f:
                 next(f, None)
                 for line in f:
                     key = line.strip().split(';')[0].strip()
@@ -981,7 +890,7 @@ def add_article(data: dict = Body(...)):
         # Also check both existing-articles targets, because these should not be appended either.
         existing_targets_artnr = set()
         for target in ["prod", "test"]:
-            target_file = get_path("existing articles", target, base)
+            target_file = resolve_existing_articles_file(base, target)
             if not target_file or not target_file.exists():
                 continue
             with open(target_file, 'r', encoding='utf-8-sig') as f:
@@ -1010,8 +919,8 @@ def add_article(data: dict = Body(...)):
                         }
                     if artnr not in existing_artnr:
                         # Write header if file does not exist or is empty
-                        write_header = not article_list_path.exists() or article_list_path.stat().st_size == 0
-                        with open(article_list_path, 'a', encoding='utf-8') as out:
+                        write_header = not article_list_article_mode_path.exists() or article_list_article_mode_path.stat().st_size == 0
+                        with open(article_list_article_mode_path, 'a', encoding='utf-8') as out:
                             if write_header:
                                 out.write('artnr;artbez1;zeichnr\n')
                             out.write(f"{artnr};{artbez1};{zeichnr}\n")
@@ -1019,7 +928,7 @@ def add_article(data: dict = Body(...)):
                     break
         if not found:
             return JSONResponse(status_code=404, content={"status": "error", "message": f"Article {artnr} not found in artikelstamm."})
-        return {"status": "success", "message": f"Added article {artnr} to article_list.csv."}
+        return {"status": "success", "message": f"Added article {artnr} to article_list_article_mode.csv."}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
@@ -1031,7 +940,6 @@ def generate_article(data: dict = Body(...)):
         return JSONResponse(status_code=400, content={"status": "error", "message": "No article list provided"})
 
     base = Path(__file__).parent.parent
-    article_list_path = get_path("article list", "creation_mode")
     # Use dedicated creation mode cache files (CSV) for isolation
     creation_cache_dir = base / "data" / "processed" / "cache" / "created_articles"
     creation_partlist_path = creation_cache_dir / "partlist_creation_mode.csv"
@@ -1041,15 +949,15 @@ def generate_article(data: dict = Body(...)):
         from etl.transform import check_utf8_file, process_module_structure
         # Read existing articles to avoid duplicates
         existing_artnr = set()
-        if article_list_path.exists():
-            with open(article_list_path, 'r', encoding='utf-8-sig') as f:
+        if article_list_creation_mode_path.exists():
+            with open(article_list_creation_mode_path, 'r', encoding='utf-8-sig') as f:
                 next(f, None)
                 for line in f:
                     key = line.strip().split(';')[0].strip()
                     if key:
                         existing_artnr.add(key)
         # Generate export, partlist, and tree for all articles in the list
-        write_header = not article_list_path.exists() or article_list_path.stat().st_size == 0
+        write_header = not article_list_creation_mode_path.exists() or article_list_creation_mode_path.stat().st_size == 0
         for idx, artnr in enumerate(artnr_list):
             if not check_utf8_file(artikelstamm_path):
                 return JSONResponse(status_code=500, content={"status": "error", "message": f"artikelstamm not valid UTF-8: {artikelstamm_path}"})
@@ -1062,7 +970,7 @@ def generate_article(data: dict = Body(...)):
                         artbez1 = row.get('artbez1', '')
                         zeichnr = row.get('zeichnr', '')
                         if artnr not in existing_artnr:
-                            with open(article_list_path, 'a', encoding='utf-8') as out:
+                            with open(article_list_creation_mode_path, 'a', encoding='utf-8') as out:
                                 if write_header:
                                     out.write('artnr;artbez1;zeichnr\n')
                                     write_header = False
@@ -1074,13 +982,14 @@ def generate_article(data: dict = Body(...)):
                 return JSONResponse(status_code=404, content={"status": "error", "message": f"Article {artnr} not found in artikelstamm."})
 
             # Generate partlist and tree for this article (creation mode, isolated files)
+            stueckliste_path = base / "data" / "raw" / "stücklistenstamm" / "20410917_stuelipo.csv"
             # Always reset files for the first article, then append for others
             reset_files = (idx == 0)
             process_module_structure(
                 str(artnr),
                 str(artikelstamm_path),
-                str(stuecklistenstamm_path),
-                str(article_list_path),
+                str(stueckliste_path),
+                str(article_list_creation_mode_path),
                 str(creation_partlist_path),
                 reset_files=reset_files
             )
@@ -1088,7 +997,7 @@ def generate_article(data: dict = Body(...)):
         return {
             "status": "success",
             "message": f"Generated export and partlist for {len(artnr_list)} articles (creation mode).",
-            "creation_article_list": str(article_list_path.name),
+            "creation_article_list": str(article_list_creation_mode_path.name),
             "creation_partlist": str(creation_partlist_path.name),
             "creation_partlist_tree": str(creation_partlist_tree_path.name)
         }
@@ -1141,49 +1050,7 @@ def remove_article_from_list(data: dict = Body(...)):
 
 # ─── Creation Session State ────────────────────────────────────────────────────
 
-
 _creation_session: dict | None = None
-
-# --- Creation Session CSV Utilities ---
-def _cs_append_article_list(cache_dir: Path, artnr: str, artbez1: str, zeichnr: str):
-    """Append a row to article_list_creation_mode.csv in the cache directory."""
-    article_list_path = cache_dir / "article_list_creation_mode.csv"
-    write_header = not article_list_path.exists() or article_list_path.stat().st_size == 0
-    with open(article_list_path, "a", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f, delimiter=';')
-        if write_header:
-            writer.writerow(["artnr", "artbez1", "zeichnr"])
-        writer.writerow([artnr, artbez1, zeichnr])
-
-def _cs_flush_to_csv(session: dict, cache_dir: Path):
-    """Write the session state to creation_session.csv and partlist_creation_mode.csv in the cache directory."""
-    # Save session to creation_session.csv
-    session_path = cache_dir / "creation_session.csv"
-    session_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(session_path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f, delimiter=';')
-        writer.writerow(["type","artnr","artbez1","zeichnr","depth","posnr","menge","stulinr","tree_depth","tree_artnr","tree_artbez1","tree_zeichnr"])
-        for a in session.get("articles", []):
-            writer.writerow([
-                a.get("type","article"), a.get("artnr",""), a.get("artbez1",""), a.get("zeichnr",""), a.get("depth",0), "", "", "", "", "", "", ""
-            ])
-        for p in session.get("partlist_rows", []):
-            writer.writerow([
-                "", p.get("artnr",""), p.get("artbez1",""), "", "", p.get("posnr",""), p.get("menge",""), p.get("stulinr",""), "", "", "", ""
-            ])
-        for t in session.get("tree_lines", []):
-            writer.writerow([
-                "", "", "", "", "", "", "", "", t.get("depth",0), t.get("artnr",""), t.get("artbez1",""), t.get("zeichnr","")
-            ])
-    # Uniform partlist file for creation mode
-    partlist_path = cache_dir / "partlist_creation_mode.csv"
-    with open(partlist_path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f, delimiter=';')
-        writer.writerow(["stulinr","posnr","menge","artnr","artbez1"])
-        for p in session.get("partlist_rows", []):
-            writer.writerow([
-                p.get("stulinr",""), p.get("posnr",""), p.get("menge",""), p.get("artnr",""), p.get("artbez1","")
-            ])
 
 
 
@@ -1471,12 +1338,13 @@ def api_generate_root_article(data: dict = Body(...)):
         article = creator.create_article(type_name, input_data)
         # Save to cache (YAML for now, could be CSV)
         artnr = input_data.get("artnr") or input_data.get("modnr") or "root_article"
-        cache_path = cache_dir_path / f"{type_name}_{artnr}.yaml"
+        cache_path = Path(__file__).parent.parent / "data" / "processed" / "csv" / "cache" / f"{type_name}_{artnr}.yaml"
         creator.save_article_cache(article, cache_path)
 
         # --- Also append to partlist_creation_mode.csv and partlist_creation_mode_tree.txt ---
-        partlist_path = get_path("partlist", "creation_mode")
-        tree_path = get_path("partlisttree", "creation_mode")
+        cache_dir = Path(__file__).parent.parent / "data" / "processed" / "csv" / "cache"
+        partlist_path = cache_dir / "partlist_creation_mode.csv"
+        tree_path = cache_dir / "partlist_creation_mode_tree.txt"
 
         # Compose values for partlist and tree
         artbez1 = input_data.get("artbez1", "")

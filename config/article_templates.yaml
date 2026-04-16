@@ -1,0 +1,800 @@
+Verkaufsartikel:
+  - name: artnr
+    group: input
+    value: null
+    editable: true
+  - name: artbez1
+    group: input
+    value: null
+    editable: true
+  - name: artbez2_masse
+    group: input
+    value: null
+    editable: true
+  - name: artbez2_root
+    group: input
+    value: null
+    editable: true
+  - name: artbez2_material
+    group: input
+    value: null
+    editable: true 
+  - name: artbez2_DIN
+    group: input
+    value: null
+    editable: true
+  - name: artbez2_oberflaeche
+    group: input
+    value: null
+    editable: true
+  - name: preis
+    group: input
+    value: null
+    editable: true
+  - name: bestand
+    group: input
+    value: null
+    editable: true
+
+
+Modulartikel:
+  - name: Artikelnummer
+    group: input
+    value: null
+    editable: true
+  - name: Initvariante Identifikation
+    group: default
+    value: null
+    editable: false
+  - name: Artikelstatus
+    group: default
+    value: 9
+    editable: true
+  - name: Bezeichnung 1 [de]
+    group: input
+    value: null
+    editable: true
+  - name: Bezeichnung 1 [en]
+    group: default
+    value: null
+    editable: true
+  - name: Bezeichnung 1 [fr]
+    group: default
+    value: null
+    editable: true
+  - name: Bezeichnung 1 [it]
+    group: default
+    value: null
+    editable: true
+  - name: root
+    group: derived
+    value: root
+    editable: true
+  - name: masse
+    group: input
+    value: null
+    editable: true
+  - name: material
+    group: input
+    value: null
+    editable: true
+  - name: DIN
+    group: input
+    value: null
+    editable: true
+  - name: Bezeichnung 2 [de]
+    group: derived
+    value: root + material + masse + DIN
+    editable: true
+  - name: Bezeichnung 2 [en]
+    group: input
+    value: null
+    editable: true
+  - name: Bezeichnung 2 [fr]
+    group: input
+    value: null
+    editable: true
+  - name: Bezeichnung 2 [it]
+    group: input
+    value: null
+    editable: true
+  - name: Suchbegriff 1 [de]
+    group: input
+    value: null
+    editable: true
+
+Normartikel:
+  - name: Artikelnummer
+    group: input
+    value: null
+    editable: true
+  - name: Initvariante Identifikation
+    group: default
+    value: null
+    editable: false
+  - name: Artikelstatus
+    group: default
+    value: 9
+    editable: true
+  - name: Bezeichnung 1 [de]
+    group: input
+    value: null
+    editable: true
+  - name: Bezeichnung 1 [en]
+    group: default
+    value: null
+    editable: true
+  - name: Bezeichnung 1 [fr]
+    group: default
+    value: null
+    editable: true
+  - name: Bezeichnung 1 [it]
+    group: default
+    value: null
+    editable: true
+  - name: root
+    group: derived
+    value: root
+    editable: true
+  - name: masse
+    group: input
+    value: null
+    editable: true
+  - name: material
+    group: input
+    value: null
+    editable: true
+  - name: DIN
+    group: input
+    value: null
+    editable: true
+  - name: Bezeichnung 2 [de]
+    group: derived
+    value: merge_text(root, material, masse, DIN)
+    editable: true
+  - name: Bezeichnung 2 [en]
+    group: default
+    value: null
+    editable: true
+  - name: Bezeichnung 2 [fr]
+    group: default
+    value: null
+    editable: true
+  - name: Bezeichnung 2 [it]
+    group: default
+    value: null
+    editable: true
+  - name: Suchbegriff 1 [de]
+    group: default
+    value: null
+    editable: true
+  - name: Suchbegriff 1 [en]
+    group: default
+    value: null
+    editable: true
+  - name: Suchbegriff 1 [fr]
+    group: default
+    value: null
+    editable: true
+  - name: Suchbegriff 1 [it]
+    group: default
+    value: null
+    editable: true
+  - name: Suchbegriff 2 [de]
+    group: default
+    value: null
+    editable: true
+  - name: Suchbegriff 2 [en]
+    group: default
+    value: null
+    editable: true
+  - name: Suchbegriff 2 [fr]
+    group: default
+    value: null
+    editable: true
+  - name: Suchbegriff 2 [it]
+    group: default
+    value: null
+    editable: true
+  - name: Einkaufsartikel
+    group: default
+    value: "0"
+    editable: true
+  - name: Verkaufsartikel
+    group: default
+    value: "0"
+    editable: true
+  - name: Serviceartikel
+    group: default
+    value: "0"
+    editable: true
+  - name: Produktionsartikel
+    group: default
+    value: "1"
+    editable: true
+  - name: Auslaufartikel
+    group: default
+    value: "0"
+    editable: true
+  - name: Freigabe Einkauf
+    group: default
+    value: "0"
+    editable: true
+  - name: Freigabe Verkauf
+    group: default
+    value: "0"
+    editable: true
+  - name: Freigabe Service
+    group: default
+    value: "0"
+    editable: true
+  - name: Freigabe Produktion
+    group: default
+    value: "1"
+    editable: true
+  - name: Freigabe Baugruppe
+    group: default
+    value: "1"
+    editable: true
+  - name: Freigabe Stückliste
+    group: default
+    value: "1"
+    editable: true
+  - name: Dienstleistungsartikel
+    group: default
+    value: "0"
+    editable: true
+  - name: Topfartikel
+    group: default
+    value: "0"
+    editable: true
+  - name: Textpositionsartikel
+    group: default
+    value: "0"
+    editable: true
+  - name: Beschaffungsart
+    group: default
+    value: "6"
+    editable: true
+  - name: Beschaffungstyp
+    group: default
+    value: "11"
+    editable: true
+  - name: Steuermass
+    group: default
+    value: "0"
+    editable: true
+  - name: Vorsteuerunterteilung Einkauf
+    group: default
+    value: "1"
+    editable: true
+  - name: Masseinheit
+    group: dropdown
+    options: ["Stück", "Meter", "Liter", "Millimeter"]
+    value: null
+    editable: true
+  - name: Masseinheit Verkauf
+    group: derived
+    value: Masseinheit
+    editable: true
+  - name: Gebindeinhalt Verkauf
+    group: default
+    value: null
+    editable: true
+  - name: Anzahl Artikel pro Verkaufs-Masseinheit
+    group: default
+    value: null
+    editable: true
+  - name: Nettogewicht (kg)
+    group: default
+    value: null
+    editable: true
+  - name: Masseinheit Produktion
+    group: derived
+    value: Masseinheit
+    editable: true
+  - name: Nettogewicht Produktion
+    group: default
+    value: null
+    editable: true
+  - name: Gebindeinhalt Produktion
+    group: default
+    value: null
+    editable: true
+  - name: Umrechnungsfaktor PE/LVE
+    group: default
+    value: null
+    editable: true
+  - name: Masseinheit Einkauf
+    group: derived
+    value: Masseinheit
+    editable: true
+  - name: Gebindeinhalt Einkauf
+    group: default
+    value: null
+    editable: true
+  - name: Anzahl Artikel pro Einkaufs-Masseinheit
+    group: default
+    value: null
+    editable: true
+  - name: Nettogewicht Einkauf (kg)
+    group: default
+    value: null
+    editable: true
+  - name: Masseinheit Lager
+    group: derived
+    value: Masseinheit
+    editable: true
+  - name: Anzahl Artikel pro Lager-Masseinheit
+    group: default
+    value: null
+    editable: true
+  - name: Lieferantennummer
+    group: search
+    search_query: lieferant
+    value: null
+    editable: true
+  - name: Mindestbestellmenge Einkauf
+    group: default
+    value: null
+    editable: true
+  - name: Optimale Losgrösse Einkauf
+    group: default
+    value: null
+    editable: true
+  - name: Spezifisches Gewicht
+    group: default
+    value: null
+    editable: true
+  - name: Inventurart
+    group: default
+    value: null
+    editable: true
+  - name: Inventur Periodizität (Tage)
+    group: default
+    value: null
+    editable: true
+  - name: Stückliste
+    group: default
+    value: null
+    editable: true
+  - name: Stückliste auflösen in Belegen
+    group: default
+    value: null
+    editable: true
+  - name: Stückliste auflösen in Produktionsauftrag
+    group: default
+    value: null
+    editable: true
+  - name: Stücklistenpositionen MW-Aktiv
+    group: default
+    value: null
+    editable: true
+  - name: Preis auf Stücklistenpositionen
+    group: default
+    value: null
+    editable: true
+  - name: Stücklistenpositionen fakturieren
+    group: default
+    value: null
+    editable: true
+  - name: Arbeitsplan
+    group: default
+    value: null
+    editable: true
+  - name: Ist MW Aktiv
+    group: default
+    value: "1"
+    editable: true
+  - name: Lagerbewertungsverfahren
+    group: default
+    value: "2"
+    editable: true
+  - name: Seriennummern
+    group: default
+    value: null
+    editable: true
+  - name: Vergabeart Serien
+    group: default
+    value: null
+    editable: true
+  - name: Nummernkreis Serien
+    group: default
+    value: null
+    editable: true
+  - name: Mit Chargen
+    group: default
+    value: null
+    editable: true
+  - name: Vergabeart Chargen
+    group: default
+    value: null
+    editable: true
+  - name: Nummernkreis Chargen
+    group: default
+    value: null
+    editable: true
+  - name: Verfalltage [Tage]
+    group: default
+    value: null
+    editable: true
+  - name: Preiseinheit Einkauf
+    group: default
+    value: null
+    editable: true
+  - name: Umrechnungsfaktor Preise Einkauf
+    group: default
+    value: null
+    editable: true
+  - name: Preiseinheit Verkauf
+    group: default
+    value: null
+    editable: true
+  - name: Umrechnungsfaktor Preis Verkauf
+    group: default
+    value: null
+    editable: true
+  - name: Erlöskonto
+    group: default
+    value: null
+    editable: true
+  - name: Erlöskonto Service
+    group: default
+    value: null
+    editable: true
+  - name: Aufwandkonto
+    group: default
+    value: null
+    editable: true
+  - name: Wareneingangkonto
+    group: default
+    value: null
+    editable: true
+  - name: Warenaufwandkonto
+    group: default
+    value: null
+    editable: true
+  - name: Warenaufwandkonto Service
+    group: default
+    value: null
+    editable: true
+  - name: Warenaufwandkonto Produktion
+    group: default
+    value: null
+    editable: true
+  - name: Warenbestandkonto
+    group: default
+    value: null
+    editable: true
+  - name: Ware in Arbeit Konto Produktion
+    group: default
+    value: null
+    editable: true
+  - name: Warenbestand Änderung Konto Produktion
+    group: default
+    value: null
+    editable: true
+  - name: Preisdifferenz Konto Produktion
+    group: default
+    value: null
+    editable: true
+  - name: Inventurdifferenzkonto
+    group: default
+    value: null
+    editable: true
+  - name: Verschrottungskonto
+    group: default
+    value: null
+    editable: true
+  - name: Kostenstelle Erlös
+    group: default
+    value: null
+    editable: true
+  - name: Kostenstelle Erlös Service
+    group: default
+    value: null
+    editable: true
+  - name: Kostenstelle Aufwand
+    group: default
+    value: null
+    editable: true
+  - name: Kostenstelle Inventur
+    group: default
+    value: null
+    editable: true
+  - name: Kostenstelle Ware in Arbeit
+    group: default
+    value: null
+    editable: true
+  - name: Preisdifferenz Kostenstelle Produktion
+    group: default
+    value: null
+    editable: true
+  - name: EAN-13 Nummer
+    group: default
+    value: null
+    editable: true
+  - name: Warengruppe
+    group: default
+    value: ALLG
+    editable: true
+  - name: Artikelgruppe 1
+    group: default
+    value: null
+    editable: true
+  - name: Artikelgruppe 2
+    group: default
+    value: null
+    editable: true
+  - name: Artikelgruppe 3
+    group: default
+    value: null
+    editable: true
+  - name: Artikelgruppe 4
+    group: default
+    value: null
+    editable: true
+  - name: Artikelgruppe 5
+    group: default
+    value: null
+    editable: true
+  - name: Artikelgruppe 6
+    group: default
+    value: null
+    editable: true
+  - name: Artikelgruppe 7
+    group: default
+    value: null
+    editable: true
+  - name: Artikelgruppe 8
+    group: default
+    value: null
+    editable: true
+  - name: Artikelgruppe 9
+    group: default
+    value: null
+    editable: true
+  - name: Artikelgruppe 10
+    group: default
+    value: null
+    editable: true
+  - name: Kontierungsgruppe
+    group: default
+    value: Material
+    editable: true
+  - name: Freier Text 1
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text 2
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text 3
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text 4
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text 5
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text 6
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text 7
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text 8
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text 9
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text 10
+    group: derived
+    value: Import_create_{datetime}
+    editable: true
+  - name: Freier Text lokalisiert 1 [de]
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text lokalisiert 1 [en]
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text lokalisiert 1 [fr]
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text lokalisiert 1 [it]
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text lokalisiert 2 [de]
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text lokalisiert 2 [en]
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text lokalisiert 2 [fr]
+    group: default
+    value: null
+    editable: true
+  - name: Freier Text lokalisiert 2 [it]
+    group: default
+    value: null
+    editable: true
+  - name: Meldungskonfiguration
+    group: default
+    value: null
+    editable: true
+  - name: Artikeltyp
+    group: default
+    value: null
+    editable: true
+  - name: Alte System Nr.
+    group: default
+    value: null
+    editable: true
+  - name: Nachfolger
+    group: default
+    value: null
+    editable: true
+  - name: Zeichnungsnummer
+    group: input
+    value: null
+    editable: true
+  - name: Zeichnungsindex
+    group: input
+    value: null
+    editable: true
+  - name: Vorgänger
+    group: default
+    value: null
+    editable: true
+  - name: Höhe (Dimension)
+    group: default
+    value: null
+    editable: true
+  - name: Tiefe (Dimension)
+    group: default
+    value: null
+    editable: true
+  - name: Länge (Dimension)
+    group: default
+    value: null
+    editable: true
+  - name: Breite (Dimension)
+    group: default
+    value: null
+    editable: true
+  - name: Fläche
+    group: default
+    value: null
+    editable: true
+  - name: Verpackungseinheit Code
+    group: default
+    value: null
+    editable: true
+  - name: Zolltarifnummer
+    group: default
+    value: null
+    editable: true
+  - name: Ursprungszeugnis
+    group: default
+    value: null
+    editable: true
+  - name: Ursprungsland
+    group: default
+    value: null
+    editable: true
+  - name: Einbaumengen Code
+    group: default
+    value: null
+    editable: true
+  - name: Verschnitt %
+    group: default
+    value: null
+    editable: true
+  - name: Verschnitt fix
+    group: default
+    value: null
+    editable: true
+  - name: Verschnitt Zuschnitt %
+    group: default
+    value: null
+    editable: true
+  - name: Optimale Losgroesse PE
+    group: default
+    value: null
+    editable: true
+  - name: MW-Preis (für aktuelle Org.einheit)
+    group: input
+    value: null
+    editable: true
+  - name: Ausblenden in Planung?
+    group: default
+    value: null
+    editable: true
+  - name: Ist Vorlage Artikel?
+    group: default
+    value: null
+    editable: true
+  - name: Streckengeschäftsart
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztextart 1
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztext 1 [de]
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztext 1 [en]
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztext 1 [fr]
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztext 1 [it]
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztextart 2
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztext 2 [de]
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztext 2 [en]
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztext 2 [fr]
+    group: default
+    value: null
+    editable: true
+  - name: Zusatztext 2 [it]
+    group: default
+    value: null
+    editable: true
+  - name: Sind Zusatztexte RTF Text?
+    group: default
+    value: null
+    editable: true
+  - name: MW-Artikel
+    group: default
+    value: null
+    editable: true
+  - name: Disponentencode
+    group: default
+    value: null
+    editable: true
+  - name: Org.Einheit Identifier
+    group: default
+    value: "JOS"
+    editable: true
+  - name: Mindestbestellmenge Verkauf
+    group: default
+    value: null
+    editable: true
+  - name: Optimale Losgrösse Verkauf
+    group: default
+    value: null
+    editable: true

@@ -1,3 +1,20 @@
+// Helper: fetch and show partlist tree preview
+    function showPartlistTreePreview(artnr, mode = "creation") {
+        const container = document.getElementById("partlistTreePreview");
+        if (!container) return;
+        container.innerHTML = '<div style="color:#888;">Loading partlist tree...</div>';
+        fetch(`/download-partlist-tree?artnr=${encodeURIComponent(artnr)}&mode=${encodeURIComponent(mode)}`)
+            .then(response => {
+                if (!response.ok) throw new Error("No partlist tree found for this article.");
+                return response.text();
+            })
+            .then(text => {
+                container.innerHTML = `<pre style='background:#f8f8f8;padding:1em;border-radius:6px;max-height:350px;overflow:auto;'>${text}</pre>`;
+            })
+            .catch(err => {
+                container.innerHTML = `<div style='color:#c00;'>${err.message || err}</div>`;
+            });
+    }
 // Update Majesty Data button
     var updateMajestyForm = document.getElementById("updateMajestyForm");
     if (updateMajestyForm) {
@@ -45,6 +62,372 @@ function openTab(evt, tabName) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
+    // ─── Creation Workflow (stateful) ────────────────────────────────────────────
+    var createRootArticleBtn = document.getElementById("createRootArticleBtn");
+    var rootArticleFormContainer = document.getElementById("rootArticleFormContainer");
+
+    function escHtml(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function fetchArticleTypes() {
+        return fetch("/api/article-types")
+            .then(res => res.json())
+            .then(data => (Array.isArray(data.types) ? data.types : []));
+    }
+
+    function fetchArticleFields(type) {
+        return fetch(`/api/article-fields?type=${encodeURIComponent(type)}`).then(r => r.json());
+    }
+
+    function fetchCreationState() {
+        return fetch("/api/creation/state").then(r => r.json());
+    }
+
+    // ─── Fields renderer (shared between root and child forms) ────────────────
+    function renderFieldsHtml(fields) {
+        let html = '';
+        fields.forEach(field => {
+            const defVal = (field.value !== null && field.value !== undefined) ? String(field.value) : '';
+            if (field.group === 'dropdown' && Array.isArray(field.options)) {
+                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <select name='${escHtml(field.name)}' style='width:92%;padding:4px;'>`;
+                field.options.forEach(opt => {
+                    html += `<option value='${escHtml(opt)}'${defVal === opt ? ' selected' : ''}>${escHtml(opt)}</option>`;
+                });
+                html += `</select></label>`;
+            } else if (field.group === 'search' && field.search_query === 'lieferant') {
+                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <input type='text' name='${escHtml(field.name)}' value='${escHtml(defVal)}' style='width:80%;padding:4px;display:inline-block;' readonly><button type='button' class='lieferant-search-btn' data-field='${escHtml(field.name)}' style='margin-left:0.5em;'>🔍</button></label>`;
+            } else {
+                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <input type='text' name='${escHtml(field.name)}' value='${escHtml(defVal)}' style='width:90%;padding:4px;' ${field.editable === false ? 'readonly' : ''}></label>`;
+            }
+        });
+        return html;
+    }
+
+    function attachLieferantSearch(container) {
+        container.querySelectorAll('.lieferant-search-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const fieldName = btn.getAttribute('data-field');
+                showLieferantSearchModal(function (selected) {
+                    if (selected && selected.ifas_nummer) {
+                        const input = container.querySelector(`input[name='${fieldName}']`);
+                        if (input) input.value = selected.ifas_nummer;
+                    }
+                });
+            });
+        });
+    }
+
+    function attachExistenceCheck(container, formSelector) {
+        const form = container.querySelector(formSelector);
+        if (!form) return;
+        container.querySelectorAll("input[name='artnr'],input[name='modnr']").forEach(input => {
+            input.addEventListener('blur', function () { checkExistenceInline(input.value, form); });
+        });
+    }
+
+    function checkExistenceInline(artnr, form) {
+        if (!artnr || !form) return;
+        fetch(`/api/check-article-exists?artnr=${encodeURIComponent(artnr)}&mode=creation`)
+            .then(r => r.json())
+            .then(data => {
+                let msgDiv = form.querySelector('.cs-exists-msg');
+                if (!msgDiv) {
+                    msgDiv = document.createElement('div');
+                    msgDiv.className = 'cs-exists-msg';
+                    msgDiv.style.margin = '0.5em 0';
+                    form.insertBefore(msgDiv, form.firstChild);
+                }
+                if (data.status === "found_in_creation") {
+                    msgDiv.innerHTML = `<span style='color:#c00;'>Already exists in this session. Choose a unique number.</span>`;
+                } else if (data.status === "found") {
+                    msgDiv.innerHTML = `<span style='color:#e67e22;'>Article exists in Majesty.</span>`;
+                } else {
+                    msgDiv.innerHTML = `<span style='color:#27ae60;'>New article (not in Majesty).</span>`;
+                }
+            })
+            .catch(() => {});
+    }
+
+    // ─── Session panel ────────────────────────────────────────────────────────
+    function renderSessionPanel(state) {
+        if (!rootArticleFormContainer) return;
+        rootArticleFormContainer.style.display = "block";
+
+        const stack = state.stack || [];
+        const current = stack.length > 0 ? stack[stack.length - 1] : null;
+        const treeText = state.tree_text || "";
+        const isComplete = state.is_complete || false;
+        const isActive = state.is_active || false;
+
+        const breadcrumb = stack.length
+            ? stack.map((s, i) => {
+                const isLast = i === stack.length - 1;
+                return `<span style='${isLast ? "font-weight:600;color:#2980b9;" : "color:#888;"}'>${escHtml(s.artnr)} (${escHtml(s.artbez1)})</span>`;
+            }).join(" <span style='color:#ccc;margin:0 0.3em;'>›</span> ")
+            : '<span style="color:#888;">(root)</span>';
+
+        if (isComplete) {
+            rootArticleFormContainer.innerHTML = `
+                <div style="color:#27ae60;font-weight:600;margin-bottom:0.8em;">Session complete — root module finished.</div>
+                <div style="margin-bottom:1em;font-size:0.9em;">${breadcrumb}</div>
+                <pre style="background:#f8f8f8;padding:1em;border-radius:6px;max-height:350px;overflow:auto;font-size:0.88em;">${escHtml(treeText)}</pre>
+                <div style="margin-top:1em;display:flex;gap:0.7em;flex-wrap:wrap;">
+                    <button id="cs-download-tree-btn" class="modern-btn">Download Partlist Tree</button>
+                    <button id="cs-download-partlist-btn" class="modern-btn">Download Partlist</button>
+                    <button id="cs-download-group-btn" class="modern-btn">Download Group (XLSX)</button>
+                    <button id="cs-reset-btn" class="modern-btn secondary">Start New Session</button>
+                </div>`;
+                // Download Group (XLSX) button
+                const dlGroupBtn = el("cs-download-group-btn");
+                if (dlGroupBtn) dlGroupBtn.onclick = function () {
+                    const rootArtnr = (state.stack || []).length > 0 ? state.stack[0].artnr : "";
+                    if (!rootArtnr) { alert("No root article found."); return; }
+                    const a = document.createElement('a');
+                    a.href = `/download-group-excel?artnr=${encodeURIComponent(rootArtnr)}&mode=creation`;
+                    a.download = `group_export_${rootArtnr}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                };
+        } else if (!isActive || !current) {
+            rootArticleFormContainer.innerHTML = `<div style="color:#888;">No active creation session.</div>`;
+        } else {
+            const finishLabel = stack.length <= 1
+                ? 'Finish Root &amp; Complete'
+                : `Finish Module: ${escHtml(current.artnr)}`;
+            rootArticleFormContainer.innerHTML = `
+                <div style="margin-bottom:0.8em;">
+                    <div style="font-size:0.85em;color:#888;margin-bottom:0.3em;">Current path:</div>
+                    <div>${breadcrumb}</div>
+                </div>
+                <div style="margin-bottom:1em;padding:0.6em 0.9em;background:#f0f8ff;border-radius:6px;border-left:3px solid #2980b9;">
+                    <strong>Building: ${escHtml(current.artnr)}</strong> — ${escHtml(current.artbez1)}
+                    <span style="color:#888;font-size:0.85em;margin-left:1em;">Depth ${stack.length - 1} · Next pos ${current.pos_counter}</span>
+                </div>
+                <div style="display:flex;gap:0.7em;flex-wrap:wrap;margin-bottom:1.2em;">
+                    <button id="cs-add-article-btn" class="modern-btn">+ Add Article</button>
+                    <button id="cs-add-module-btn" class="modern-btn">+ Add Module</button>
+                    <button id="cs-finish-btn" class="modern-btn" style="background:#27ae60;color:#fff;">${finishLabel}</button>
+                    <button id="cs-reset-btn" class="modern-btn secondary">Reset</button>
+                </div>
+                <div style="font-weight:600;margin-bottom:0.3em;font-size:0.88em;">Partlist tree:</div>
+                <pre style="background:#f8f8f8;padding:1em;border-radius:6px;max-height:260px;overflow:auto;font-size:0.86em;">${escHtml(treeText)}</pre>`;
+        }
+
+        // Wire up buttons
+        const el = id => document.getElementById(id);
+
+        const addArticleBtn = el("cs-add-article-btn");
+        const addModuleBtn  = el("cs-add-module-btn");
+        const finishBtn     = el("cs-finish-btn");
+        const resetBtn      = el("cs-reset-btn");
+        const dlTreeBtn     = el("cs-download-tree-btn");
+
+        if (addArticleBtn) addArticleBtn.onclick = () => showChildTypeSelection(false);
+        if (addModuleBtn)  addModuleBtn.onclick  = () => showChildTypeSelection(true);
+
+        if (finishBtn) finishBtn.onclick = function () {
+            fetch("/api/creation/finish-module", { method: "POST", headers: { "Content-Type": "application/json" } })
+                .then(r => r.json())
+                .then(result => renderSessionPanel(result.state || result))
+                .catch(err => alert("Error: " + err));
+        };
+
+        if (resetBtn) resetBtn.onclick = function () {
+            if (!confirm("Reset creation session? All created articles in this session will be cleared.")) return;
+            fetch("/api/creation/reset", { method: "POST", headers: { "Content-Type": "application/json" } })
+                .then(r => r.json())
+                .then(() => {
+                    if (rootArticleFormContainer) {
+                        rootArticleFormContainer.innerHTML = "";
+                        rootArticleFormContainer.style.display = "none";
+                    }
+                    if (createRootArticleBtn) createRootArticleBtn.disabled = false;
+                })
+                .catch(err => alert("Error: " + err));
+        };
+
+        if (dlTreeBtn) dlTreeBtn.onclick = function () {
+            const rootArtnr = (state.stack || []).length > 0 ? state.stack[0].artnr : "";
+            if (!rootArtnr) { alert("No root article found."); return; }
+            const a = document.createElement('a');
+            a.href = `/download-partlist-tree?artnr=${encodeURIComponent(rootArtnr)}&mode=creation`;
+            a.download = `partlist_tree_${rootArtnr}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+
+            // Download Partlist CSV button
+            const dlPartlistBtn = el("cs-download-partlist-btn");
+            if (dlPartlistBtn) dlPartlistBtn.onclick = function () {
+                const rootArtnr = (state.stack || []).length > 0 ? state.stack[0].artnr : "";
+                if (!rootArtnr) { alert("No root article found."); return; }
+                const a = document.createElement('a');
+                a.href = `/download-partlist?artnr=${encodeURIComponent(rootArtnr)}&mode=creation`;
+                a.download = `partlist_${rootArtnr}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+    }
+
+    // ─── Child type selection ─────────────────────────────────────────────────
+    function showChildTypeSelection(isModule) {
+        fetchArticleTypes().then(types => {
+            if (!rootArticleFormContainer) return;
+            const label = isModule ? "module" : "article";
+            let html = `<div style='font-weight:600;margin-bottom:0.7em;'>Select type for new ${label}:</div>`;
+            html += `<div style="margin-bottom:1em;">`;
+            types.forEach(t => {
+                html += `<button class="modern-btn cs-type-btn" data-type="${escHtml(t)}" style="margin:0.3em 0.7em 0.3em 0;">${escHtml(t)}</button>`;
+            });
+            html += `</div>`;
+            html += `<button id="cs-cancel-type-btn" class="modern-btn secondary">Cancel</button>`;
+            html += `<div id="cs-child-form-area" style="margin-top:1em;"></div>`;
+            rootArticleFormContainer.innerHTML = html;
+
+            rootArticleFormContainer.querySelectorAll(".cs-type-btn").forEach(btn => {
+                btn.onclick = function () {
+                    const type = btn.getAttribute("data-type");
+                    showChildArticleForm(type, isModule);
+                };
+            });
+            const cancelBtn = document.getElementById("cs-cancel-type-btn");
+            if (cancelBtn) cancelBtn.onclick = () => fetchCreationState().then(renderSessionPanel);
+        });
+    }
+
+    // ─── Child article / module form ──────────────────────────────────────────
+    function showChildArticleForm(type, isModule) {
+        fetchArticleFields(type).then(data => {
+            const area = document.getElementById("cs-child-form-area");
+            if (!area) return;
+            if (data.status !== "ok" || !Array.isArray(data.fields) || !data.fields.length) {
+                area.innerHTML = '<div style="color:#c00;">No fields found for this type.</div>';
+                return;
+            }
+            const label = isModule ? "Module" : "Article";
+            let html = `<div style='font-weight:600;margin-bottom:0.7em;'>Create ${escHtml(type)} (${label}):</div>`;
+            html += `<form id="cs-child-form">`;
+            html += renderFieldsHtml(data.fields);
+            html += `<div style="margin-top:1em;display:flex;gap:0.7em;">`;
+            html += `<button type="submit" class="modern-btn">Create ${label}</button>`;
+            html += `<button type="button" id="cs-cancel-child-form-btn" class="modern-btn secondary">Cancel</button>`;
+            html += `</div></form>`;
+            html += `<div id="cs-child-form-msg" style="margin-top:0.5em;"></div>`;
+            area.innerHTML = html;
+            attachLieferantSearch(area);
+            attachExistenceCheck(area, "#cs-child-form");
+
+            const cancelBtn = document.getElementById("cs-cancel-child-form-btn");
+            if (cancelBtn) cancelBtn.onclick = () => fetchCreationState().then(renderSessionPanel);
+
+            const form = document.getElementById("cs-child-form");
+            if (form) form.addEventListener("submit", function (e) {
+                e.preventDefault();
+                const payload = { type, is_module: isModule };
+                form.querySelectorAll("input,select").forEach(el => { if (el.name) payload[el.name] = el.value; });
+                const msgDiv = document.getElementById("cs-child-form-msg");
+                if (msgDiv) msgDiv.innerHTML = '<span style="color:#888;">Saving...</span>';
+                fetch("/api/creation/add-child", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                    .then(r => r.json())
+                    .then(result => {
+                        if (result.status === "success") {
+                            renderSessionPanel(result.state);
+                        } else {
+                            if (msgDiv) msgDiv.innerHTML = `<span style="color:#c00;">${escHtml(result.message || "Error")}</span>`;
+                        }
+                    })
+                    .catch(err => { if (msgDiv) msgDiv.innerHTML = `<span style="color:#c00;">Error: ${escHtml(String(err))}</span>`; });
+            });
+        });
+    }
+
+    // ─── Root type selection ──────────────────────────────────────────────────
+    function showRootTypeSelection() {
+        fetchArticleTypes().then(types => {
+            if (!rootArticleFormContainer) return;
+            rootArticleFormContainer.style.display = "block";
+            let html = `<div style='font-weight:600;margin-bottom:0.7em;'>Select root article type:</div>`;
+            html += `<div style="margin-bottom:1em;">`;
+            types.forEach(t => {
+                html += `<button class="modern-btn cs-root-type-btn" data-type="${escHtml(t)}" style="margin:0.3em 0.7em 0.3em 0;">${escHtml(t)}</button>`;
+            });
+            html += `</div>`;
+            html += `<div id="cs-root-form-area"></div>`;
+            rootArticleFormContainer.innerHTML = html;
+
+            rootArticleFormContainer.querySelectorAll(".cs-root-type-btn").forEach(btn => {
+                btn.onclick = function () { showRootArticleForm(btn.getAttribute("data-type")); };
+            });
+        });
+    }
+
+    // ─── Root article form ────────────────────────────────────────────────────
+    function showRootArticleForm(type) {
+        fetchArticleFields(type).then(data => {
+            const area = document.getElementById("cs-root-form-area");
+            if (!area) return;
+            if (data.status !== "ok" || !Array.isArray(data.fields) || !data.fields.length) {
+                area.innerHTML = '<div style="color:#c00;">No fields found for this type.</div>';
+                return;
+            }
+            let html = `<div style='font-weight:600;margin-bottom:0.7em;'>Create root ${escHtml(type)}:</div>`;
+            html += `<form id="cs-root-form">`;
+            html += renderFieldsHtml(data.fields);
+            html += `<button type="submit" class="modern-btn" style="margin-top:0.7em;">Create Root</button>`;
+            html += `</form>`;
+            html += `<div id="cs-root-form-msg" style="margin-top:0.5em;"></div>`;
+            area.innerHTML = html;
+            attachLieferantSearch(area);
+            attachExistenceCheck(area, "#cs-root-form");
+
+            const form = document.getElementById("cs-root-form");
+            if (form) form.addEventListener("submit", function (e) {
+                e.preventDefault();
+                const payload = { type };
+                form.querySelectorAll("input,select").forEach(el => { if (el.name) payload[el.name] = el.value; });
+                const msgDiv = document.getElementById("cs-root-form-msg");
+                if (msgDiv) msgDiv.innerHTML = '<span style="color:#888;">Creating...</span>';
+                fetch("/api/creation/start", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                    .then(r => r.json())
+                    .then(result => {
+                        if (result.status === "success") {
+                            renderSessionPanel(result.state);
+                        } else {
+                            if (msgDiv) msgDiv.innerHTML = `<span style="color:#c00;">${escHtml(result.message || "Error")}</span>`;
+                        }
+                    })
+                    .catch(err => { if (msgDiv) msgDiv.innerHTML = `<span style="color:#c00;">Error: ${escHtml(String(err))}</span>`; });
+            });
+        });
+    }
+
+    // ─── Entry point ──────────────────────────────────────────────────────────
+    if (createRootArticleBtn && rootArticleFormContainer) {
+        createRootArticleBtn.addEventListener("click", function () {
+            fetchCreationState()
+                .then(state => {
+                    if (state.is_active) {
+                        renderSessionPanel(state);
+                    } else {
+                        showRootTypeSelection();
+                    }
+                })
+                .catch(() => showRootTypeSelection());
+        });
+    }
+
         // --- Article List Preview logic ---
         function fetchAndRenderArticleListPreview() {
             fetch('/article-list-preview')

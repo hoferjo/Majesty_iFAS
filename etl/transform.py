@@ -3,13 +3,15 @@ import csv
 from datetime import datetime
 from pathlib import Path
 import yaml
+import os 
+
 BASE_DIR = Path(__file__).parent.parent
 etl_dir = BASE_DIR / "etl"
 
 # Debug flag for easy log removal
-DEBUG = True
+DEBUG = False
 # Separate flag for timer output
-TIMER = True
+TIMER = False
 
 # Shared in-process caches survive across endpoint calls in the same worker.
 _GLOBAL_TABLE_CACHE = {}
@@ -31,16 +33,78 @@ try:
     artikelstamm_file = settings["files"]["artikelstamm"]
 except Exception as e:
     raise RuntimeError(f"Error reading keys from settings.yaml: {e}")
-artikelstamm = BASE_DIR / raw_dir / "artikelstamm" / artikelstamm_file
-waren_artikelgruppe = BASE_DIR / settings["paths"]["waren_artikelgruppe_dir"] / settings["files"]["waren_artikelgruppe"]
-lieferanten_mapping = BASE_DIR / settings["paths"]["lieferanten_mapping_dir"] / settings["files"]["lieferanten_mapping"]
-if not lieferanten_mapping.exists():
-    fallback_lieferanten_mapping = BASE_DIR / "config" / "lieferanten_mapping.csv"
-    if fallback_lieferanten_mapping.exists():
-        print(f"[WARN] Configured supplier mapping not found: {lieferanten_mapping}. Using fallback: {fallback_lieferanten_mapping}")
-        lieferanten_mapping = fallback_lieferanten_mapping
-stueckliste_path = BASE_DIR / settings["paths"]["stueckliste_dir"] / settings["files"]["stueckliste"]
-existing_articles_path = BASE_DIR / settings["paths"]["existing_articles_dir"] / settings["files"]["existing_articles"]        
+
+
+def get_path(file: str = None, mode: str = None, base: str = BASE_DIR):
+    
+    normalized_mode = str(mode or "").strip().lower()
+    if normalized_mode.endswith("_mode"):
+        normalized_mode = normalized_mode[:-5]
+
+    file_key = file
+    folder_key = f"{file}_dir"
+
+    if file == "article list":
+        folder_key = "article_list_dir"
+        file_key = f"article_list_{normalized_mode}_mode"
+
+    if file == "blocked articles":
+        folder_key = "article_list_dir"
+        file_key = f"blocked_articles_{normalized_mode}_mode"
+
+    if file == "existing articles":
+        if normalized_mode in {"", "none"}:
+            return None
+        folder_key = "existing_articles_dir"
+        file_key = f"existing_articles_{normalized_mode}"
+
+    if file == "partlist":
+        folder_key = "partlist_dir"
+        file_key = f"partlist_{normalized_mode}_mode"
+
+    if file == "partlisttree":
+        folder_key = "partlist_tree_dir"
+        file_key = f"partlist_{normalized_mode}_mode_tree"
+
+    if file in {"artikelstamm_import_template", "partlist_import_template"}:
+        folder_key = "template_dir"
+        file_key = file
+
+    if file_key and folder_key:
+        return base / settings["paths"][folder_key] / settings["files"][file_key]
+
+    return os.error(f"Invalid file key: {file}. No matching path configuration found in settings.yaml.")
+
+
+      
+
+#raw paths
+
+artikelstamm_path = get_path("artikelstamm")
+stuecklistenstamm_path = get_path("stuecklistenstamm")
+waren_artikelgruppe_path = get_path("waren_artikelgruppe")
+lieferanten_mapping_path = get_path("lieferanten_mapping")
+
+#processed paths
+cache_dir_path = BASE_DIR / settings["paths"]["cache_dir"]
+sheets_path = BASE_DIR / "config" / "sheets.csv"
+active_sheets_path = BASE_DIR / "config" / "active_sheets.csv"
+sheets_output_dir = BASE_DIR / settings["paths"]["sheets_dir"]
+
+#template paths
+template_dir = BASE_DIR / settings["paths"]["template_dir"]
+artikelstamm_import_template_path = get_path("artikelstamm_import_template")
+partlist_import_template_path = get_path("partlist_import_template")
+
+#output_paths
+output_dir = BASE_DIR / settings["paths"]["output_dir"]
+artikelstamm_output_path = output_dir / settings["files"]["artikelstamm_output"]
+partlist_output_path = output_dir / settings["files"]["partlist_output"]
+
+
+
+
+
 
 def check_utf8_file(filepath):
     """
@@ -112,27 +176,27 @@ def mergeTexts(text1, text2, text3=None, text4=None):
         return ''
 
 def getLieferantennummer(artnr):
-    letzt_lief = getEntryFromCSV(artikelstamm, artnr, 'letzt_lief')
+    letzt_lief = getEntryFromCSV(artikelstamm_path, artnr, 'letzt_lief')
     # Use as string, no padding
     if letzt_lief is not None:
         letzt_lief = str(letzt_lief).strip()
-    return getEntryFromCSV(lieferanten_mapping, letzt_lief, 'ifas_nummer')
+    return getEntryFromCSV(lieferanten_mapping_path, letzt_lief, 'ifas_nummer')
 
 def getBeschaffungsart(artnr):
-    if isParent(artnr, stueckliste_path):
+    if isParent(artnr, stuecklistenstamm_path):
         return '1'  # Replace 'SomeValue' with the actual value you want to return
     return '6'  # Replace 'OtherValue' with the actual value you want to return
 
 def getKontierungsgruppe(artnr):    
-    letzt_lief = getEntryFromCSV(artikelstamm, artnr, 'letzt_lief')
+    letzt_lief = getEntryFromCSV(artikelstamm_path, artnr, 'letzt_lief')
     if letzt_lief == '92005':
         return 'Material Gruppe'
     return 'Material'
 
 def getBezeichnung2(artnr):
-    artbez2 = getEntryFromCSV(artikelstamm, artnr, 'artbez2')
-    artbez3 = getEntryFromCSV(artikelstamm, artnr, 'artbez3')
-    artbezmem= getEntryFromCSV(artikelstamm, artnr, 'artbezmem')
+    artbez2 = getEntryFromCSV(artikelstamm_path, artnr, 'artbez2')
+    artbez3 = getEntryFromCSV(artikelstamm_path, artnr, 'artbez3')
+    artbezmem= getEntryFromCSV(artikelstamm_path, artnr, 'artbezmem')
     return mergeTexts(artbez2, artbez3, artbezmem)
 
 
@@ -143,13 +207,13 @@ def API_import(first_parent_artnr=None):
     return import_date
 
 def getLieferantennummer(artnr):
-    letzt_lief = getEntryFromCSV(artikelstamm, artnr, 'letzt_lief')
-    return getEntryFromCSV(lieferanten_mapping, letzt_lief, 'ifas_nummer')
+    letzt_lief = getEntryFromCSV(artikelstamm_path, artnr, 'letzt_lief')
+    return getEntryFromCSV(lieferanten_mapping_path, letzt_lief, 'ifas_nummer')
 
 
 def deriveWBZ(artnr):
-    letzt_lief = getEntryFromCSV(artikelstamm, artnr, 'letzt_lief')
-    wbz = getEntryFromCSV(lieferanten_mapping, letzt_lief, 'wbz')
+    letzt_lief = getEntryFromCSV(artikelstamm_path, artnr, 'letzt_lief')
+    wbz = getEntryFromCSV(lieferanten_mapping_path, letzt_lief, 'wbz')
     if wbz and wbz !='0' and wbz != 0:
         return wbz
     else:
@@ -166,12 +230,12 @@ def mapping_Bedingung_2o(Bedingung, outputIfTrue, outputElse, filename, artnr, c
         return outputIfTrue
     return outputElse
     
-def isParent(artnr, stueckliste_path):
+def isParent(artnr, stuecklistenstamm_path):
     try:
-        if not check_utf8_file(stueckliste_path):
-            print(f"[ERROR] Skipping isParent check for {artnr} due to stueckliste encoding.")
+        if not check_utf8_file(stuecklistenstamm_path):
+            print(f"[ERROR] Skipping isParent check for {artnr} due to stuecklistenstamm encoding.")
             return False
-        with open(stueckliste_path, mode='r', encoding='utf-8-sig') as csvfile:
+        with open(stuecklistenstamm_path, mode='r', encoding='utf-8-sig') as csvfile:
             reader = csv.DictReader(csvfile, delimiter=';')
             for row in reader:
                 if row.get('stulinr', '').strip() == artnr:
@@ -182,7 +246,7 @@ def isParent(artnr, stueckliste_path):
     
 
 def getGroup(filename, artnr, columnname):
-    zeichnr = getEntryFromCSV(artikelstamm, artnr, 'zeichnr')
+    zeichnr = getEntryFromCSV(artikelstamm_path, artnr, 'zeichnr')
     code = ''
     code2 = ''
     zeichnr = str(zeichnr or '').strip()
@@ -221,7 +285,7 @@ def getGroup(filename, artnr, columnname):
 
 
 def IstNichtAllgemein(artnr):
-    warengruppe = getGroup(waren_artikelgruppe, artnr, 'Kürzel')
+    warengruppe = getGroup(waren_artikelgruppe_path, artnr, 'Kürzel')
     if warengruppe in ('ALLG', 'Allgemein'):
         return '0'
     else:
@@ -229,8 +293,8 @@ def IstNichtAllgemein(artnr):
     
 
 def IstNichtAllgemeinNormteile(artnr):
-    warengruppe = getGroup(waren_artikelgruppe, artnr, 'Kürzel')
-    artikelgruppe1 = getGroup(waren_artikelgruppe, artnr, 'Artikelgruppe 1')
+    warengruppe = getGroup(waren_artikelgruppe_path, artnr, 'Kürzel')
+    artikelgruppe1 = getGroup(waren_artikelgruppe_path, artnr, 'Artikelgruppe 1')
     if warengruppe in ('ALLG', 'Allgemein') and artikelgruppe1 in ('001 | Normteile Jost', '001', 'Normteile'):
         return '0'
     else:
@@ -283,7 +347,7 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         return row.get(columnname, '')
 
     def get_group_cached(artnr, columnname):
-        zeichnr = get_entry_cached(artikelstamm, artnr, 'zeichnr', key_column='artnr')
+        zeichnr = get_entry_cached(artikelstamm_path, artnr, 'zeichnr', key_column='artnr')
         zeichnr = str(zeichnr or '').strip()
         # Special handling: if zeichnr is empty
         if not zeichnr:
@@ -316,12 +380,12 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
 
         # Lookup and ensure empty field in lookup returns empty string
         if columnname == 'Artikelgruppe 2':
-            val = get_entry_cached(waren_artikelgruppe, code2, columnname, key_column='Zeichnr')
+            val = get_entry_cached(waren_artikelgruppe_path, code2, columnname, key_column='Zeichnr')
             if val and str(val).strip() != '':
                 return val
             # fallback if lookup fails
             return 'ALLG' if columnname in ('Warengruppe', 'Kürzel') else ''
-        val = get_entry_cached(waren_artikelgruppe, code, columnname, key_column='Zeichnr')
+        val = get_entry_cached(waren_artikelgruppe_path, code, columnname, key_column='Zeichnr')
         if val and str(val).strip() != '':
             return val
         # fallback if lookup fails
@@ -335,10 +399,10 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         return '1'
 
     def derive_wbz_cached(artnr):
-        letzt_lief = get_entry_cached(artikelstamm, artnr, 'letzt_lief', key_column='artnr')
+        letzt_lief = get_entry_cached(artikelstamm_path, artnr, 'letzt_lief', key_column='artnr')
         if DEBUG:
             print(f"[DEBUG] derive_wbz_cached: artnr={artnr}, letzt_lief={letzt_lief}")
-        wbz = get_entry_cached(lieferanten_mapping, letzt_lief, 'wbz', key_column='liefnr')
+        wbz = get_entry_cached(lieferanten_mapping_path, letzt_lief, 'wbz', key_column='liefnr')
         if DEBUG:
             print(f"[DEBUG] derive_wbz_cached: wbz lookup result={wbz}")
         if wbz and wbz != '0' and wbz != 0:
@@ -358,7 +422,15 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         return output_else
 
     def _resolve_filename_token(token):
-        return globals().get(token, token)
+        # Hardcoded mapping for known path tokens
+        path_mapping = {
+            'artikelstamm': artikelstamm_path,
+            'artikelstamm_path': artikelstamm_path,
+            'stuecklistenstamm_path': stuecklistenstamm_path,
+            'waren_artikelgruppe_path': waren_artikelgruppe_path,
+            'lieferanten_mapping_path': lieferanten_mapping_path,
+        }
+        return path_mapping.get(token, token)
 
     def parse_mapping_csv(csv_path):
         mappings = []
@@ -403,13 +475,13 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         mapping_cache[cache_key] = mappings
         return mappings
 
-    parent_articles = set(_load_table_by_column(stueckliste_path, 'stulinr').keys())
+    parent_articles = set(_load_table_by_column(stuecklistenstamm_path, 'stulinr').keys())
 
     def get_beschaffungsart_cached(artnr):
         return '1' if str(artnr or '').strip() in parent_articles else '6'
 
     def get_kontierungsgruppe_cached(artnr):
-        letzt_lief = get_entry_cached(artikelstamm, artnr, 'letzt_lief', key_column='artnr')
+        letzt_lief = get_entry_cached(artikelstamm_path, artnr, 'letzt_lief', key_column='artnr')
         return 'Material Gruppe' if letzt_lief == '92005' else 'Material'
 
     # Function dispatcher for mapping functions
@@ -453,9 +525,9 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             # args: artnr
             if len(arglist) >= 1:
                 artnr_val = article.get(arglist[0], arglist[0])
-                artbez2 = get_entry_cached(artikelstamm, artnr_val, 'artbez2', key_column='artnr')
-                artbez3 = get_entry_cached(artikelstamm, artnr_val, 'artbez3', key_column='artnr')
-                artbezmem = get_entry_cached(artikelstamm, artnr_val, 'artbezmem', key_column='artnr')
+                artbez2 = get_entry_cached(artikelstamm_path, artnr_val, 'artbez2', key_column='artnr')
+                artbez3 = get_entry_cached(artikelstamm_path, artnr_val, 'artbez3', key_column='artnr')
+                artbezmem = get_entry_cached(artikelstamm_path, artnr_val, 'artbezmem', key_column='artnr')
                 return mergeTexts(artbez2, artbez3, artbezmem)
             return ''
 
@@ -463,12 +535,12 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             # args: artnr
             if len(arglist) >= 1:
                 artnr_val = article.get(arglist[-1], arglist[-1])
-                letzt_lief = get_entry_cached(artikelstamm, artnr_val, 'letzt_lief', key_column='artnr')
+                letzt_lief = get_entry_cached(artikelstamm_path, artnr_val, 'letzt_lief', key_column='artnr')
                 if letzt_lief is not None:
                     letzt_lief = str(letzt_lief).strip()
                 if not letzt_lief or letzt_lief == 0:
                     return ''
-                val = get_entry_cached(lieferanten_mapping, letzt_lief, 'ifas_nummer', key_column='liefnr')
+                val = get_entry_cached(lieferanten_mapping_path, letzt_lief, 'ifas_nummer', key_column='liefnr')
                 return '' if not val or val == 0 else val
             return ''
 
@@ -568,11 +640,35 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         is_blocked = True
 
     for sheet in active_sheets:
-        mapping_csv = os.path.join('config', f'mapping_plan_{sheet}.csv')
+        # Map sheet names to their category directories
+        sheet_to_category = {
+            # Article sheets
+            'Artikelstamm': 'Article',
+            'Artikel_Disposteuerung': 'Article', 
+            'Artikel_Lieferantendaten': 'Article',
+            # BOM sheets
+            'Stücklisten': 'BOM',
+            'Stücklistenvarianten': 'BOM',
+            'Stücklistenversionen': 'BOM',
+            'Stücklistenverwendung': 'BOM',
+            'Stücklstenauswahlvarianten': 'BOM',
+            'Stücklstenpositionen': 'BOM',
+            # Workplan sheets
+            'Arbeitspläne': 'Workplan',
+            'Arbeitsplanpositionen': 'Workplan',
+            'Arbeitsplanversionen': 'Workplan',
+        }
+        # Default to Article if not found
+        category = sheet_to_category.get(sheet, 'Article')
+        mapping_csv = os.path.join('config', 'sheet_mappings', category, f'mapping_plan_{sheet}.csv')
         if is_blocked:
-            output_csv = os.path.join('data', 'processed', 'csv', 'cache', 'sheets', f'{sheet}_cache_blocked.csv')
+            output_csv = sheets_output_dir / f'{sheet}_cache_blocked.csv'
         else:
-            output_csv = os.path.join('data', 'processed', 'csv', 'cache', 'sheets', f'{sheet}_cache.csv')
+            output_csv = sheets_output_dir / f'{sheet}_cache.csv'
+        
+        # Ensure output directory exists
+        output_csv.parent.mkdir(parents=True, exist_ok=True)
+        
         mappings = parse_mapping_csv(mapping_csv)
 
         if DEBUG:
@@ -593,12 +689,12 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
 def process_module_structure(
     selected_artnr,
     artikelstamm_path,
-    stueckliste_path,
+    stuecklistenstamm_path,
     article_list_path,
     partlist_path,
     visited=None,
     artikel_map=None,
-    existing_articles_file=None,
+    existing_articles_path=None,
     replacement_map=None,
     reset_files=False,
 ):
@@ -611,12 +707,13 @@ def process_module_structure(
     Write stulinr, posnr, menge, artnr, artbez1 to partlist.csv.
     If the artnr of a position is itself a parent, recurse.
     """
+    article_list_creation_mode_path = get_path("article list", mode="creation")
     # Check UTF-8 validity for input files
     if not check_utf8_file(artikelstamm_path):
         print(f"[ERROR] Skipping processing for {selected_artnr} due to artikelstamm encoding.")
         return
-    if not check_utf8_file(stueckliste_path):
-        print(f"[ERROR] Skipping processing for {selected_artnr} due to stueckliste encoding.")
+    if not check_utf8_file(stuecklistenstamm_path):
+        print(f"[ERROR] Skipping processing for {selected_artnr} due to stuecklistenstamm encoding.")
         return
 
     # Always ensure visited is a set
@@ -633,11 +730,26 @@ def process_module_structure(
         with open(blocked_articles_path, 'w', encoding='utf-8') as f:
             f.write('artnr;artbez1;zeichnr\n')
 
+        # Also clear all <sheet>_cache_blocked.csv files for all active sheets
+        active_sheets_path = BASE_DIR / "config" / "active_sheets.csv"
+        if active_sheets_path.exists():
+            import csv
+            with open(active_sheets_path, encoding='utf-8-sig') as f:
+                reader = csv.reader(f, delimiter=';')
+                for row in reader:
+                    for sheet in row:
+                        sheet = sheet.strip()
+                        if sheet:
+                            sheet_blocked_path = sheets_output_dir / f"{sheet}_cache_blocked.csv"
+                            sheet_blocked_path.parent.mkdir(parents=True, exist_ok=True)
+                            with open(sheet_blocked_path, 'w', encoding='utf-8-sig', newline='') as blocked_f:
+                                blocked_f.write('artnr;artbez1;zeichnr\n')
+
     # Keep seen article numbers in memory to avoid scanning article_list.csv repeatedly.
     existing_articles_set = set()
-    if existing_articles_file:
+    if existing_articles_path:
         try:
-            with open(existing_articles_file, 'r', encoding='utf-8') as f:
+            with open(existing_articles_path, 'r', encoding='utf-8') as f:
                 next(f, None)
                 for line in f:
                     key = line.strip().split(',')[0].strip()
@@ -652,16 +764,30 @@ def process_module_structure(
     # Only load artikel_map once and pass through recursion
     if artikel_map is None:
         artikel_map = {}
-        with open(artikelstamm_path, encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f, delimiter=';')
-            for row in reader:
-                artikel_map[row.get('artnr', '').strip()] = row
+        # Load Majesty/iFAS articles
+        if Path(artikelstamm_path).exists():
+            with open(artikelstamm_path, encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for row in reader:
+                    artikel_map[row.get('artnr', '').strip()] = row
+        # Load creation cache articles (if any)
+        creation_cache_dir = BASE_DIR / "data" / "processed" / "csv" / "cache"
+        
+        if article_list_creation_mode_path.exists():
+            with open(article_list_creation_mode_path, encoding='utf-8-sig') as f:
+                next(f, None)
+                for line in f:
+                    parts = line.strip().split(';')
+                    if len(parts) >= 3:
+                        artnr_c, artbez1_c, zeichnr_c = parts[:3]
+                        if artnr_c and artnr_c not in artikel_map:
+                            artikel_map[artnr_c] = {'artnr': artnr_c, 'artbez1': artbez1_c, 'zeichnr': zeichnr_c}
         if DEBUG:
-            print(f"[DEBUG] Loaded {len(artikel_map)} artikelstamm entries.")
+            print(f"[DEBUG] Loaded {len(artikel_map)} artikelstamm + creation cache entries.")
 
     # Only load stueckliste rows and parent->children map once and pass through recursion
     if not hasattr(process_module_structure, "stueckliste_rows") or visited is None:
-        with open(stueckliste_path, encoding='utf-8-sig') as f:
+        with open(stuecklistenstamm_path, encoding='utf-8-sig') as f:
             # Skip all leading empty lines to find the real header
             lines = []
             for line in f:
@@ -691,10 +817,10 @@ def process_module_structure(
             print(f"[DEBUG] append_unique_article called with: artnr={artnr}, artbez1={artbez1}, zeichnr={zeichnr}")
         artnr_key = str(artnr or '').strip()
         repl_val = replacement_map.get(artnr_key, artnr_key)
-        # Handle textartikel special case
-        is_textartikel = False
-        if isinstance(repl_val, dict) and repl_val.get("textartikel"):
-            is_textartikel = True
+        # Handle Angebotsartikel special case (was textartikel)
+        is_angebotsartikel = False
+        if isinstance(repl_val, dict) and (repl_val.get("Angebotsartikel") or repl_val.get("angebotsartikel")):
+            is_angebotsartikel = True
             effective_artnr = artnr_key
         else:
             effective_artnr = str(repl_val or '').strip()
@@ -702,8 +828,8 @@ def process_module_structure(
             return
         if effective_artnr in article_list_seen:
             if DEBUG:
-                if existing_articles_file:
-                    print(f"[DEBUG] Article {effective_artnr} already in existing articles file ({existing_articles_file}), skipping.")
+                if existing_articles_path:
+                    print(f"[DEBUG] Article {effective_artnr} already in existing articles file ({existing_articles_path}), skipping.")
                 else:
                     print(f"[DEBUG] Article {effective_artnr} already in current article list set, skipping.")
             return
@@ -711,9 +837,9 @@ def process_module_structure(
             effective_row = artikel_map.get(effective_artnr, {})
             effective_artbez1 = effective_row.get('artbez1', '') or artbez1
             effective_zeichnr = effective_row.get('zeichnr', '') or zeichnr
-            # Check if blocked, unless textartikel override
+            # Check if blocked, unless Angebotsartikel override
             sperre = (effective_row.get('sperre', '') or '').strip()
-            if sperre and sperre.upper() != 'FALSCH' and not is_textartikel:
+            if sperre and sperre.upper() != 'FALSCH' and not is_angebotsartikel:
                 with open(blocked_articles_path, 'a', encoding='utf-8') as f:
                     f.write(f"{effective_artnr};{effective_artbez1};{effective_zeichnr}\n")
                 if DEBUG:
@@ -724,15 +850,13 @@ def process_module_structure(
             article_list_seen.add(effective_artnr)
             if DEBUG:
                 print(f"[DEBUG] Appended article: {effective_artnr}; {effective_artbez1}; {effective_zeichnr}")
-            # If textartikel, set mapping fields for later use
-            if is_textartikel:
-                if not hasattr(process_module_structure, '_textartikel_map'):
-                    process_module_structure._textartikel_map = {}
-                process_module_structure._textartikel_map[effective_artnr] = {
-                    'istTextartikel': '1',
-                    'produktionsartikel': '1',
-                    'einkaufsartikel': '0',
-                    'verkaufsartikel': '1',
+            # If Angebotsartikel, set only the two mapping fields for later use
+            if is_angebotsartikel:
+                if not hasattr(process_module_structure, '_angebotsartikel_map'):
+                    process_module_structure._angebotsartikel_map = {}
+                process_module_structure._angebotsartikel_map[effective_artnr] = {
+                    'Gerätetoptionsarikel': '1',
+                    'Freigabe nur für Angebote/Preisanfragen': '1',
                 }
         except Exception as e:
             print(f"[ERROR] Failed to append article: {e}")
@@ -807,8 +931,37 @@ def process_module_structure(
 
     def recurse_all_articles(current_artnr, depth=0, prefix_stack=None, timer_start=None):
         # Add current article to article_list
-        artbez1 = artikel_map.get(current_artnr, {}).get('artbez1', '')
-        zeichnr = artikel_map.get(current_artnr, {}).get('zeichnr', '')
+        # If article does not exist in Majesty/iFAS or creation cache, create it using template/defaults
+        art_row = artikel_map.get(current_artnr, None)
+        artbez1 = art_row.get('artbez1', '') if art_row else ''
+        zeichnr = art_row.get('zeichnr', '') if art_row else ''
+        if not art_row:
+            # Try to create the article using template/defaults
+            # Import here to avoid circular import
+            try:
+                from etl.create import ArticleCreator
+                config_dir = BASE_DIR / "config"
+                creator = ArticleCreator(config_dir)
+                # Use the first template as fallback
+                tpl_names = creator.list_templates()
+                tpl_name = tpl_names[0] if tpl_names else None
+                input_data = {"artnr": current_artnr, "artbez1": f"Auto {current_artnr}", "zeichnr": f"Auto {current_artnr}"}
+                if tpl_name:
+                    article = creator.create_article(tpl_name, input_data)
+                    # Save to cache (CSV for compatibility)
+                    cache_path = BASE_DIR / "data" / "processed" / "csv" / "cache" / f"{tpl_name}_{current_artnr}.csv"
+                    creator.save_article_cache(article, cache_path)
+                    # Also append to article_list_creation_mode.csv
+                    write_header = not article_list_creation_mode_path.exists() or article_list_creation_mode_path.stat().st_size == 0
+                    with open(article_list_creation_mode_path, "a", encoding="utf-8") as f:
+                        if write_header:
+                            f.write("artnr;artbez1;zeichnr\n")
+                        f.write(f"{current_artnr};Auto {current_artnr};Auto {current_artnr}\n")
+                    artikel_map[current_artnr] = {'artnr': current_artnr, 'artbez1': f"Auto {current_artnr}", 'zeichnr': f"Auto {current_artnr}"}
+                    artbez1 = f"Auto {current_artnr}"
+                    zeichnr = f"Auto {current_artnr}"
+            except Exception as e:
+                print(f"[ERROR] Could not auto-create article {current_artnr}: {e}")
         append_unique_article(current_artnr, artbez1, zeichnr)
         # Tree output and partlist already handled in append_partlist
         children = get_children(current_artnr)

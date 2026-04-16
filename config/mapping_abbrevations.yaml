@@ -1,0 +1,210 @@
+units:
+  Stk.:
+    code: 1
+    name: Stück
+    abbrevation: Stk.
+    category: Zähler
+    aliases: [pc, piece, stk, st., pcs]
+    UN/ECE: H87
+
+  m:
+    code: 4
+    name: Meter
+    abbrevation: m
+    category: Länge
+    aliases: [Meter, meter, metres, mtr]
+    UN/ECE: MTR
+
+  cm:
+    code: 5
+    name: Zentimeter
+    abbrevation: cm
+    category: Länge
+    aliases: [centimetre]
+    UN/ECE: CMT
+
+  mm:
+    code: 6
+    name: Millimeter
+    abbrevation: mm
+    category: Länge
+    aliases: [millimetre]
+    UN/ECE: MMT
+
+  t:
+    code: 7
+    name: Tonne
+    abbrevation: t
+    category: Gewicht
+    aliases: [Tonne, ton, T]
+    UN/ECE: TNE
+
+  kg:
+    code: 8
+    name: Kilogramm
+    abbrevation: kg
+    category: Gewicht
+    aliases: [Kilo, kilogramme, KG, Kg]
+    UN/ECE: KGM
+
+  g:
+    code: 9
+    name: Gramm
+    abbrevation: g
+    category: Gewicht
+    aliases: [Gramm, gram, g]
+    UN/ECE: GRM
+
+  mg:
+    code: 23
+    name: Milligramm
+    abbrevation: mg
+    category: Gewicht
+    aliases: [milligramm, MG]
+    UN/ECE: MGM
+
+  l:
+    code: 10
+    name: Liter
+    abbrevation: l
+    category: Volumen
+    aliases: [lt, litre]
+    UN/ECE: LTR
+
+  dl:
+    code: 11
+    name: Deziliter
+    abbrevation: dl
+    category: Volumen
+    aliases: [decilitre]
+    UN/ECE: DLT
+  
+  ml:
+    code: 12
+    name: Milliliter
+    abbrevation: ml
+    category: Volumen
+    aliases: [millilitre]
+    UN/ECE: MMT
+
+  cl:
+    code: 13
+    name: Zentiliter
+    abbrevation: cl
+    category: Volumen
+    aliases: [centilitre]
+    UN/ECE: CLT
+
+  min:
+    code: 14
+    name: Minute
+    abbrevation: min
+    category: Zeit
+    aliases: [minute, MIN]
+    UN/ECE: MIN
+
+  h:
+    code: 15
+    name: Stunde
+    abbrevation: h
+    category: Zeit
+    aliases: [hour, hr, H]
+    UN/ECE: HUR
+
+  d:
+    code: 16
+    name: Tag
+    abbrevation: d
+    category: Zeit
+    aliases: [day, Tage, D]
+    UN/ECE: DAY
+
+  w:
+    code: 17
+    name: Woche
+    abbrevation: w
+    category: Zeit
+    aliases: [week, Wochen, W]
+    UN/ECE: WEE
+
+  month:
+    code: 18
+    name: Monat
+    abbrevation: month
+    category: Zeit
+    aliases: [Monat, MON, mth]
+    UN/ECE: MON
+
+#  year:
+#    code:
+#    name: Jahr
+#    abbrevation: year
+#    category: Zeit
+#    aliases: [Jahr, YEAR, yr]
+#    UN/ECE: YEA
+
+  208l:
+    code: 19
+    name: Fass 208 Liter
+    abbrevation: 208l
+    category: Volumen
+    aliases: [208l, 208 Liter, 208L]
+    Gebindeinhalt: 208
+    Taragewicht: 18
+
+  20l:
+    code: 20
+    name: Kanne 20 Liter
+    abbrevation: 20l
+    category: Volumen
+    aliases: [20l, 20 Liter, 20L]
+    Gebindeinhalt: 20
+    Taragewicht: 0.5
+
+  60l:
+    code: 21
+    name: Tonnelet 60 Liter
+    abbrevation: 60l
+    category: Volumen
+    aliases: [60l, 60 Liter, 60L]
+    Gebindeinhalt: 60
+    Taragewicht: 1
+
+  12pk:
+    code: 22
+    name: Karton 12 Patronen
+    abbrevation: 12pk
+    category: Zähler
+    aliases: [12pk, 12 Stück, 12 Stk., 12pcs]
+    Gebindeinhalt: 4.8
+    Taragewicht: 0
+
+  km:
+    code: 24
+    name: Kilometer
+    abbrevation: km
+    category: Länge
+    aliases: [kilometer, KM]
+    UN/ECE: KMT
+
+  CHF:
+    code: 25
+    name: Schweizer Franken
+    abbrevation: CHF
+    category: Währung
+    aliases: [CHF, Fr., SFr.]
+    
+  KWH:
+    code: 26
+    name: Kilowattstunde
+    abbrevation: KWH
+    category: Energie
+    aliases: [kWh, Kwh, kwh]
+  
+  roll:
+    code: 27
+    name: Rolle
+    abbrevation: roll
+    category: Zähler
+    aliases: [roll, Rolle, ROLL]
+

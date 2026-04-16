@@ -10,7 +10,7 @@ Bezeichnung 2 [de];getBezeichnung2;artnr;
 Bezeichnung 2 [en];;;
 Bezeichnung 2 [fr];;;
 Bezeichnung 2 [it];;;
-Suchbegriff 1 [de];;;getEntryFromCSV;artikelstamm,artnr,'artsuch';
+Suchbegriff 1 [de];;;getEntryFromCSV;artikelstamm_path,artnr,'artsuch';
 Suchbegriff 1 [en];;;
 Suchbegriff 1 [fr];;;
 Suchbegriff 1 [it];;;

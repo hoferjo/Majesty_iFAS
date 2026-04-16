@@ -7,12 +7,16 @@ from pathlib import Path
 import openpyxl
 from openpyxl.utils import get_column_letter
 
+BASE_DIR = Path(__file__).parent.parent
 
+
+
+"""
 def resolve_existing_articles_file(base_dir, target):
-    """
-    Resolve existing articles destination file for target in {'prod','test'}.
-    Returns None when target is empty/none.
-    """
+    
+    #Resolve existing articles destination file for target in {'prod','test'}.
+    #Returns None when target is empty/none.
+    
     normalized = str(target or "").strip().lower()
     if normalized in {"", "none", "off", "false", "0"}:
         return None
@@ -24,10 +28,10 @@ def resolve_existing_articles_file(base_dir, target):
     if normalized not in mapping:
         raise ValueError("existing_articles_target must be one of: none, prod, test")
 
-    cache_dir = Path(base_dir) / "data" / "processed" / "csv" / "cache"
+    cache_dir = Path(base_dir) / "data" / "processed" / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir / mapping[normalized]
-
+"""
 
 def _read_existing_article_keys(path: Path):
     keys = set()
@@ -77,12 +81,59 @@ def _detect_encoding(file_path: Path):
         pass
     return "utf-8"  # fallback
 
+
+def _extract_artnr_from_excel(file_path: Path):
+    """
+    Extract article numbers from the first worksheet of an Excel file.
+    Supports files with or without a header row.
+    """
+    wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+    try:
+        if not wb.worksheets:
+            return set()
+
+        ws = wb.worksheets[0]
+        rows = []
+        for row in ws.iter_rows(values_only=True):
+            normalized = [str(c or "").strip() for c in row]
+            if any(normalized):
+                rows.append(normalized)
+
+        if not rows:
+            return set()
+
+        candidate_headers = {"artnr", "artikelnummer", "artikel_nr", "artikel-nr", "article", "article_no"}
+        first_row_lower = [c.lower() for c in rows[0]]
+
+        has_header = any(h in candidate_headers for h in first_row_lower)
+        idx = 0
+        if has_header:
+            for i, h in enumerate(first_row_lower):
+                if h in candidate_headers:
+                    idx = i
+                    break
+
+        data_rows = rows[1:] if has_header else rows
+        result = set()
+        for row in data_rows:
+            if idx < len(row):
+                artnr = str(row[idx] or "").strip()
+                if artnr:
+                    result.add(artnr)
+        return result
+    finally:
+        wb.close()
+
 def _extract_artnr_from_file(file_path: Path):
     """
-    Extract article numbers from uploaded iFAS artikelstamm text/csv file.
-    Supports ; , tab and pipe delimiters, with or without headers.
-    Handles UTF-8, UTF-16, and Latin1 encodings.
+    Extract article numbers from uploaded iFAS artikelstamm files.
+    - Text/CSV: supports ; , tab and pipe delimiters, with or without headers.
+    - Excel: supports .xlsx/.xlsm/.xltx/.xltm (first worksheet).
+    Handles UTF-8, UTF-16, and Latin1 encodings for text files.
     """
+    if str(file_path.suffix or "").lower() in {".xlsx", ".xlsm", ".xltx", ".xltm"}:
+        return _extract_artnr_from_excel(file_path)
+
     encoding = _detect_encoding(file_path)
     with file_path.open("r", encoding=encoding, newline="") as f:
         sample = f.read(4096)
