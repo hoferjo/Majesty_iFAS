@@ -151,7 +151,7 @@ partlist_creation_mode_tree_path = get_path("partlisttree", "creation", BASE_DIR
 
 #output paths
 
-from etl.transform import process_module_structure, build_sheet_cache_CSV
+from etl.transform import process_module_structure, build_sheet_cache_CSV, build_bom_sheet_cache
 from etl.load import (
     create_import_excel_from_templates,
     archive_module_export,
@@ -750,6 +750,33 @@ def generate_module_data(data: dict = Body(...)):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
+@app.post("/generate-bom-sheets")
+def generate_bom_sheets(data: dict = Body(...)):
+    """Generate BOM sheet cache files from partlist.csv"""
+    mode = _normalize_mode(data.get("mode"), "module")
+    
+    try:
+        cache_paths = _cache_paths(BASE_DIR, mode)
+        partlist_csv = cache_paths["partlist"]
+        article_list_csv = cache_paths["article_list"]
+        
+        if not partlist_csv.exists():
+            return {
+                "status": "error",
+                "message": f"partlist.csv not found. Generate module structure first."
+            }
+        
+        # Generate BOM sheets from partlist
+        result = build_bom_sheet_cache(str(partlist_csv), str(article_list_csv) if article_list_csv.exists() else None, BASE_DIR)
+        
+        return {
+            "status": "success",
+            "message": f"BOM sheets generated: {result['stuecklisten_count']} stücklisten, {result['versionen_count']} versionen, {result['positionen_count']} positionen",
+            "data": result
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 # New endpoint: Download Partlist Excel

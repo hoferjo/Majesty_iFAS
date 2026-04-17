@@ -1,1 +1,6 @@
-columnname,function,arguments
+columnname;function;arguments;
+Stücklistennummer;;stulinr;
+Versionsnummer;getOptions;stulinr,version;
+Gueltig von;date;today;
+Gueltig bis;defaultvalue;31.12.2099;
+Bemerkung;API_import;;

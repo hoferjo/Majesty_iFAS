@@ -1,1 +1,8 @@
-columnname,function,arguments
+columnname;function;arguments
+Stücklistennummer;;stulinr;
+Versionsnummer;getOptions;stulinr,version;
+Stückliste auflösen in PA?;;;
+Stückliste auflösen in Belegen??;;;
+Stücklistenpositionen MWAktiv?;;;
+Preise auf Stücklistenpositionen?;;;
+Stücklistenpositionen fakturieren?;;;

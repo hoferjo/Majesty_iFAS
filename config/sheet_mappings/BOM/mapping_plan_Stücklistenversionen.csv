@@ -1,1 +1,25 @@
-columnname,function,arguments
+columnname;function;arguments;
+Versionsnummer;getOptions;stulinr,version;
+Initvariante Identifikation;;;
+StuecklistePositionsNr;getFromPartlist;stulinr,artnr,'posnr';
+Artikelnummer;;artnr;
+Menge Einkauf;getMenge;stulinr,artnr,'Einkauf';
+Menge Produktion;getMenge;stulinr,artnr,'Produktion';
+Menge Service;getMenge;stulinr,artnr,'Service';
+Menge Verkauf;getMenge;stulinr,artnr,'Verkauf';
+Bezeichnung1 [de];getEntryFromCSV;artikelstamm,artnr,'artbez1';
+Bezeichnung1 [en];;;
+Bezeichnung1 [fr];;;
+Bezeichnung1 [it];;;
+Bezeichnung2 [de];getBezeichnung2;artnr;
+Bezeichnung2 [en];;;
+Bezeichnung2 [fr];;;
+Bezeichnung2 [it];;;
+Beschaffungstyp;defaultvalue;11;
+Bemerkung 1;;;
+Bemerkung 2;;;
+in Baugruppen-Preis?;;;
+Menge gemäss Betriebsmittel-Formel?;;;
+Einbaumengencode;getMasseinheit;artnr;
+
+

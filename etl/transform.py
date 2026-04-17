@@ -300,7 +300,37 @@ def IstNichtAllgemeinNormteile(artnr):
     else:
         return '1'
 
-    
+def getCodeFromAbbrevation(abbrevation):
+    mapping = load_yaml(BASE_DIR / "config" / "mapping_abbrevations.yaml")
+    code = mapping['units'][abbrevation]['code']
+    if code:
+        return code
+    else:
+        print(f"Warning: No code found for abbrevation '{abbrevation}' in mapping_abbrevations.yaml")
+        return ''
+
+
+def getMasseinheit(artnr):
+    masseinheit = getEntryFromCSV(artikelstamm_path, artnr, 'meinheit')
+    if masseinheit and str(masseinheit).strip() != '':
+        return getCodeFromAbbrevation(masseinheit)
+    return ''
+
+def getNameOrNumber(stulinr,
+                    StuLiSheet,
+                    version:str = 1,
+                    variante: str = "Standard-Variante",
+                    auswahlvariante: str = "Standard-Auswahlvariante"):
+    if StuLiSheet == "Version":
+        return str(stulinr)+"-" + str(version)
+    elif StuLiSheet == "Variante":
+        return str(stulinr)+"-" + str(version) + "-" + str(variante)
+    elif StuLiSheet == "Auswahlvariante":
+        return str(stulinr)+"-" + str(version) + "--" + str(auswahlvariante)
+
+def getStuLiOptions(stulinr, StuLiSheet, number: int = 1):
+    return getStuLiOptions(stulinr, StuLiSheet, number)
+
 def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache=None, mapping_cache=None):
 
     import os
@@ -991,4 +1021,268 @@ def process_module_structure(
     # Example: build_sheet_cache_CSV(article_list_path, ["Artikelstamm"])
     # Uncomment and adjust the following line as needed for your sheets:
     # build_sheet_cache_CSV(article_list_path, ["Artikelstamm"])
+
+
+def build_bom_sheet_cache(partlist_csv_path, article_list_csv_path=None, base_dir=None):
+    """
+    Generate BOM sheet data from partlist.csv:
+    1. Stücklisten: one row per unique stulinr
+    2. Stücklistenversionen: version numbers for each stückliste
+    3. Stücklistenpositionen: one row per partlist line
+    4. Stücklistenvarianten: variants for each version
+    5. Auswahlvarianten: selection variants for each version
+    
+    Existing entries are not overwritten to support incremental builds.
+    """
+    if base_dir is None:
+        base_dir = BASE_DIR
+    
+    sheets_output_dir = base_dir / "data" / "processed" / "cache" / "sheets"
+    sheets_output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Load mappings for each BOM sheet
+    bom_category = "BOM"
+    mappings = {}
+    sheet_names = [
+        'Stücklisten',
+        'Stücklistenversionen',
+        'Stücklistenpositionen',
+        'Stücklistenvarianten',
+        'Stücklstenauswahlvarianten'
+    ]
+    
+    for sheet_name in sheet_names:
+        mapping_path = base_dir / "config" / "sheet_mappings" / bom_category / f"mapping_plan_{sheet_name}.csv"
+        if mapping_path.exists():
+            with open(mapping_path, encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                mappings[sheet_name] = list(reader)
+    
+    # Load partlist data
+    partlist_data = []
+    if Path(partlist_csv_path).exists():
+        with open(partlist_csv_path, encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            partlist_data = list(reader)
+    
+    # Load article list for lookups
+    article_map = {}
+    if article_list_csv_path and Path(article_list_csv_path).exists():
+        with open(article_list_csv_path, encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                article_map[row.get('artnr', '').strip()] = row
+    
+    # --- 1. Build Stücklisten (unique stulinr) ---
+    stuecklisten_path = sheets_output_dir / "Stücklisten_cache.csv"
+    stuecklisten_set = set()
+    if stuecklisten_path.exists():
+        with open(stuecklisten_path, encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                stuecklisten_set.add(row.get('Stücklistennummer', '').strip())
+    
+    # Collect unique stulinr from partlist
+    unique_stulinr = set()
+    for row in partlist_data:
+        stulinr = row.get('stulinr', '').strip()
+        if stulinr:
+            unique_stulinr.add(stulinr)
+    
+    # Write new Stücklisten entries
+    with open(stuecklisten_path, 'a' if stuecklisten_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
+        if stuecklisten_path.stat().st_size == 0:
+            # Write header
+            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklisten', []))]
+            f.write(';'.join(fieldnames) + '\n')
+        
+        for stulinr in unique_stulinr:
+            if stulinr not in stuecklisten_set:
+                # Create Stücklisten row based on mapping
+                row_data = {}
+                for mapping in mappings.get('Stücklisten', []):
+                    col = mapping['columnname'].strip()
+                    func = (mapping.get('function') or '').strip()
+                    arg = (mapping.get('arguments') or '').strip()
+                    
+                    if col == 'Stücklistennummer':
+                        row_data[col] = stulinr
+                    elif func == 'defaultvalue':
+                        row_data[col] = arg
+                    else:
+                        row_data[col] = ''
+                
+                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklisten', [])]) + '\n')
+                stuecklisten_set.add(stulinr)
+    
+    # --- 2. Build Stücklistenversionen ---
+    stuecklisten_versionen_path = sheets_output_dir / "Stücklistenversionen_cache.csv"
+    versionen_set = set()
+    if stuecklisten_versionen_path.exists():
+        with open(stuecklisten_versionen_path, encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                key = (row.get('Stücklistennummer', '').strip(), row.get('Versionsnummer', '').strip())
+                versionen_set.add(key)
+    
+    # Create version entries (1 per stulinr for now)
+    with open(stuecklisten_versionen_path, 'a' if stuecklisten_versionen_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
+        if stuecklisten_versionen_path.stat().st_size == 0:
+            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklistenversionen', []))]
+            f.write(';'.join(fieldnames) + '\n')
+        
+        for stulinr in unique_stulinr:
+            version_num = '1'  # Start with version 1
+            if (stulinr, version_num) not in versionen_set:
+                row_data = {}
+                for mapping in mappings.get('Stücklistenversionen', []):
+                    col = mapping['columnname'].strip()
+                    func = (mapping.get('function') or '').strip()
+                    arg = (mapping.get('arguments') or '').strip()
+                    
+                    if col == 'Stücklistennummer':
+                        row_data[col] = stulinr
+                    elif col == 'Versionsnummer':
+                        row_data[col] = version_num
+                    elif func == 'defaultvalue':
+                        row_data[col] = arg
+                    else:
+                        row_data[col] = ''
+                
+                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklistenversionen', [])]) + '\n')
+                versionen_set.add((stulinr, version_num))
+    
+    # --- 3. Build Stücklistenpositionen ---
+    stuecklisten_positionen_path = sheets_output_dir / "Stücklistenpositionen_cache.csv"
+    positionen_set = set()
+    if stuecklisten_positionen_path.exists():
+        with open(stuecklisten_positionen_path, encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                key = (row.get('Stücklistennummer', '').strip(), row.get('Versionsnummer', '').strip())
+                positionen_set.add(key)
+    
+    # For each partlist line, create position entry
+    with open(stuecklisten_positionen_path, 'a' if stuecklisten_positionen_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
+        if stuecklisten_positionen_path.stat().st_size == 0:
+            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklistenpositionen', []))]
+            f.write(';'.join(fieldnames) + '\n')
+        
+        for idx, prow in enumerate(partlist_data):
+            stulinr = prow.get('stulinr', '').strip()
+            version_num = '1'
+            posnr = prow.get('posnr', '').strip()
+            menge = prow.get('menge', '').strip()
+            artnr = prow.get('artnr', '').strip()
+            
+            key = (stulinr, version_num, posnr)
+            # Only add if not already present (based on stulinr+version, not full key for first run)
+            if (stulinr, version_num) not in positionen_set or idx == 0:
+                row_data = {}
+                for mapping in mappings.get('Stücklistenpositionen', []):
+                    col = mapping['columnname'].strip()
+                    func = (mapping.get('function') or '').strip()
+                    arg = (mapping.get('arguments') or '').strip()
+                    
+                    if col == 'Stücklistennummer':
+                        row_data[col] = stulinr
+                    elif col == 'Versionsnummer':
+                        row_data[col] = version_num
+                    elif col == 'Positionsnummer' or col == 'StuecklistePositionsNr':
+                        row_data[col] = posnr
+                    elif col == 'Artikelnummer':
+                        row_data[col] = artnr
+                    elif col == 'Menge':
+                        row_data[col] = menge
+                    elif func == 'defaultvalue':
+                        row_data[col] = arg
+                    else:
+                        row_data[col] = ''
+                
+                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklistenpositionen', [])]) + '\n')
+    
+    # --- 4. Build Stücklistenvarianten ---
+    stuecklisten_varianten_path = sheets_output_dir / "Stücklistenvarianten_cache.csv"
+    varianten_set = set()
+    if stuecklisten_varianten_path.exists():
+        with open(stuecklisten_varianten_path, encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                key = (row.get('Stücklistennummer', '').strip(), row.get('Versionsnummer', '').strip())
+                varianten_set.add(key)
+    
+    with open(stuecklisten_varianten_path, 'a' if stuecklisten_varianten_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
+        if stuecklisten_varianten_path.stat().st_size == 0:
+            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklistenvarianten', []))]
+            f.write(';'.join(fieldnames) + '\n')
+        
+        for stulinr in unique_stulinr:
+            version_num = '1'
+            if (stulinr, version_num) not in varianten_set:
+                row_data = {}
+                for mapping in mappings.get('Stücklistenvarianten', []):
+                    col = mapping['columnname'].strip()
+                    func = (mapping.get('function') or '').strip()
+                    arg = (mapping.get('arguments') or '').strip()
+                    
+                    if col == 'Stücklistennummer':
+                        row_data[col] = stulinr
+                    elif col == 'Versionsnummer':
+                        row_data[col] = version_num
+                    elif func == 'defaultvalue':
+                        row_data[col] = arg
+                    elif func == 'date':
+                        row_data[col] = datetime.now().strftime('%d.%m.%Y') if arg == 'today' else arg
+                    else:
+                        row_data[col] = ''
+                
+                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklistenvarianten', [])]) + '\n')
+                varianten_set.add((stulinr, version_num))
+    
+    # --- 5. Build Auswahlvarianten ---
+    auswahlvarianten_path = sheets_output_dir / "Auswahlvarianten_cache.csv"
+    auswahlvarianten_set = set()
+    if auswahlvarianten_path.exists():
+        with open(auswahlvarianten_path, encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                key = (row.get('Versionsnummer', '').strip(), row.get('Variantennummer', '').strip())
+                auswahlvarianten_set.add(key)
+    
+    with open(auswahlvarianten_path, 'a' if auswahlvarianten_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
+        if auswahlvarianten_path.stat().st_size == 0:
+            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklstenauswahlvarianten', []))]
+            f.write(';'.join(fieldnames) + '\n')
+        
+        for stulinr in unique_stulinr:
+            version_num = '1'
+            variant_num = '1'
+            if (version_num, variant_num) not in auswahlvarianten_set:
+                row_data = {}
+                for mapping in mappings.get('Stücklstenauswahlvarianten', []):
+                    col = mapping['columnname'].strip()
+                    func = (mapping.get('function') or '').strip()
+                    arg = (mapping.get('arguments') or '').strip()
+                    
+                    if col == 'Versionsnummer':
+                        row_data[col] = version_num
+                    elif col == 'Variantennummer':
+                        row_data[col] = variant_num
+                    elif func == 'defaultvalue':
+                        row_data[col] = arg
+                    else:
+                        row_data[col] = ''
+                
+                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklstenauswahlvarianten', [])]) + '\n')
+                auswahlvarianten_set.add((version_num, variant_num))
+    
+    if DEBUG:
+        print(f"[DEBUG] Generated BOM sheets: {len(unique_stulinr)} stücklisten, {len(versionen_set)} versionen, {len(partlist_data)} positionen")
+    
+    return {
+        'status': 'ok',
+        'stuecklisten_count': len(unique_stulinr),
+        'versionen_count': len(versionen_set),
+        'positionen_count': len(partlist_data),
+    }
 
