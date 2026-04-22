@@ -1,3 +1,42 @@
+    // Upload Existing Partlist (Settings Tab)
+    var uploadExistingPartlistForm = document.getElementById("uploadExistingPartlistForm");
+    if (uploadExistingPartlistForm) {
+        uploadExistingPartlistForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            var fileInput = document.getElementById("existingPartlistFile");
+            var envSelect = document.getElementById("existingPartlistEnv");
+            var feedbackLog = document.getElementById("feedbackLog");
+            var statusBox = document.getElementById("existingPartlistUploadStatus");
+            if (!fileInput.files.length) {
+                alert("Please select a CSV file to upload.");
+                return;
+            }
+            var formData = new FormData();
+            formData.append("existing_partlist_file", fileInput.files[0]);
+            formData.append("partlist_env", envSelect.value);
+            fetch("/upload-existing-partlist", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                let entry = `<div><b>Upload Existing Partlist:</b> <span style='color:${data.status === 'ok' ? '#27ae60' : '#c00'};'>${data.status === 'ok' ? 'Upload successful.' : 'Upload failed.'}</span></div>`;
+                if (statusBox) {
+                    statusBox.innerHTML = entry;
+                }
+                if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                else alert(data.status === 'ok' ? 'Upload successful.' : 'Upload failed.');
+            })
+            .catch(err => {
+                let entry = `<div><b>Upload Existing Partlist:</b> <span style='color:#c00;'>Error: ${err.message || err}</span></div>`;
+                if (statusBox) {
+                    statusBox.innerHTML = entry;
+                }
+                if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                else alert('Upload failed.');
+            });
+        });
+    }
 // Helper: fetch and show partlist tree preview
     function showPartlistTreePreview(artnr, mode = "creation") {
         const container = document.getElementById("partlistTreePreview");
@@ -23,10 +62,14 @@
             fetch("/update-majesty-data", { method: "POST" })
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById("updateMajestyStatus").innerText = data.message || (data.status === "success" ? "Update complete." : "Update failed.");
+                    let feedbackLog = document.getElementById("feedbackLog");
+                    let entry = `<div><b>Update Majesty Data:</b> <span style='color:${data.status === "success" ? "#27ae60" : "#c00"};'>${data.message || (data.status === "success" ? "Update complete." : "Update failed.")}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
                 })
                 .catch(() => {
-                    document.getElementById("updateMajestyStatus").innerText = "Update failed.";
+                    let feedbackLog = document.getElementById("feedbackLog");
+                    let entry = `<div><b>Update Majesty Data:</b> <span style='color:#c00;'>Update failed.</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
                 });
         });
     }
@@ -39,10 +82,14 @@
             fetch("/hard-update-majesty-data", { method: "POST" })
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById("updateMajestyStatus").innerText = data.message || (data.status === "success" ? "Hard update complete." : "Update failed.");
+                    let feedbackLog = document.getElementById("feedbackLog");
+                    let entry = `<div><b>Hard Update Majesty Data:</b> <span style='color:${data.status === "success" ? "#27ae60" : "#c00"};'>${data.message || (data.status === "success" ? "Hard update complete." : "Update failed.")}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
                 })
                 .catch(() => {
-                    document.getElementById("updateMajestyStatus").innerText = "Update failed.";
+                    let feedbackLog = document.getElementById("feedbackLog");
+                    let entry = `<div><b>Hard Update Majesty Data:</b> <span style='color:#c00;'>Update failed.</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
                 });
         });
     }
@@ -634,7 +681,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 alert("No article selected.");
                 return;
             }
-            const url = `/download-partlist-excel?mode=article&artnr=${encodeURIComponent(selectedResult.artnr)}`;
+            const url = `/download-partlist-excel?mode=article&artnr=${encodeURIComponent(selectedResult.artnr)}&_ts=${Date.now()}`;
             const link = document.createElement('a');
             link.href = url;
             link.download = `partlist_export_${selectedResult.artnr}.xlsx`;
@@ -709,7 +756,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 modalConfirm: "Confirm",
                 modalIgnore: "Ignore",
                 modalSearch: "Search",
-                modalTextBtn: "Use as text article",
+                modalTextBtn: "Define as offerarticle",
                 modalNoResults: "No results found.",
                 modalNeedReplacement: "Please enter a replacement artnr or click Ignore.",
                 showBlockedArticles: "Show Blocked Articles",
@@ -755,7 +802,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 modalConfirm: "Bestätigen",
                 modalIgnore: "Ignorieren",
                 modalSearch: "Suchen",
-                modalTextBtn: "Als Textartikel verwenden",
+                modalTextBtn: "Als Angebotsartikel definieren",
                 modalNoResults: "Keine Ergebnisse gefunden.",
                 modalNeedReplacement: "Bitte Ersatz-Artikelnr eingeben oder Ignorieren klicken.",
                 showBlockedArticles: "Gesperrte Artikel anzeigen",
@@ -810,11 +857,56 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         applyLanguage();
 
+            // Download Documents XLSX button(s)
+            var downloadDocsXlsxBtns = document.querySelectorAll("#downloadDocsXlsxBtn");
+            if (downloadDocsXlsxBtns && downloadDocsXlsxBtns.length) {
+                downloadDocsXlsxBtns.forEach(function(btn) {
+                    btn.addEventListener("click", function() {
+                        // Determine mode based on visible container
+                        var mode = (window.searchMode === "module") ? "module" : "article";
+                        fetch(`/download-docs-xlsx?mode=${encodeURIComponent(mode)}`)
+                            .then(function(response) {
+                                if (!response.ok) {
+                                    return response.text().then(function(text) {
+                                        let message = text || "Failed to create Docs XLSX file.";
+                                        throw new Error(message);
+                                    });
+                                }
+                                var disposition = response.headers.get("content-disposition") || "";
+                                var fileName = "docs_export.xlsx";
+                                var match = disposition.match(/filename="?([^";]+)"?/i);
+                                if (match && match[1]) {
+                                    fileName = match[1];
+                                }
+                                return response.blob().then(function(blob) {
+                                    return { blob: blob, fileName: fileName };
+                                });
+                            })
+                            .then(function(result) {
+                                var url = window.URL.createObjectURL(result.blob);
+                                var link = document.createElement("a");
+                                link.href = url;
+                                link.download = result.fileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(url);
+                                let entry = `<div><b>Download Documents XLSX:</b> <span style='color:#27ae60;'>Excel created and downloaded.</span></div>`;
+                                feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                            })
+                            .catch(function(err) {
+                                let entry = `<div><b>Download Documents XLSX:</b> <span style='color:#c00;'>Error: ${err.message || err}</span></div>`;
+                                feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                            });
+                    });
+                });
+            }
+
             // Download Partlist Excel button
             var downloadPartlistExcelBtn = document.getElementById("downloadPartlistExcelBtn");
             if (downloadPartlistExcelBtn) {
                 downloadPartlistExcelBtn.addEventListener("click", function() {
-                    fetch("/download-partlist-excel?mode=module")
+                    fetch(`/download-partlist-excel?mode=module&_ts=${Date.now()}`)
                         .then(function(response) {
                             if (!response.ok) {
                                 return response.text().then(function(text) {
@@ -1031,8 +1123,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
                     if (blockedTextBtn) {
                         blockedTextBtn.onclick = function() {
-                            // Mark this blocked article as Textartikel
-                            replacementMap[item.artnr] = { textartikel: true };
+                            // Mark this blocked article as Angebotsartikel (Offer Article)
+                            replacementMap[item.artnr] = { Angebotsartikel: true };
                             idx += 1;
                             showCurrentBlockedItem();
                         };

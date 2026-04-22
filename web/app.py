@@ -15,6 +15,8 @@ import shutil
 import os
 import json
 import csv
+import time
+import unicodedata
 from fastapi import Query
 from fastapi.responses import JSONResponse
 
@@ -151,18 +153,23 @@ partlist_creation_mode_tree_path = get_path("partlisttree", "creation", BASE_DIR
 
 #output paths
 
-from etl.transform import process_module_structure, build_sheet_cache_CSV, build_bom_sheet_cache
+from etl.transform import process_module_structure, build_sheet_cache_CSV, build_bom_sheet_cache, build_docs_download_cache_csv
 from etl.load import (
     create_import_excel_from_templates,
     archive_module_export,
     append_article_list_to_existing,
     update_existing_articles_from_ifas_upload,
     create_partlist_excel_from_template,
+    create_partlist_import_excel_from_cache,
 )
 
 
 
+
+
 app = FastAPI()
+
+
 
 # --- Root Article/Module Creation Workflow ---
 from fastapi import APIRouter
@@ -206,6 +213,51 @@ ARTICLE_CACHE_CLEAR = 0
 # Keeps the latest generated module article rows per artnr in this process.
 _MODULE_ARTICLES_CACHE = {}
 _MODULE_EXISTING_TARGET_CACHE = {}
+_SEARCH_CACHE = {"path": None, "mtime": None, "rows": []}
+
+
+def _resolve_partlist_template_path():
+    # Prefer configured template, then known fallback names found in template_dir.
+    candidates = [
+        partlist_import_template_path,
+        template_dir / "Partlist_import_template_App.xlsx",
+        template_dir / "VorlageStücklisteV1.xlsx",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return Path(candidate)
+    return partlist_import_template_path
+
+
+def _load_search_rows(csv_path: Path):
+    try:
+        mtime = csv_path.stat().st_mtime
+    except OSError:
+        return []
+
+    if (
+        _SEARCH_CACHE["path"] == str(csv_path)
+        and _SEARCH_CACHE["mtime"] == mtime
+        and _SEARCH_CACHE["rows"]
+    ):
+        return _SEARCH_CACHE["rows"]
+
+    rows = []
+    with open(csv_path, encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f, delimiter=';')
+        for row in reader:
+            rows.append({
+                "artnr": row.get("artnr", "") or "",
+                "artbez1": row.get("artbez1", "") or "",
+                "artbez2": row.get("artbez2", "") or "",
+                "artbez3": row.get("artbez3", "") or "",
+                "zeichnr": row.get("zeichnr", "") or "",
+            })
+
+    _SEARCH_CACHE["path"] = str(csv_path)
+    _SEARCH_CACHE["mtime"] = mtime
+    _SEARCH_CACHE["rows"] = rows
+    return rows
 
 
 def _strip_trailing_empty(values):
@@ -239,7 +291,39 @@ def _load_sheets_config(base: Path):
 
 
 def _mapping_exists(base: Path, sheet_name: str):
-    return (base / "config" / f"mapping_plan_{sheet_name}.csv").exists()
+    return _resolve_mapping_sheet_name(base, sheet_name) is not None
+
+
+def _resolve_mapping_sheet_name(base: Path, sheet_name: str):
+    candidate = str(sheet_name or "").strip()
+    if not candidate:
+        return None
+
+    direct_paths = [
+        base / "config" / f"mapping_plan_{candidate}.csv",
+        base / "config" / "sheet_mappings" / "Article" / f"mapping_plan_{candidate}.csv",
+        base / "config" / "sheet_mappings" / "BOM" / f"mapping_plan_{candidate}.csv",
+        base / "config" / "sheet_mappings" / "Workplan" / f"mapping_plan_{candidate}.csv",
+    ]
+    for p in direct_paths:
+        if p.exists():
+            return p.stem.replace("mapping_plan_", "")
+
+    target_norm = _normalize_sheet_header(candidate)
+    search_dirs = [
+        base / "config",
+        base / "config" / "sheet_mappings" / "Article",
+        base / "config" / "sheet_mappings" / "BOM",
+        base / "config" / "sheet_mappings" / "Workplan",
+    ]
+    for d in search_dirs:
+        if not d.exists():
+            continue
+        for path in d.glob("mapping_plan_*.csv"):
+            sheet = path.stem.replace("mapping_plan_", "")
+            if _normalize_sheet_header(sheet) == target_norm:
+                return sheet
+    return None
 
 
 def _resolve_sheet_for_mapping(base: Path, header: str, alias: str):
@@ -260,8 +344,9 @@ def _resolve_sheet_for_mapping(base: Path, header: str, alias: str):
         if not candidate or candidate in seen:
             continue
         seen.add(candidate)
-        if _mapping_exists(base, candidate):
-            return candidate
+        resolved = _resolve_mapping_sheet_name(base, candidate)
+        if resolved:
+            return resolved
     return None
 
 
@@ -337,7 +422,11 @@ def _resolved_active_sheet_names(base: Path):
 
 def _normalize_mode(mode: str | None, default: str = "module"):
     mode_value = str(mode or default).strip().lower()
-    return "article" if mode_value == "article" else "module"
+    if mode_value == "article":
+        return "article"
+    if mode_value == "creation":
+        return "creation"
+    return "module"
 
 
 def _cache_paths(base: Path, mode: str):
@@ -350,6 +439,21 @@ def _cache_paths(base: Path, mode: str):
         "partlist": get_path("partlist", normalized_mode, base),
         "partlist_tree": get_path("partlisttree", normalized_mode, base),
     }
+
+
+def _build_bom_caches_if_available(base: Path, partlist_path: Path, article_list_path: Path | None):
+    if not partlist_path or not Path(partlist_path).exists():
+        return None
+
+    article_list_csv = None
+    if article_list_path and Path(article_list_path).exists():
+        article_list_csv = str(article_list_path)
+
+    return build_bom_sheet_cache(
+        str(partlist_path),
+        article_list_csv,
+        base,
+    )
 
 
 def _reset_mode_cache_files(base: Path, mode: str):
@@ -381,6 +485,28 @@ def _normalize_existing_target(value: str):
         raise ValueError("existing_articles_target must be one of: none, prod, test")
     return target
 
+
+def _normalize_sheet_header(value: str):
+    normalized = unicodedata.normalize("NFKD", str(value or ""))
+    return "".join(ch for ch in normalized if ch.isalnum()).lower()
+
+
+def _resolve_selected_header(raw_header: str, header_lookup: dict):
+    key = _normalize_sheet_header(raw_header)
+    if key in header_lookup:
+        return header_lookup[key]
+
+    aliases = {
+        "stucklistenvarianten": "stuecklistevarianten",
+        "stuecklistenvarianten": "stuecklistevarianten",
+        "stucklstenauswahlvarianten": "stuecklisteauswahlvarianten",
+        "stuecklstenauswahlvarianten": "stuecklisteauswahlvarianten",
+        "stucklistenauswahlvarianten": "stuecklisteauswahlvarianten",
+        "stuecklistenauswahlvarianten": "stuecklisteauswahlvarianten",
+    }
+    mapped = aliases.get(key, key)
+    return header_lookup.get(mapped)
+
 # Get the absolute path to the web directory
 web_dir = Path(__file__).parent.absolute()
 
@@ -396,6 +522,12 @@ def index():
 @app.get("/settings", response_class=HTMLResponse)
 def settings_page():
     template_path = web_dir / "templates" / "settings.html"
+    return open(template_path, "r", encoding="utf-8").read()
+
+
+@app.get("/upload", response_class=HTMLResponse)
+def upload_page():
+    template_path = web_dir / "templates" / "upload.html"
     return open(template_path, "r", encoding="utf-8").read()
 
 @app.post("/upload-file")
@@ -414,26 +546,21 @@ def search(query: str = Query(..., min_length=1), mode: str = Query("article")):
     # Path to the artikelstamm CSV (adjust as needed)
     csv_path = Path(__file__).parent.parent / "data" / "raw" / "artikelstamm" / "artikelstamm_majesty_2026_03_30.csv"
     results = []
-    # Map search fields for each mode
-    if mode == "article":
-        search_fields = ["artnr", "zeichnr", "artbez1", "artbez2", "artbez3"]
-    elif mode == "module":
-        # For now, use the same fields; adjust as needed for real module data
-        search_fields = ["artnr", "zeichnr", "artbez1", "artbez2", "artbez3"]
-    else:
-        search_fields = ["artnr", "zeichnr", "artbez1", "artbez2", "artbez3"]
     try:
-        with open(csv_path, encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f, delimiter=';')
-            for row in reader:
-                if any(query.lower() in str(row.get(field, '')).lower() for field in search_fields):
-                    # Only include artnr, artbez1, zeichnr in the result
-                    filtered = {
-                        "artnr": row.get("artnr", ""),
-                        "artbez1": row.get("artbez1", ""),
-                        "zeichnr": row.get("zeichnr", "")
-                    }
-                    results.append(filtered)
+        q = query.lower()
+        for row in _load_search_rows(csv_path):
+            if (
+                q in row["artnr"].lower()
+                or q in row["zeichnr"].lower()
+                or q in row["artbez1"].lower()
+                or q in row["artbez2"].lower()
+                or q in row["artbez3"].lower()
+            ):
+                results.append({
+                    "artnr": row["artnr"],
+                    "artbez1": row["artbez1"],
+                    "zeichnr": row["zeichnr"],
+                })
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
     return {"results": results}
@@ -495,11 +622,14 @@ def generate_module(data: dict = Body(...)):
             str(stuecklistenstamm_path),
             str(article_list_path),
             str(partlist_path),
-            existing_articles_path=str(existing_articles_path) if existing_articles_path else None,
-            replacement_map=normalized_replacement_map,
-            reset_files=True,
+            mode = "module",
+            existing_articles_path = str(existing_articles_path) if existing_articles_path else None,
+            replacement_map = normalized_replacement_map,
+            reset_files = True,
         )
         _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_path)
+
+        bom_result = _build_bom_caches_if_available(base=Path(__file__).parent.parent, partlist_path=partlist_path, article_list_path=article_list_path)
 
         article_count = _count_csv_rows(article_list_path)
         partlist_count = _count_csv_rows(partlist_path)
@@ -511,6 +641,10 @@ def generate_module(data: dict = Body(...)):
         blocked_items = _read_blocked_article_details(blocked_articles_path, artikelstamm_path)
 
         msg = f"Modulestructure generated for {artnr} articles to migrate: {article_count} partlist entries: {partlist_count} blocked articles: {blocked_count}"
+        if bom_result and isinstance(bom_result, dict) and not bom_result.get("error"):
+            msg += f" | BOM sheets: {bom_result.get('stuecklisten_count', 0)} stücklisten, {bom_result.get('versionen_count', 0)} versionen, {bom_result.get('positionen_count', 0)} positionen"
+        elif bom_result and isinstance(bom_result, dict) and bom_result.get("error"):
+            msg += f" | BOM sheet error: {bom_result['error']}"
         return JSONResponse(status_code=200, content={
             "status": "success",
             "message": msg,
@@ -560,12 +694,15 @@ def generate_module_apply_replacements(data: dict = Body(...)):
             str(stuecklistenstamm_path),
             str(article_list_path),
             str(partlist_path),
-            existing_articles_path=str(existing_articles_path) if existing_articles_path else None,
-            replacement_map=normalized_replacement_map,
-            reset_files=True,
+            mode = "module",
+            existing_articles_path = str(existing_articles_path) if existing_articles_path else None,
+            replacement_map = normalized_replacement_map,
+            reset_files = True,
         )
 
         _MODULE_ARTICLES_CACHE[str(artnr)] = _read_article_list_rows(article_list_path)
+
+        bom_result = _build_bom_caches_if_available(base=Path(__file__).parent.parent, partlist_path=partlist_path, article_list_path=article_list_path)
 
         article_count = _count_csv_rows(article_list_path)
         partlist_count = _count_csv_rows(partlist_path)
@@ -581,6 +718,10 @@ def generate_module_apply_replacements(data: dict = Body(...)):
             f"Modulestructure generated for {artnr}: "
             f"articles to migrate: {article_count}, partlist entries: {partlist_count}, blocked articles: {blocked_count}"
         )
+        if bom_result and isinstance(bom_result, dict) and not bom_result.get("error"):
+            msg += f" | BOM sheets: {bom_result.get('stuecklisten_count', 0)} stücklisten, {bom_result.get('versionen_count', 0)} versionen, {bom_result.get('positionen_count', 0)} positionen"
+        elif bom_result and isinstance(bom_result, dict) and bom_result.get("error"):
+            msg += f" | BOM sheet error: {bom_result['error']}"
 
         return JSONResponse(status_code=200, content={
             "status": "success",
@@ -662,9 +803,19 @@ def generate_module_data(data: dict = Body(...)):
         sheets_output_dir.mkdir(parents=True, exist_ok=True)
 
         _, headers, aliases, _, _, rows = _load_sheets_config(BASE_DIR)
-        selected_set = {str(h).strip() for h in selected_headers if str(h).strip()}
+        header_lookup = {_normalize_sheet_header(h): h for h in headers}
+        selected_set = set()
+        unknown = []
+        for raw in selected_headers:
+            source = str(raw).strip()
+            if not source:
+                continue
+            resolved = _resolve_selected_header(source, header_lookup)
+            if resolved:
+                selected_set.add(resolved)
+            else:
+                unknown.append(source)
 
-        unknown = [h for h in selected_set if h not in headers]
         if unknown:
             return {
                 "status": "error",
@@ -742,7 +893,37 @@ def generate_module_data(data: dict = Body(...)):
                     next(reader, None)
                     blocked_count = sum(1 for _ in reader)
             sheet_entry_counts.append(f"{sheet}: {count} entries, blocked: {blocked_count}")
+        # Generate BOM sheets only when BOM-related headers are selected.
+        bom_result = None
+        selected_norm = {_normalize_sheet_header(h) for h in selected_set}
+        bom_norm_aliases = {
+            "stuecklisten",
+            "stueckliste",
+            "stuecklistenvarianten",
+            "stuecklistevarianten",
+            "stuecklistenversionen",
+            "stuecklistenverwendung",
+            "stuecklstenauswahlvarianten",
+            "stuecklistenauswahlvarianten",
+            "stuecklisteauswahlvarianten",
+            "stuecklistenpositionen",
+        }
+        should_build_bom = bool(selected_norm.intersection(bom_norm_aliases))
+        if should_build_bom:
+            try:
+                bom_result = _build_bom_caches_if_available(
+                    base=BASE_DIR,
+                    partlist_path=cache_paths["partlist"],
+                    article_list_path=cache_paths["article_list"],
+                )
+            except Exception as bom_e:
+                bom_result = {"error": str(bom_e)}
+
         msg = "Module data generated. " + ", ".join(sheet_entry_counts)
+        if bom_result and isinstance(bom_result, dict) and not bom_result.get("error"):
+            msg += f" | BOM sheets: {bom_result.get('stuecklisten_count', 0)} stücklisten, {bom_result.get('versionen_count', 0)} versionen, {bom_result.get('positionen_count', 0)} positionen"
+        elif bom_result and bom_result.get("error"):
+            msg += f" | BOM sheet error: {bom_result['error']}"
         return {
             "status": "success",
             "message": msg
@@ -751,42 +932,41 @@ def generate_module_data(data: dict = Body(...)):
         return {"status": "error", "message": str(e)}
 
 
-@app.post("/generate-bom-sheets")
-def generate_bom_sheets(data: dict = Body(...)):
-    """Generate BOM sheet cache files from partlist.csv"""
-    mode = _normalize_mode(data.get("mode"), "module")
-    
-    try:
-        cache_paths = _cache_paths(BASE_DIR, mode)
-        partlist_csv = cache_paths["partlist"]
-        article_list_csv = cache_paths["article_list"]
-        
-        if not partlist_csv.exists():
-            return {
-                "status": "error",
-                "message": f"partlist.csv not found. Generate module structure first."
-            }
-        
-        # Generate BOM sheets from partlist
-        result = build_bom_sheet_cache(str(partlist_csv), str(article_list_csv) if article_list_csv.exists() else None, BASE_DIR)
-        
-        return {
-            "status": "success",
-            "message": f"BOM sheets generated: {result['stuecklisten_count']} stücklisten, {result['versionen_count']} versionen, {result['positionen_count']} positionen",
-            "data": result
-        }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-
-# New endpoint: Download Partlist Excel
 @app.get("/download-partlist-excel")
-def download_partlist_excel(mode: str = Query("module")):
-    partlist_csv = _cache_paths(BASE_DIR, mode)["partlist"]
-    if not partlist_csv.exists() or not partlist_import_template_path.exists():
+def download_partlist_excel(
+    mode: str = Query("module"),
+    artnr: str | None = Query(None),
+):
+    normalized_mode = _normalize_mode(mode, "module")
+    template_path = _resolve_partlist_template_path()
+    if not template_path.exists():
         return JSONResponse(status_code=404, content={"error": "partlist.csv or template not found."})
-    create_partlist_excel_from_template(partlist_csv, partlist_import_template_path, partlist_output_path)
-    return FileResponse(str(partlist_output_path), filename="partlist_export.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    temp_export_dir = BASE_DIR / "data" / "processed" / "csv" / "cache" / "export"
+    temp_export_dir.mkdir(parents=True, exist_ok=True)
+    tag = "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in str(artnr or normalized_mode))
+    output_xlsx = temp_export_dir / f"partlist_export_{tag}.xlsx"
+    try:
+        create_partlist_import_excel_from_cache(
+            template_xlsx_path=template_path,
+            cache_dir=sheets_output_dir,
+            active_sheets_path=active_sheets_path,
+            output_xlsx_path=output_xlsx,
+            first_rows_to_copy=7,
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+    return FileResponse(
+        str(output_xlsx),
+        filename=f"partlist_export_{tag}.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/download-module-export")
@@ -967,7 +1147,7 @@ def download_partlist_tree(artnr: str = Query(..., min_length=1), mode: str = Qu
     base = Path(__file__).parent.parent
     partlist_tree_path = _cache_paths(base, mode)["partlist_tree"]
     # Optionally, support per-artnr tree files if needed:
-    # partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / f"partlist_tree_{artnr}.txt"
+    # partlist_tree_path = base / "data" / "processed" / "csv" / f"partlist_tree_{artnr}.txt"
     if not partlist_tree_path.exists():
         return JSONResponse(status_code=404, content={"error": f"partlist_tree.txt not found for {artnr} (mode={mode})"})
     try:
@@ -1109,6 +1289,7 @@ def generate_article(data: dict = Body(...)):
                 str(stuecklistenstamm_path),
                 str(article_list_path),
                 str(creation_partlist_path),
+                mode = "creation",
                 reset_files=reset_files
             )
         # Return download links (point to creation mode files if needed)
@@ -1644,3 +1825,106 @@ def download_group_excel(artnr: str = Query(..., min_length=1), mode: str = Quer
         return FileResponse(str(output_xlsx), filename=f"group_export_{artnr}.xlsx", media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/add-stulinr-from-stuecklisten")
+def add_stulinr_from_stuecklisten(partlist_env: str = Body("PROD")):
+    """
+    Add all stulinr from the sheet stuecklisten to the existing partlists cache (test/prod).
+    """
+    stuecklisten_path = get_path("stuecklistenstamm")
+    stulinr_set = set()
+    with open(stuecklisten_path, encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f, delimiter=';')
+        for row in reader:
+            stulinr = row.get('stulinr', '').strip()
+            if stulinr:
+                stulinr_set.add(stulinr)
+
+    # Write to processed cache existing partlists
+    cache_dir = BASE_DIR / "data" / "processed" / "cache" / "existing"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / f"partlists_{partlist_env}.csv"
+    # Append new stulinr, avoid duplicates
+    existing = set()
+    if cache_file.exists():
+        with open(cache_file, encoding="utf-8") as f:
+            for line in f:
+                val = line.strip().split(';')[0]
+                if val:
+                    existing.add(val)
+    with open(cache_file, 'a', encoding='utf-8') as f:
+        for stulinr in stulinr_set:
+            if stulinr not in existing:
+                f.write(f"{stulinr};\n")
+    return {"status": "ok", "added": list(stulinr_set - existing)}
+@app.post("/upload-existing-partlist")
+async def upload_existing_partlist(existing_partlist_file: UploadFile = File(...), partlist_env: str = Form(...)):
+    """
+    Upload an existing partlist CSV (test/prod), extract all stulinr, and add to processed cache existing partlists.
+    """
+    # Save uploaded file to temp
+    temp_path = BASE_DIR / "data" / "uploaded_files" / f"uploaded_existing_partlist_{partlist_env}.csv"
+    with open(temp_path, "wb") as buffer:
+        buffer.write(await existing_partlist_file.read())
+
+    # Extract stulinr from uploaded CSV
+    stulinr_set = set()
+    with open(temp_path, encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f, delimiter=';')
+        for row in reader:
+            stulinr = row.get('stulinr', '').strip()
+            if stulinr:
+                stulinr_set.add(stulinr)
+
+    # Write to processed cache existing partlists
+    cache_dir = BASE_DIR / "data" / "processed" / "cache" / "existing"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / f"partlists_{partlist_env}.csv"
+    # Append new stulinr, avoid duplicates
+    existing = set()
+    if cache_file.exists():
+        with open(cache_file, encoding="utf-8") as f:
+            for line in f:
+                val = line.strip().split(';')[0]
+                if val:
+                    existing.add(val)
+    with open(cache_file, 'a', encoding='utf-8') as f:
+        for stulinr in stulinr_set:
+            if stulinr not in existing:
+                f.write(f"{stulinr};\n")
+    return {"status": "ok", "added": list(stulinr_set - existing)}
+# --- Document XLSX Export Endpoint ---
+from etl.load import export_docs_xlsx
+
+@app.get("/download-docs-xlsx")
+def download_docs_xlsx(mode: str = Query("module")):
+    """
+    Download an XLSX file with doc file info for all articles with zeichnungsnummer in the current article list.
+    """
+    article_list_path = _cache_paths(BASE_DIR, mode)["article_list"]
+    if not article_list_path.exists():
+        return JSONResponse(status_code=404, content={"error": "article_list.csv not found. Generate module data first."})
+    articles = _read_article_list_rows(article_list_path)
+    if not articles:
+        return JSONResponse(status_code=404, content={"error": f"No articles found in {article_list_path.name}. Generate {mode} data first."})
+
+    docs_cache_path = sheets_output_dir / "DMSDocuments.csv"
+    docs_cache_result = build_docs_download_cache_csv(
+        article_list_path=article_list_path,
+        output_csv_path=docs_cache_path,
+        articles=articles,
+    )
+    if docs_cache_result.get("rows_written", 0) == 0:
+        return JSONResponse(status_code=404, content={
+            "error": f"No DMS document rows could be generated for mode={mode}.",
+            "docs_cache_path": str(docs_cache_path),
+        })
+
+    xlsx_path = export_docs_xlsx(articles)
+    return FileResponse(
+        str(xlsx_path),
+        filename="docs_export.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    

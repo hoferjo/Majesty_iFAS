@@ -1,9 +1,0 @@
-columnname;function;arguments
-Versionsnummer;getOptions;stulinr,'Version';
-Auswahlvarianten-Nr;getOptions;stulinr,'Variante';
-Bezeichnung [de];getBezeichnungStückliste;stulinr,'Auswahlvariante';
-Bezeichnung [en];;;
-Bezeichnung [fr];;;
-Bezeichnung [it];;;
-Anzahl Positionen Minimum;;;
-Anzahl Positionen Maximum;;;

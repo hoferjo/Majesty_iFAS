@@ -1,0 +1,142 @@
+steel:
+#EN 10027-1 - Tabelle 1 (fortgesetzt) Beispiele für Kurznamen für Stähle für den Stahlbau
+  EN 10025-2:
+    S235JR:
+      EN 10025-alt: S235JRG2
+      EN 10025-aktuell: S235JR+AR
+      DIN 17100: St 37-2
+      Stahlgruppe: 1.0037
+    S355JR:
+      EN 10025-alt: S355JR
+      EN 10025-aktuell: 
+      DIN 17100: 
+      Stahlgruppe: 1.
+    S355J0:
+      EN 10025-alt: S355J0
+      EN 10025-aktuell:
+      DIN 17100: 
+      Stahlgruppe: 1.
+    S355J2:
+      EN 10025-alt: S355J2
+      EN 10025-aktuell: 
+      DIN 17100:
+      Stahlgruppe: 1.
+    S355K2:
+      EN 10025-alt: S355K2
+      EN 10025-aktuell:
+      DIN 17100: 
+      Stahlgruppe: 
+    S450J0:
+      EN 10025-alt: S450J0
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+  EN 10025-3:
+    S355N:
+      EN 10025-alt: S355N
+      EN 10025-aktuell: 
+      DIN 17100: 
+      Stahlgruppe:
+    S355NL:
+      EN 10025-alt: S355NL
+      EN 10025-aktuell:
+      DIN 17100: 
+      Stahlgruppe:
+  EN 10025-4:
+    S355M:
+      EN 10025-alt: S355M
+      EN 10025-aktuell: 
+      DIN 17100:
+      Stahlgruppe: 
+    S355ML:
+      EN 10025-alt: S355ML
+      EN 10025-aktuell:
+      DIN 17100: 
+      Stahlgruppe:
+  EN 10025-5:
+    S235J0W:
+      EN 10025-alt: S235J0W
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+    S235J2W:
+      EN 10025-alt: S235J2W
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+    S355J0WP:
+      EN 10025-alt: S355J0WP
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+    S355J2WP:
+      EN 10025-alt: S355J2WP
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+    S355J0W:
+      EN 10025-alt: S355J0W
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+    S355J2W:
+      EN 10025-alt: S355J2W
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+    S355K2W:
+      EN 10025-alt: S355K2W
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+  EN 10025-6:
+    S460Q:
+      EN 10025-alt: S460Q
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+    S460QL:
+      EN 10025-alt: S460QL
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+    S460QL1:
+      EN 10025-alt: S460QL1
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+  EN 10149-2:
+    S355MC:
+      EN 10025-alt: S355MC
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+  EN 10149-3:
+    S355NC:
+      EN 10025-alt: S355NC
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+  EN 10210-1:
+    S355J2H:
+      EN 10025-alt: S355J2H
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+  EN 10248-1:
+   	S355GP:
+      EN 10025-alt: S355GP
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+  EN 10346:
+    S350GD:
+      EN 10025-alt: S350GD
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:
+    S350GD+Z:
+      EN 10025-alt: S350GD+Z
+      EN 10025-aktuell:
+      DIN 17100:
+      Stahlgruppe:

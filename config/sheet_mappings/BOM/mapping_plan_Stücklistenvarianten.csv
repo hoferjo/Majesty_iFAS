@@ -1,6 +1,12 @@
 columnname;function;arguments;
-Stücklistennummer;;stulinr;
-Versionsnummer;getOptions;stulinr,version;
-Gueltig von;date;today;
-Gueltig bis;defaultvalue;31.12.2099;
-Bemerkung;API_import;;
+Versionsnummer;getNameOrNumber;number,stulinr,'Version';
+Variantennummer;getNameOrNumber;number,stulinr,'Variante';
+Bezeichnung [de];getNameOrNumber;name,stulinr,'Variante';
+Bezeichnung [en];;;
+Bezeichnung [fr];;;
+Bezeichnung [it];;;
+Bemerkung;;;
+Standartvariante;defaultvalue;1;
+Menge PA min;;;
+menge PA max;;;
+Organisationseinheit;defaultvalue;JOS;

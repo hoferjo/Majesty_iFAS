@@ -1,6 +1,6 @@
 columnname;function;arguments
 Artikelnummer;;artnr;
-Lieferantennummer;getLieferantendaten;artnr;
+Lieferantennummer;getLieferantennummer;artnr;
 Artikelnummer Lieferant;getEntryFromCSV;atnrlief;
 Artikelbezeichnung Lieferant;getEntryFromCSV;artbez1;
 Artikel-Zusatz-Bezeichnung Lieferant;getBezeichnung2;artnr;

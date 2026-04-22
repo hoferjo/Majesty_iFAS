@@ -7,16 +7,21 @@
 </head>
 <body>
     <h1>Settings</h1>
-    <form id="uploadForm" enctype="multipart/form-data">
-        <label>Upload File: <input type="file" name="file" id="fileInput"></label>
-        <button type="submit">Upload</button>
+    <!-- Upload Existing Partlist (moved from main UI) -->
+    <form id="uploadExistingPartlistForm" style="margin-top:1em; display:flex; gap:0.7em; align-items:center; flex-wrap:wrap;" enctype="multipart/form-data">
+        <label for="existingPartlistFile" style="font-weight:500;">Upload Existing Partlist:</label>
+        <input type="file" id="existingPartlistFile" name="existing_partlist_file" accept=".csv" style="min-width:180px;">
+        <select id="existingPartlistEnv" name="partlist_env" style="padding:4px 8px; border-radius:4px; border:1px solid #b6c6d6;">
+            <option value="TEST">Test</option>
+            <option value="PROD">Prod</option>
+        </select>
+        <button type="submit" class="modern-btn" style="min-width:180px;">Upload Existing Partlist</button>
     </form>
-    <div id="uploadStatus"></div>
+    <div id="feedbackLog" style="margin-top:1em; background:#f1f1f1; padding:1em; border-radius:5px; min-height:2em; max-height:200px; overflow-y:auto;"></div>
     <!-- Add more settings controls here -->
     <form id="updateMajestyForm" style="margin-top:2em;">
         <button type="submit" class="modern-btn" style="min-width:180px;">Update Majesty Data</button>
     </form>
-    <div id="updateMajestyStatus" style="margin-top:1em;"></div>
     <a href="/">Back to Search</a>
     <script src="/static/script.js"></script>
 </body>

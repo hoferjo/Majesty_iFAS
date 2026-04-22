@@ -1,25 +1,3 @@
-###imports
-from statistics import mode
-import yaml
-from etl.create import ArticleCreator
-from etl.extract import auto_update_dbf_csv
-from etl.extract import extract_dbf_headers_and_rows
-import threading
-from pathlib import Path
-from fastapi import Body
-import sys
-from fastapi import FastAPI, Request, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-import shutil
-import os
-import json
-import csv
-from fastapi import Query
-from fastapi.responses import JSONResponse
-
-
-
 ### Path setup, 
 BASE_DIR = Path(__file__).parent.parent
 
@@ -158,7 +136,7 @@ partlist_creation_mode_tree_path = BASE_DIR / settings["paths"]["article_list_di
 
 #output paths
 
-from etl.transform import process_module_structure, build_sheet_cache_CSV
+from etl.transform import process_module_structure
 from etl.load import (
     create_import_excel_from_templates,
     archive_module_export,
@@ -719,7 +697,6 @@ def generate_module_data(data: dict = Body(...)):
             }
 
         cached_articles = _MODULE_ARTICLES_CACHE.get(str(artnr))
-        build_sheet_cache_CSV(str(article_list_path), build_sheet_names, articles=cached_articles)
         # Also generate for blocked articles
         if blocked_articles_path.exists():
             with blocked_articles_path.open("r", encoding="utf-8-sig") as f:
@@ -944,7 +921,7 @@ def download_partlist_tree(artnr: str = Query(..., min_length=1), mode: str = Qu
     base = Path(__file__).parent.parent
     partlist_tree_path = _cache_paths(base, mode)["partlist_tree"]
     # Optionally, support per-artnr tree files if needed:
-    # partlist_tree_path = base / "data" / "processed" / "csv" / "cache" / f"partlist_tree_{artnr}.txt"
+    # partlist_tree_path = base / "data" / "processed" / "csv" / f"partlist_tree_{artnr}.txt"
     if not partlist_tree_path.exists():
         return JSONResponse(status_code=404, content={"error": f"partlist_tree.txt not found for {artnr} (mode={mode})"})
     try:

@@ -1,0 +1,36 @@
+<!-- Upload page for articles and partlists -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload Files</title>
+</head>
+<body>
+    <h2>Upload Article Files</h2>
+    <form action="/upload-article" method="post" enctype="multipart/form-data">
+        <label for="article_file">Article File (Test/Prod):</label>
+        <input type="file" name="article_file" id="article_file">
+        <select name="article_env">
+            <option value="TEST">Test</option>
+            <option value="PROD">Prod</option>
+        </select>
+        <button type="submit">Upload Article</button>
+    </form>
+
+        <h2>Download Dokumenten-Übersicht</h2>
+        <form action="/download-docs-xlsx" method="get">
+            <button type="submit">Download Dokumente als XLSX</button>
+        </form>
+
+    <h2>Upload Existing Partlist</h2>
+    <form action="/upload-existing-partlist" method="post" enctype="multipart/form-data">
+        <label for="existing_partlist_file">Existing Partlist File (Test/Prod):</label>
+        <input type="file" name="existing_partlist_file" id="existing_partlist_file">
+        <select name="partlist_env">
+            <option value="TEST">Test</option>
+            <option value="PROD">Prod</option>
+        </select>
+        <button type="submit">Upload Existing Partlist</button>
+    </form>
+</body>
+</html>

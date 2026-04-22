@@ -1,4 +1,3 @@
-import yaml
 from etl.create import ArticleCreator
 from etl.extract import auto_update_dbf_csv
 from etl.extract import extract_dbf_headers_and_rows
@@ -47,7 +46,7 @@ article_list_creation_mode_path = BASE_DIR / settings["paths"]["article_list_dir
 existing_articles_PROD_path = BASE_DIR / settings["paths"]["existing_articles_dir"] / settings["files"]["existing_articles_PROD"]
 existing_articles_TEST_path = BASE_DIR / settings["paths"]["existing_articles_dir"] / settings["files"]["existing_articles_TEST"]
 
-from etl.transform import process_module_structure, build_sheet_cache_CSV
+from etl.transform import process_module_structure
 from etl.load import (
     create_import_excel_from_templates,
     archive_module_export,

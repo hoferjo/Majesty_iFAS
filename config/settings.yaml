@@ -16,7 +16,7 @@ paths:
   cache_dir: "data/processed/cache"
   article_list_dir: "data/processed/cache/articlelists"
   partlist_dir: "data/processed/cache/partlists"
-  partlist_tree_dir: "data/processed/cache/partlisttrees"
+  partlist_tree_dir: "data/processed/cache/partlist_trees"
   existing_articles_dir: "data/processed/cache/existing"
   existing_partlists_dir: "data/processed/cache/existing_partlists"
   sheets_dir: "data/processed/cache/sheets"

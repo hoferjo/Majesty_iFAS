@@ -1,4 +1,3 @@
-
 import csv
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +15,7 @@ TIMER = False
 # Shared in-process caches survive across endpoint calls in the same worker.
 _GLOBAL_TABLE_CACHE = {}
 _GLOBAL_MAPPING_CACHE = {}
+_GLOBAL_UNIT_CODE_MAP = None
 
 
 def load_yaml(path: Path):
@@ -147,7 +147,8 @@ def getEntryFromCSV(filename, rowname, columnname):
                 found = True
                 return row.get(columnname, f"Column '{columnname}' not found")
         if not found:
-            print(f"No match found for artnr={rowname}")
+            if DEBUG:
+                print(f"No match found for artnr={rowname}")
     return 0
 
 def addColumnToCSV(filename, columname, defaultvalue):
@@ -301,13 +302,20 @@ def IstNichtAllgemeinNormteile(artnr):
         return '1'
 
 def getCodeFromAbbrevation(abbrevation):
-    mapping = load_yaml(BASE_DIR / "config" / "mapping_abbrevations.yaml")
-    code = mapping['units'][abbrevation]['code']
+    global _GLOBAL_UNIT_CODE_MAP
+    if _GLOBAL_UNIT_CODE_MAP is None:
+        mapping = load_yaml(BASE_DIR / "config" / "mapping_abbrevations.yaml") or {}
+        _GLOBAL_UNIT_CODE_MAP = {
+            str(k): str((v or {}).get("code", ""))
+            for k, v in (mapping.get("units") or {}).items()
+        }
+
+    code = _GLOBAL_UNIT_CODE_MAP.get(str(abbrevation), "")
     if code:
         return code
-    else:
+    if DEBUG:
         print(f"Warning: No code found for abbrevation '{abbrevation}' in mapping_abbrevations.yaml")
-        return ''
+    return ''
 
 
 def getMasseinheit(artnr):
@@ -316,20 +324,230 @@ def getMasseinheit(artnr):
         return getCodeFromAbbrevation(masseinheit)
     return ''
 
+
+def _normalize_function_name(name):
+    normalized = str(name or '').strip()
+    aliases = {
+        'derive_WBZ': 'deriveWBZ',
+        'derive_wbz': 'deriveWBZ',
+        'defaultValue': 'defaultvalue',
+        'directCopy': 'direct_copy',
+    }
+    return aliases.get(normalized, normalized)
+
+
+def _normalize_mapping_name(name):
+    import unicodedata
+    normalized = unicodedata.normalize('NFKD', str(name or ''))
+    normalized = ''.join(ch for ch in normalized if ch.isalnum()).lower()
+    return normalized
+
+
+def _resolve_filename_token(token):
+    path_mapping = {
+        'artikelstamm': artikelstamm_path,
+        'artikelstamm_path': artikelstamm_path,
+        'stuecklistenstamm_path': stuecklistenstamm_path,
+        'waren_artikelgruppe_path': waren_artikelgruppe_path,
+        'lieferanten_mapping_path': lieferanten_mapping_path,
+    }
+    return path_mapping.get(token, token)
+
+
+def _find_mapping_file(base_dir, category, sheet_name):
+    bom_dir = Path(base_dir) / 'config' / 'sheet_mappings' / category
+    if not bom_dir.exists():
+        return None
+    exact = bom_dir / f"mapping_plan_{sheet_name}.csv"
+    if exact.exists():
+        return exact
+
+    target_norm = _normalize_mapping_name(sheet_name)
+    candidates = []
+    for path in bom_dir.glob('mapping_plan_*.csv'):
+        candidate_name = path.stem.replace('mapping_plan_', '')
+        candidate_norm = _normalize_mapping_name(candidate_name)
+        if candidate_norm == target_norm:
+            return path
+        candidates.append((candidate_norm, path))
+
+    import difflib
+    candidate_norms = [norm for norm, _ in candidates]
+    close = difflib.get_close_matches(target_norm, candidate_norms, n=1, cutoff=0.6)
+    if close:
+        for norm, path in candidates:
+            if norm == close[0]:
+                return path
+    return None
+
+
+def _parse_mapping_csv(csv_path):
+    mappings = []
+    if not csv_path:
+        return mappings
+    with open(csv_path, encoding='utf-8-sig') as f:
+        reader = csv.DictReader(f, delimiter=';')
+        for row in reader:
+            columnname = (row.get('columnname') or '').strip()
+            if not columnname:
+                continue
+            raw_func = row.get('function') or row.get('funtion')
+            func = _normalize_function_name(raw_func)
+            argument = (row.get('arguments') or '').strip()
+            arglist = []
+            if argument:
+                for token in argument.split(','):
+                    token = token.strip()
+                    if (token.startswith("'") and token.endswith("'")) or (token.startswith('"') and token.endswith('"')):
+                        token = token[1:-1]
+                    arglist.append(token)
+            mappings.append({
+                'columnname': columnname,
+                'function': func,
+                'argument': argument,
+                'arglist': arglist,
+            })
+    return mappings
+
+
+def _normalize_posnr_4(value):
+    pos = str(value or '').strip()
+    if not pos:
+        return ''
+    if pos.isdigit():
+        return pos.zfill(4)
+    return pos
+
+
+def _evaluate_bom_mapping(mapping, context):
+    func = (mapping.get('function') or '').strip()
+    arglist = mapping.get('arglist', [])
+    partlist_row = context.get('partlist_row') or {}
+
+    def _resolve_arg(token):
+        if token in {'artnr', 'stulinr', 'posnr', 'menge'} and token in partlist_row:
+            return partlist_row.get(token, '')
+        return context.get(token, token)
+
+    if not func:
+        if arglist:
+            return str(_resolve_arg(arglist[0]) or '')
+        return ''
+
+    if func == 'defaultvalue':
+        return mapping.get('argument', '')
+
+    if func == 'direct_copy':
+        if arglist:
+            return str(_resolve_arg(arglist[0]) or '')
+        return ''
+
+    if func == 'getEntryFromCSV':
+        if len(arglist) >= 3:
+            filename = _resolve_filename_token(arglist[0])
+            row_key = str(_resolve_arg(arglist[1]) or '')
+            cached_lookup = context.get('_get_entry_cached')
+            if callable(cached_lookup):
+                return cached_lookup(filename, row_key, arglist[2])
+            return getEntryFromCSV(filename, row_key, arglist[2])
+        return ''
+
+    if func == 'getBezeichnung2':
+        if arglist:
+            artnr_val = str(_resolve_arg(arglist[0]) or '')
+            cached_lookup = context.get('_get_entry_cached')
+            if callable(cached_lookup):
+                artbez2 = cached_lookup(artikelstamm_path, artnr_val, 'artbez2')
+                artbez3 = cached_lookup(artikelstamm_path, artnr_val, 'artbez3')
+                artbezmem = cached_lookup(artikelstamm_path, artnr_val, 'artbezmem')
+                return mergeTexts(artbez2, artbez3, artbezmem)
+            return getBezeichnung2(artnr_val)
+        return ''
+
+    if func == 'getMasseinheit':
+        if arglist:
+            artnr_val = str(_resolve_arg(arglist[0]) or '')
+            cached_lookup = context.get('_get_entry_cached')
+            if callable(cached_lookup):
+                masseinheit = cached_lookup(artikelstamm_path, artnr_val, 'meinheit')
+                masseinheit = str(masseinheit or '').strip()
+                if masseinheit:
+                    return getCodeFromAbbrevation(masseinheit)
+                return ''
+            return getMasseinheit(artnr_val)
+        return ''
+
+    if func == 'API_import':
+        return API_import(context.get('root_module_artnr'))
+
+    if func == 'getNameOrNumber':
+        if len(arglist) >= 2:
+            mode = arglist[0]
+            number_suffix = '1'
+            version = '1'
+            name_suffix = 'Standard'
+            stulinr_val = _resolve_arg(arglist[1])
+            sheet_type = arglist[2] if len(arglist) >= 3 else ''
+            return getNameOrNumber(stulinr_val, sheet_type, mode, name_suffix, number_suffix, version)
+        return ''
+
+    if func == 'getFromPartlist':
+        if len(arglist) >= 3:
+            field_name = arglist[2]
+            row = context.get('partlist_row')
+            if row and field_name in row:
+                value = str(row.get(field_name, '') or '')
+                if str(field_name).strip().lower() == 'posnr':
+                    return _normalize_posnr_4(value)
+                return value
+            for prow in context.get('partlist_data', []):
+                if prow.get('stulinr', '').strip() == str(context.get('stulinr', '')).strip() and prow.get('artnr', '').strip() == str(context.get('artnr', '')).strip():
+                    value = str(prow.get(field_name, '') or '')
+                    if str(field_name).strip().lower() == 'posnr':
+                        return _normalize_posnr_4(value)
+                    return value
+        return ''
+
+    if func == 'getMenge':
+        row = context.get('partlist_row')
+        if row is not None:
+            return str(row.get('menge', '') or '')
+        return ''
+
+    if func == 'date':
+        if arglist and arglist[0].lower() == 'today':
+            return datetime.now().strftime('%d.%m.%Y')
+        return arglist[0] if arglist else ''
+
+    return ''
+
+
 def getNameOrNumber(stulinr,
                     StuLiSheet,
-                    version:str = 1,
-                    variante: str = "Standard-Variante",
-                    auswahlvariante: str = "Standard-Auswahlvariante"):
+                    NameOrNumber : str = "number",
+                    name_suffix : str = "Standard",
+                    number_suffix : str = "1",
+                    version : str = "1"
+                    ):
+    
     if StuLiSheet == "Version":
         return str(stulinr)+"-" + str(version)
     elif StuLiSheet == "Variante":
-        return str(stulinr)+"-" + str(version) + "-" + str(variante)
+        if NameOrNumber == "name":
+            return str(stulinr)+"-" + str(version) + "-" + str(name_suffix) +"-Variante"
+        else:
+            return str(stulinr)+"-" + str(version) + "-" + str(number_suffix)
     elif StuLiSheet == "Auswahlvariante":
-        return str(stulinr)+"-" + str(version) + "--" + str(auswahlvariante)
+        if NameOrNumber == "name":
+            return str(stulinr)+"-" + str(version) + "--" + str(name_suffix) +"-Auswahlvariante"
+        else:
+            return str(stulinr)+"-" + str(version) + "--" + str(number_suffix)
 
-def getStuLiOptions(stulinr, StuLiSheet, number: int = 1):
-    return getStuLiOptions(stulinr, StuLiSheet, number)
+def getStuLiOptions(NameOrNumber, stulinr, StuLiSheet, number: int = 1):
+    if NameOrNumber == "name":
+        return getNameOrNumber(stulinr, StuLiSheet)
+    elif NameOrNumber == "number":
+        return getNameOrNumber(stulinr, StuLiSheet, version=number)
 
 def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache=None, mapping_cache=None):
 
@@ -517,6 +735,19 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
     # Function dispatcher for mapping functions
     def call_mapping_function(mapping, article, articlelist_headers=None):
         header = mapping['header']
+
+        def _is_artikelnummer_header(name):
+            import unicodedata
+            normalized = unicodedata.normalize('NFKD', str(name or ''))
+            normalized = ''.join(ch for ch in normalized if ch.isalnum()).lower()
+            return normalized == 'artikelnummer'
+
+        def _export_artikelnummer_value():
+            artikelnummer_value = str(article.get('artikelnummer', '') or '').strip()
+            if artikelnummer_value:
+                return artikelnummer_value
+            return str(article.get('artnr', '') or '').strip()
+
         # If this article is a textartikel (from replacement), override certain fields
         textartikel_map = getattr(process_module_structure, '_textartikel_map', {})
         artnr_key = article.get('artnr', '').strip()
@@ -534,10 +765,14 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         # Direct from articlelist if no function/args and column exists
         if (not func and not args) or (func == '' and args == ''):
             if articlelist_headers and header in articlelist_headers:
+                if _is_artikelnummer_header(header):
+                    return _export_artikelnummer_value()
                 return article.get(header, '')
             return ''
 
         if func == '' and args == 'artnr':
+            if _is_artikelnummer_header(header):
+                return _export_artikelnummer_value()
             return article.get('artnr', '')
         if func == 'defaultvalue':
             return args
@@ -674,15 +909,15 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         sheet_to_category = {
             # Article sheets
             'Artikelstamm': 'Article',
-            'Artikel_Disposteuerung': 'Article', 
-            'Artikel_Lieferantendaten': 'Article',
+            'ArtikelDisposteuerung': 'Article', 
+            'ArtikelLieferantendaten': 'Article',
             # BOM sheets
             'Stücklisten': 'BOM',
             'Stücklistenvarianten': 'BOM',
             'Stücklistenversionen': 'BOM',
             'Stücklistenverwendung': 'BOM',
             'Stücklstenauswahlvarianten': 'BOM',
-            'Stücklstenpositionen': 'BOM',
+            'Stücklistenpositionen': 'BOM',
             # Workplan sheets
             'Arbeitspläne': 'Workplan',
             'Arbeitsplanpositionen': 'Workplan',
@@ -710,6 +945,22 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=';')
             writer.writeheader()
             for idx, article in enumerate(articles):
+                # --- Custom filtering for ArtikelLieferantendaten ---
+                if sheet in ("ArtikelLieferantendaten", "Artikel_Lieferantendaten"):
+                    beschaffungsart = str(article.get("beschaffungsart", "")).strip()
+                    if beschaffungsart not in ("Einkauf", "6"):
+                        continue  # Skip this article for Lieferantendaten
+
+                # --- Custom mapping for ArtikelDisposteuerung.wiederbeschaffungszeit ---
+                if sheet in ("ArtikelDisposteuerung", "Artikel_Disposteuerung"):
+                    beschaffungsart = str(article.get("beschaffungsart", "")).strip()
+                    if beschaffungsart in ("1", "Produktion"):
+                        # Find the mapping for wiederbeschaffungszeit and set to empty
+                        for m in mappings:
+                            if m['header'] == "wiederbeschaffungszeit":
+                                article["wiederbeschaffungszeit"] = ""
+                                break
+
                 row = {}
                 for m in mappings:
                     row[m['header']] = call_mapping_function(m, article, articlelist_headers=articlelist_headers)
@@ -722,6 +973,7 @@ def process_module_structure(
     stuecklistenstamm_path,
     article_list_path,
     partlist_path,
+    mode=None,
     visited=None,
     artikel_map=None,
     existing_articles_path=None,
@@ -749,10 +1001,55 @@ def process_module_structure(
     # Always ensure visited is a set
     if visited is None:
         visited = set()
+
+    workplan_suggest_paths = [
+        BASE_DIR / "data" / "processed" / "cache" / "workplan" / "workplan_suggest-L.csv",
+        BASE_DIR / "data" / "processed" / "workplan" / "workplan_suggest-L.csv",
+    ]
+
+    def _init_workplan_suggest(reset: bool = False):
+        for path in workplan_suggest_paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if reset or not path.exists() or path.stat().st_size == 0:
+                with open(path, 'w', encoding='utf-8-sig', newline='') as f:
+                    f.write('artnr\n')
+
+    def _load_workplan_suggest_seen():
+        seen = set()
+        primary = workplan_suggest_paths[0]
+        if not primary.exists():
+            return seen
+        with open(primary, 'r', encoding='utf-8-sig', newline='') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            if reader.fieldnames and len(reader.fieldnames) == 1 and reader.fieldnames[0].strip().lower() == 'artnr':
+                for row in reader:
+                    key = str((row or {}).get('artnr', '') or '').strip()
+                    if key:
+                        seen.add(key)
+            else:
+                f.seek(0)
+                next(f, None)
+                for line in f:
+                    key = str(line or '').strip().split(';')[0]
+                    if key:
+                        seen.add(key)
+        return seen
+
+    _init_workplan_suggest(reset=bool(reset_files))
+    workplan_suggest_seen = _load_workplan_suggest_seen()
+
+    def _append_workplan_suggest(base_artnr):
+        key = str(base_artnr or '').strip()
+        if not key or key in workplan_suggest_seen:
+            return
+        for path in workplan_suggest_paths:
+            with open(path, 'a', encoding='utf-8-sig', newline='') as f:
+                f.write(f"{key}\n")
+        workplan_suggest_seen.add(key)
     # Overwrite article_list, partlist, and blocked_articles only if reset_files is True
     if reset_files:
         with open(article_list_path, 'w', encoding='utf-8') as f:
-            f.write('artnr;artbez1;zeichnr\n')
+            f.write('artnr;artbez1;zeichnr;artikelnummer\n')
         with open(partlist_path, 'w', encoding='utf-8') as f:
             f.write('stulinr;posnr;menge;artnr;artbez1\n')
         blocked_articles_path = str(article_list_path).replace('article_list', 'blocked_articles')
@@ -763,7 +1060,6 @@ def process_module_structure(
         # Also clear all <sheet>_cache_blocked.csv files for all active sheets
         active_sheets_path = BASE_DIR / "config" / "active_sheets.csv"
         if active_sheets_path.exists():
-            import csv
             with open(active_sheets_path, encoding='utf-8-sig') as f:
                 reader = csv.reader(f, delimiter=';')
                 for row in reader:
@@ -789,6 +1085,7 @@ def process_module_structure(
             pass
 
     article_list_seen = set(existing_articles_set)
+    artikelnummer_overrides = {}
     replacement_map = replacement_map or {}
 
     # Only load artikel_map once and pass through recursion
@@ -875,8 +1172,9 @@ def process_module_structure(
                 if DEBUG:
                     print(f"[DEBUG] Blocked article: {effective_artnr}; {effective_artbez1}; {effective_zeichnr}")
                 return
+            artikelnummer_out = str(artikelnummer_overrides.get(artnr_key) or artikelnummer_overrides.get(effective_artnr) or '').strip()
             with open(article_list_path, 'a', encoding='utf-8') as f:
-                f.write(f"{effective_artnr};{effective_artbez1};{effective_zeichnr}\n")
+                f.write(f"{effective_artnr};{effective_artbez1};{effective_zeichnr};{artikelnummer_out}\n")
             article_list_seen.add(effective_artnr)
             if DEBUG:
                 print(f"[DEBUG] Appended article: {effective_artnr}; {effective_artbez1}; {effective_zeichnr}")
@@ -893,27 +1191,73 @@ def process_module_structure(
 
 
     # --- Tree output ---
-    # Only open the tree file once at the top-level call
-    tree_file_path = partlist_path.replace('.csv', '_tree.txt')
+    # Always use the configured partlisttree path for the tree file (matches backend download)
+    
+    tree_file_path = get_path("partlisttree", mode)
     if not hasattr(process_module_structure, '_tree_file') or visited is None or getattr(process_module_structure, '_tree_file', None) is None:
+        Path(tree_file_path).parent.mkdir(parents=True, exist_ok=True)
         setattr(process_module_structure, '_tree_file', open(tree_file_path, 'w', encoding='utf-8'))
 
-    def append_partlist(stulinr, posnr, menge, artnr, artbez1, depth=0, is_last=False, prefix_stack=None, timer_start=None):
+
+    # --- Partlist existing checker ---
+    # Load existing partlists (stulinr) from processed cache (all envs)
+    existing_partlists = set()
+    existing_dir = BASE_DIR / "data" / "processed" / "cache" / "existing"
+    if existing_dir.exists():
+        for f in existing_dir.glob("partlists_*.csv"):
+            with open(f, encoding="utf-8") as ef:
+                for line in ef:
+                    val = line.strip().split(';')[0]
+                    if val:
+                        existing_partlists.add(val)
+
+    # Track stulinr written in this run to avoid duplicates within the same run
+    written_partlists = set()
+
+    def append_partlist(stulinr, posnr, menge, artnr, artbez1, depth=0, is_last=False, prefix_stack=None, timer_start=None, replacement_info=None, nur_verkaufsartikel=False, output_artnr=None):
         t_stueck_start = time.time()
         artnr_key = str(artnr or '').strip()
-        effective_artnr = str(replacement_map.get(artnr_key, artnr_key) or '').strip()
-        effective_row = artikel_map.get(effective_artnr, {})
+        mapped_artnr = str(replacement_map.get(artnr_key, artnr_key) or '').strip()
+        effective_artnr = str(output_artnr or mapped_artnr or artnr_key).strip()
+        effective_row = artikel_map.get(effective_artnr, {}) or artikel_map.get(artnr_key, {})
         effective_artbez1 = effective_row.get('artbez1', '') or artbez1
         # Check if blocked
         sperre = (effective_row.get('sperre', '') or '').strip()
         menge_out = menge
+        stulinr_key = str(stulinr or '').strip()
+        # Check for existing partlist
+        is_existing = stulinr_key in existing_partlists
+        # Mark blocked
         if sperre and sperre.upper() != 'FALSCH':
             menge_out = f"{menge}BLOCKED"
-        with open(partlist_path, 'a', encoding='utf-8') as f:
-            f.write(f"{stulinr};{posnr};{menge_out};{effective_artnr};{effective_artbez1}\n")
+
+        # Compose row
+        row = f"{stulinr};{posnr};{menge_out};{effective_artnr};{effective_artbez1}"
+        if is_existing:
+            row += ";Existing"
+        if replacement_info:
+            row += f";replacing {replacement_info}"
+        if nur_verkaufsartikel:
+            row += ";Nur Verkaufsartikel"
+
+        # Write to partlist_duplicates if existing, else to partlist.csv
+        if is_existing:
+            # Write only to partlist_duplicates_{mode}_mde.csv
+            mode = 'module' # default, can be improved to detect actual mode
+            partlist_duplicates_path = str(partlist_path).replace("partlist.csv", f"partlist_duplicates_{mode}_mde.csv")
+            if not Path(partlist_duplicates_path).exists():
+                with open(partlist_duplicates_path, 'w', encoding='utf-8') as f:
+                    f.write('stulinr;posnr;menge;artnr;artbez1;Mark\n')
+
+            with open(partlist_duplicates_path, 'a', encoding='utf-8') as f:
+                f.write(row + "\n")
+        else:
+            with open(partlist_path, 'a', encoding='utf-8') as f:
+                f.write(row + "\n")
+        written_partlists.add(stulinr_key)
         if DEBUG:
-            print(f"[DEBUG] Appended partlist: {stulinr}; {posnr}; {menge_out}; {effective_artnr}; {effective_artbez1}")
-        # Write to tree file
+            print(f"[DEBUG] Appended partlist: {row}")
+        # Write to tree file (always)
         if prefix_stack is None:
             prefix_stack = []
         prefix = ''
@@ -923,17 +1267,23 @@ def process_module_structure(
             prefix += '+---'
         # Get zeichnr for this artnr
         zeichnr = effective_row.get('zeichnr', '')
+        tree_line = prefix
         if sperre and sperre.upper() != 'FALSCH':
-            line = f"{prefix}BLOCKED {effective_artnr}, {effective_artbez1}, {zeichnr}"
+            tree_line += f"BLOCKED {effective_artnr}, {effective_artbez1}, {zeichnr}"
         else:
-            line = f"{prefix}{effective_artnr}, {effective_artbez1}, {zeichnr}"
-        getattr(process_module_structure, '_tree_file').write(line + '\n')
+            tree_line += f"{effective_artnr}, {effective_artbez1}, {zeichnr}"
+        if is_existing:
+            tree_line += " ;Existing"
+        if replacement_info:
+            tree_line += f" ;replacing {replacement_info}"
+        if nur_verkaufsartikel:
+            tree_line += ";Nur Verkaufsartikel"
+        getattr(process_module_structure, '_tree_file').write(tree_line + '\n')
         t_stueck_end = time.time()
         if TIMER:
             print(f"[TIMER] Stückliste processing: {t_stueck_end - t_stueck_start:.3f}s for {stulinr}")
         if timer_start is not None and TIMER:
             print(f"[TIMER] Total time for {stulinr}: {t_stueck_end - timer_start:.3f}s")
-
     # Helper to find children for a given parent
     def get_children(parent_artnr):
         return stueckliste_children_map.get(parent_artnr, [])
@@ -946,6 +1296,7 @@ def process_module_structure(
             artnr = row.get('artnr', '').strip()
             artbez1 = artikel_map.get(artnr, {}).get('artbez1', '')
             is_last = (idx == len(children) - 1)
+            # Replacement and Nur Verkaufsartikel logic can be injected here if needed
             append_partlist(current_artnr, row.get('posnr', '').strip(), row.get('menge', '').strip(), artnr, artbez1, depth+1, is_last, prefix_stack + [is_last], timer_start)
             if artnr not in visited:
                 visited.add(artnr)
@@ -985,8 +1336,8 @@ def process_module_structure(
                     write_header = not article_list_creation_mode_path.exists() or article_list_creation_mode_path.stat().st_size == 0
                     with open(article_list_creation_mode_path, "a", encoding="utf-8") as f:
                         if write_header:
-                            f.write("artnr;artbez1;zeichnr\n")
-                        f.write(f"{current_artnr};Auto {current_artnr};Auto {current_artnr}\n")
+                            f.write("artnr;artbez1;zeichnr;artikelnummer\n")
+                        f.write(f"{current_artnr};Auto {current_artnr};Auto {current_artnr};\n")
                     artikel_map[current_artnr] = {'artnr': current_artnr, 'artbez1': f"Auto {current_artnr}", 'zeichnr': f"Auto {current_artnr}"}
                     artbez1 = f"Auto {current_artnr}"
                     zeichnr = f"Auto {current_artnr}"
@@ -995,16 +1346,43 @@ def process_module_structure(
         append_unique_article(current_artnr, artbez1, zeichnr)
         # Tree output and partlist already handled in append_partlist
         children = get_children(current_artnr)
-        for idx, row in enumerate(children):
-            artnr = row.get('artnr', '').strip()
+
+        # Normalize parent->child -L rows for partlist/tree output.
+        # If current parent is X and a child is X-L, write X to partlist/tree and keep X-L in article_list.
+        parent_artnr = str(current_artnr or '').strip()
+        parent_l_artnr = f"{parent_artnr}-L" if parent_artnr else ''
+
+        normalized_children = []
+        for row in children:
+            child_artnr = str((row or {}).get('artnr', '') or '').strip()
+            output_artnr = child_artnr
+            if parent_l_artnr and child_artnr == parent_l_artnr:
+                output_artnr = parent_artnr
+                artikelnummer_overrides[child_artnr] = output_artnr
+                _append_workplan_suggest(output_artnr)
+            normalized_children.append((row, child_artnr, output_artnr))
+
+        for idx, (row, source_artnr, output_artnr) in enumerate(normalized_children):
+            # Always append to partlist_tree, even if child is a -L variant and would be normalized to its parent
             posnr = row.get('posnr', '').strip()
             menge = row.get('menge', '').strip()
-            artbez1_child = artikel_map.get(artnr, {}).get('artbez1', '')
-            is_last = (idx == len(children) - 1)
-            append_partlist(current_artnr, posnr, menge, artnr, artbez1_child, depth+1, is_last, prefix_stack + [is_last] if prefix_stack else [is_last], timer_start)
-            if artnr not in visited:
-                visited.add(artnr)
-                recurse_all_articles(artnr, depth+1, (prefix_stack + [is_last]) if prefix_stack else [is_last], timer_start)
+            artbez1_child = artikel_map.get(source_artnr, {}).get('artbez1', '')
+            is_last = (idx == len(normalized_children) - 1)
+            append_partlist(
+                current_artnr,
+                posnr,
+                menge,
+                source_artnr,
+                artbez1_child,
+                depth + 1,
+                is_last,
+                prefix_stack + [is_last] if prefix_stack else [is_last],
+                timer_start,
+                output_artnr=output_artnr,
+            )
+            if source_artnr not in visited:
+                visited.add(source_artnr)
+                recurse_all_articles(source_artnr, depth + 1, (prefix_stack + [is_last]) if prefix_stack else [is_last], timer_start)
 
     if selected_artnr not in visited:
         visited.add(selected_artnr)
@@ -1031,258 +1409,425 @@ def build_bom_sheet_cache(partlist_csv_path, article_list_csv_path=None, base_di
     3. Stücklistenpositionen: one row per partlist line
     4. Stücklistenvarianten: variants for each version
     5. Auswahlvarianten: selection variants for each version
-    
+
     Existing entries are not overwritten to support incremental builds.
     """
     if base_dir is None:
         base_dir = BASE_DIR
-    
+
     sheets_output_dir = base_dir / "data" / "processed" / "cache" / "sheets"
     sheets_output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Load mappings for each BOM sheet
+
     bom_category = "BOM"
-    mappings = {}
     sheet_names = [
         'Stücklisten',
         'Stücklistenversionen',
         'Stücklistenpositionen',
         'Stücklistenvarianten',
-        'Stücklstenauswahlvarianten'
+        'Stücklstenauswahlvarianten',
     ]
-    
+
+    table_cache = {}
+
+    def _load_table_by_column(filename, key_column):
+        file_path = str(Path(filename))
+        cache_key = (file_path, key_column)
+        if cache_key in table_cache:
+            return table_cache[cache_key]
+
+        rows_by_key = {}
+        try:
+            with open(file_path, mode='r', encoding='utf-8-sig') as csvfile:
+                reader = csv.DictReader(csvfile, delimiter=';')
+                for r in reader:
+                    key = str((r or {}).get(key_column, '') or '').strip()
+                    if key:
+                        rows_by_key[key] = r
+        except FileNotFoundError:
+            rows_by_key = {}
+
+        table_cache[cache_key] = rows_by_key
+        return rows_by_key
+
+    def _infer_key_column(filename):
+        try:
+            if Path(filename).resolve() == Path(lieferanten_mapping_path).resolve():
+                return 'liefnr'
+        except Exception:
+            pass
+        return 'artnr'
+
+    def _get_entry_cached(filename, rowname, columnname):
+        key_column = _infer_key_column(filename)
+        rows_by_key = _load_table_by_column(filename, key_column)
+        row = rows_by_key.get(str(rowname or '').strip())
+        if not row:
+            return 0
+        return row.get(columnname, '')
+
+    # Initialize sets and lists for version tracking and rows
+    versionen_set = set()
+    stuecklisten_versionen_rows = []
+    mappings = {}
     for sheet_name in sheet_names:
-        mapping_path = base_dir / "config" / "sheet_mappings" / bom_category / f"mapping_plan_{sheet_name}.csv"
-        if mapping_path.exists():
-            with open(mapping_path, encoding='utf-8-sig') as f:
-                reader = csv.DictReader(f, delimiter=';')
-                mappings[sheet_name] = list(reader)
-    
-    # Load partlist data
+        mapping_path = _find_mapping_file(base_dir, bom_category, sheet_name)
+        if mapping_path is None:
+            if DEBUG:
+                print(f"[DEBUG] BOM mapping file not found for {sheet_name}")
+        mappings[sheet_name] = _parse_mapping_csv(mapping_path)
     partlist_data = []
     if Path(partlist_csv_path).exists():
         with open(partlist_csv_path, encoding='utf-8-sig') as f:
             reader = csv.DictReader(f, delimiter=';')
             partlist_data = list(reader)
-    
-    # Load article list for lookups
+
     article_map = {}
     if article_list_csv_path and Path(article_list_csv_path).exists():
         with open(article_list_csv_path, encoding='utf-8-sig') as f:
             reader = csv.DictReader(f, delimiter=';')
             for row in reader:
                 article_map[row.get('artnr', '').strip()] = row
-    
-    # --- 1. Build Stücklisten (unique stulinr) ---
-    stuecklisten_path = sheets_output_dir / "Stücklisten_cache.csv"
+
+    # Build unique stulinr list from partlist data
+    unique_stulinr = []
     stuecklisten_set = set()
-    if stuecklisten_path.exists():
-        with open(stuecklisten_path, encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f, delimiter=';')
-            for row in reader:
-                stuecklisten_set.add(row.get('Stücklistennummer', '').strip())
-    
-    # Collect unique stulinr from partlist
-    unique_stulinr = set()
     for row in partlist_data:
         stulinr = row.get('stulinr', '').strip()
-        if stulinr:
-            unique_stulinr.add(stulinr)
-    
-    # Write new Stücklisten entries
-    with open(stuecklisten_path, 'a' if stuecklisten_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
-        if stuecklisten_path.stat().st_size == 0:
-            # Write header
-            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklisten', []))]
-            f.write(';'.join(fieldnames) + '\n')
-        
-        for stulinr in unique_stulinr:
-            if stulinr not in stuecklisten_set:
-                # Create Stücklisten row based on mapping
-                row_data = {}
-                for mapping in mappings.get('Stücklisten', []):
-                    col = mapping['columnname'].strip()
-                    func = (mapping.get('function') or '').strip()
-                    arg = (mapping.get('arguments') or '').strip()
-                    
-                    if col == 'Stücklistennummer':
-                        row_data[col] = stulinr
-                    elif func == 'defaultvalue':
-                        row_data[col] = arg
-                    else:
-                        row_data[col] = ''
-                
-                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklisten', [])]) + '\n')
-                stuecklisten_set.add(stulinr)
-    
-    # --- 2. Build Stücklistenversionen ---
-    stuecklisten_versionen_path = sheets_output_dir / "Stücklistenversionen_cache.csv"
-    versionen_set = set()
-    if stuecklisten_versionen_path.exists():
-        with open(stuecklisten_versionen_path, encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f, delimiter=';')
-            for row in reader:
-                key = (row.get('Stücklistennummer', '').strip(), row.get('Versionsnummer', '').strip())
-                versionen_set.add(key)
-    
-    # Create version entries (1 per stulinr for now)
-    with open(stuecklisten_versionen_path, 'a' if stuecklisten_versionen_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
-        if stuecklisten_versionen_path.stat().st_size == 0:
-            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklistenversionen', []))]
-            f.write(';'.join(fieldnames) + '\n')
-        
-        for stulinr in unique_stulinr:
-            version_num = '1'  # Start with version 1
-            if (stulinr, version_num) not in versionen_set:
-                row_data = {}
-                for mapping in mappings.get('Stücklistenversionen', []):
-                    col = mapping['columnname'].strip()
-                    func = (mapping.get('function') or '').strip()
-                    arg = (mapping.get('arguments') or '').strip()
-                    
-                    if col == 'Stücklistennummer':
-                        row_data[col] = stulinr
-                    elif col == 'Versionsnummer':
-                        row_data[col] = version_num
-                    elif func == 'defaultvalue':
-                        row_data[col] = arg
-                    else:
-                        row_data[col] = ''
-                
-                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklistenversionen', [])]) + '\n')
-                versionen_set.add((stulinr, version_num))
-    
-    # --- 3. Build Stücklistenpositionen ---
-    stuecklisten_positionen_path = sheets_output_dir / "Stücklistenpositionen_cache.csv"
-    positionen_set = set()
-    if stuecklisten_positionen_path.exists():
-        with open(stuecklisten_positionen_path, encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f, delimiter=';')
-            for row in reader:
-                key = (row.get('Stücklistennummer', '').strip(), row.get('Versionsnummer', '').strip())
-                positionen_set.add(key)
-    
-    # For each partlist line, create position entry
-    with open(stuecklisten_positionen_path, 'a' if stuecklisten_positionen_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
-        if stuecklisten_positionen_path.stat().st_size == 0:
-            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklistenpositionen', []))]
-            f.write(';'.join(fieldnames) + '\n')
-        
-        for idx, prow in enumerate(partlist_data):
-            stulinr = prow.get('stulinr', '').strip()
-            version_num = '1'
-            posnr = prow.get('posnr', '').strip()
-            menge = prow.get('menge', '').strip()
-            artnr = prow.get('artnr', '').strip()
-            
-            key = (stulinr, version_num, posnr)
-            # Only add if not already present (based on stulinr+version, not full key for first run)
-            if (stulinr, version_num) not in positionen_set or idx == 0:
-                row_data = {}
-                for mapping in mappings.get('Stücklistenpositionen', []):
-                    col = mapping['columnname'].strip()
-                    func = (mapping.get('function') or '').strip()
-                    arg = (mapping.get('arguments') or '').strip()
-                    
-                    if col == 'Stücklistennummer':
-                        row_data[col] = stulinr
-                    elif col == 'Versionsnummer':
-                        row_data[col] = version_num
-                    elif col == 'Positionsnummer' or col == 'StuecklistePositionsNr':
-                        row_data[col] = posnr
-                    elif col == 'Artikelnummer':
-                        row_data[col] = artnr
-                    elif col == 'Menge':
-                        row_data[col] = menge
-                    elif func == 'defaultvalue':
-                        row_data[col] = arg
-                    else:
-                        row_data[col] = ''
-                
-                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklistenpositionen', [])]) + '\n')
-    
-    # --- 4. Build Stücklistenvarianten ---
-    stuecklisten_varianten_path = sheets_output_dir / "Stücklistenvarianten_cache.csv"
+        if stulinr and stulinr not in stuecklisten_set:
+            unique_stulinr.append(stulinr)
+            stuecklisten_set.add(stulinr)
+
+    def write_sheet(sheet_name, rows):
+        if not mappings.get(sheet_name):
+            return
+        output_paths = [sheets_output_dir / f"{sheet_name}_cache.csv"]
+        sheet_aliases = {
+            'Stücklistenvarianten': ['StuecklisteVarianten'],
+            'Stücklstenauswahlvarianten': ['StuecklisteAuswahlVarianten'],
+        }
+        for alias_name in sheet_aliases.get(sheet_name, []):
+            alias_path = sheets_output_dir / f"{alias_name}_cache.csv"
+            if alias_path not in output_paths:
+                output_paths.append(alias_path)
+        fieldnames = [m['columnname'] for m in mappings.get(sheet_name, [])]
+        for output_path in output_paths:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'w', encoding='utf-8-sig', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=';')
+                writer.writeheader()
+                for row in rows:
+                    writer.writerow({col: row.get(col, '') for col in fieldnames})
+
+    # --- Build Stücklisten ---
+    stuecklisten_rows = []
+    for stulinr in unique_stulinr:
+        context = {
+            'sheet_name': 'Stücklisten',
+            'stulinr': stulinr,
+            'root_module_artnr': unique_stulinr[0] if unique_stulinr else None,
+            '_get_entry_cached': _get_entry_cached,
+        }
+        row = {}
+        for mapping in mappings.get('Stücklisten', []):
+            col = mapping['columnname']
+            row[col] = _evaluate_bom_mapping(mapping, context)
+        stuecklisten_rows.append(row)
+    write_sheet('Stücklisten', stuecklisten_rows)
+
+    # --- Build Stücklistenversionen ---
+    for stulinr in unique_stulinr:
+        version_num = '1'
+        key = (stulinr, version_num)
+        if key in versionen_set:
+            continue
+        context = {
+            'sheet_name': 'Stücklistenversionen',
+            'stulinr': stulinr,
+            'version_num': version_num,
+            'root_module_artnr': unique_stulinr[0] if unique_stulinr else None,
+            '_get_entry_cached': _get_entry_cached,
+        }
+        row = {}
+        for mapping in mappings.get('Stücklistenversionen', []):
+            func = (mapping.get('function') or '').strip()
+            arglist = mapping.get('arglist', [])
+            if not func and arglist and arglist[0] in ('artnr', 'stulinr', 'posnr', 'menge'):
+                row[mapping['columnname']] = context.get(arglist[0], '')
+            else:
+                row[mapping['columnname']] = _evaluate_bom_mapping(mapping, context)
+        stuecklisten_versionen_rows.append(row)
+        versionen_set.add(key)
+    write_sheet('Stücklistenversionen', stuecklisten_versionen_rows)
+
+    # --- Build Stücklistenpositionen ---
+    stuecklisten_positionen_rows = []
+    existing_positions = set()
+    for prow in partlist_data:
+        stulinr = prow.get('stulinr', '').strip()
+        version_num = '1'
+        normalized_posnr = _normalize_posnr_4(prow.get('posnr', '').strip())
+        key = (stulinr, version_num, normalized_posnr)
+        if key in existing_positions:
+            continue
+        existing_positions.add(key)
+        context = {
+            'sheet_name': 'Stücklistenpositionen',
+            'stulinr': stulinr,
+            'version_num': version_num,
+            'artnr': prow.get('artnr', '').strip(),
+            'posnr': normalized_posnr,
+            'menge': prow.get('menge', '').strip(),
+            'partlist_row': prow,
+            'partlist_data': partlist_data,
+            'root_module_artnr': unique_stulinr[0] if unique_stulinr else None,
+            '_get_entry_cached': _get_entry_cached,
+        }
+        row = {}
+        for mapping in mappings.get('Stücklistenpositionen', []):
+            col = mapping['columnname']
+            value = _evaluate_bom_mapping(mapping, context)
+            if value == '' and col in {'Stücklistennummer', 'Versionsnummer', 'Positionsnummer', 'Artikelnummer', 'Menge'}:
+                if col == 'Stücklistennummer':
+                    value = stulinr
+                elif col == 'Versionsnummer':
+                    value = version_num
+                elif col == 'Positionsnummer':
+                    value = normalized_posnr
+                elif col == 'Artikelnummer':
+                    value = prow.get('artnr', '').strip()
+                elif col == 'Menge':
+                    value = prow.get('menge', '').strip()
+            if col in {'StuecklistePositionsNr', 'Positionsnummer'}:
+                value = _normalize_posnr_4(value)
+            row[col] = value
+        stuecklisten_positionen_rows.append(row)
+    write_sheet('Stücklistenpositionen', stuecklisten_positionen_rows)
+
+    # --- Build Stücklistenvarianten ---
+    stuecklisten_varianten_rows = []
     varianten_set = set()
-    if stuecklisten_varianten_path.exists():
-        with open(stuecklisten_varianten_path, encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f, delimiter=';')
-            for row in reader:
-                key = (row.get('Stücklistennummer', '').strip(), row.get('Versionsnummer', '').strip())
-                varianten_set.add(key)
-    
-    with open(stuecklisten_varianten_path, 'a' if stuecklisten_varianten_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
-        if stuecklisten_varianten_path.stat().st_size == 0:
-            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklistenvarianten', []))]
-            f.write(';'.join(fieldnames) + '\n')
-        
-        for stulinr in unique_stulinr:
-            version_num = '1'
-            if (stulinr, version_num) not in varianten_set:
-                row_data = {}
-                for mapping in mappings.get('Stücklistenvarianten', []):
-                    col = mapping['columnname'].strip()
-                    func = (mapping.get('function') or '').strip()
-                    arg = (mapping.get('arguments') or '').strip()
-                    
-                    if col == 'Stücklistennummer':
-                        row_data[col] = stulinr
-                    elif col == 'Versionsnummer':
-                        row_data[col] = version_num
-                    elif func == 'defaultvalue':
-                        row_data[col] = arg
-                    elif func == 'date':
-                        row_data[col] = datetime.now().strftime('%d.%m.%Y') if arg == 'today' else arg
-                    else:
-                        row_data[col] = ''
-                
-                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklistenvarianten', [])]) + '\n')
-                varianten_set.add((stulinr, version_num))
-    
-    # --- 5. Build Auswahlvarianten ---
-    auswahlvarianten_path = sheets_output_dir / "Auswahlvarianten_cache.csv"
+    for stulinr in unique_stulinr:
+        version_num = '1'
+        key = (stulinr, version_num)
+        if key in varianten_set:
+            continue
+        context = {
+            'sheet_name': 'Stücklistenvarianten',
+            'stulinr': stulinr,
+            'version_num': version_num,
+            'root_module_artnr': unique_stulinr[0] if unique_stulinr else None,
+            '_get_entry_cached': _get_entry_cached,
+        }
+        row = {}
+        for mapping in mappings.get('Stücklistenvarianten', []):
+            col = mapping['columnname']
+            row[col] = _evaluate_bom_mapping(mapping, context)
+        stuecklisten_varianten_rows.append(row)
+        varianten_set.add(key)
+    write_sheet('Stücklistenvarianten', stuecklisten_varianten_rows)
+
+    # --- Build Auswahlvarianten ---
+    auswahlvarianten_rows = []
     auswahlvarianten_set = set()
-    if auswahlvarianten_path.exists():
-        with open(auswahlvarianten_path, encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f, delimiter=';')
-            for row in reader:
-                key = (row.get('Versionsnummer', '').strip(), row.get('Variantennummer', '').strip())
-                auswahlvarianten_set.add(key)
-    
-    with open(auswahlvarianten_path, 'a' if auswahlvarianten_path.exists() else 'w', encoding='utf-8-sig', newline='') as f:
-        if auswahlvarianten_path.stat().st_size == 0:
-            fieldnames = [m['columnname'].strip() for m in (mappings.get('Stücklstenauswahlvarianten', []))]
-            f.write(';'.join(fieldnames) + '\n')
-        
-        for stulinr in unique_stulinr:
-            version_num = '1'
-            variant_num = '1'
-            if (version_num, variant_num) not in auswahlvarianten_set:
-                row_data = {}
-                for mapping in mappings.get('Stücklstenauswahlvarianten', []):
-                    col = mapping['columnname'].strip()
-                    func = (mapping.get('function') or '').strip()
-                    arg = (mapping.get('arguments') or '').strip()
-                    
-                    if col == 'Versionsnummer':
-                        row_data[col] = version_num
-                    elif col == 'Variantennummer':
-                        row_data[col] = variant_num
-                    elif func == 'defaultvalue':
-                        row_data[col] = arg
-                    else:
-                        row_data[col] = ''
-                
-                f.write(';'.join(row_data.get(col, '') for col in [m['columnname'].strip() for m in mappings.get('Stücklstenauswahlvarianten', [])]) + '\n')
-                auswahlvarianten_set.add((version_num, variant_num))
-    
+    for stulinr in unique_stulinr:
+        version_num = '1'
+        variant_num = '1'
+        key = (stulinr, version_num, variant_num)
+        if key in auswahlvarianten_set:
+            continue
+        context = {
+            'sheet_name': 'Stücklstenauswahlvarianten',
+            'stulinr': stulinr,
+            'version_num': version_num,
+            'variant_num': variant_num,
+            'root_module_artnr': unique_stulinr[0] if unique_stulinr else None,
+            '_get_entry_cached': _get_entry_cached,
+        }
+        row = {}
+        for mapping in mappings.get('Stücklstenauswahlvarianten', []):
+            col = mapping['columnname']
+            row[col] = _evaluate_bom_mapping(mapping, context)
+        auswahlvarianten_rows.append(row)
+        auswahlvarianten_set.add(key)
+    write_sheet('Stücklstenauswahlvarianten', auswahlvarianten_rows)
+
     if DEBUG:
         print(f"[DEBUG] Generated BOM sheets: {len(unique_stulinr)} stücklisten, {len(versionen_set)} versionen, {len(partlist_data)} positionen")
-    
+
     return {
         'status': 'ok',
         'stuecklisten_count': len(unique_stulinr),
         'versionen_count': len(versionen_set),
         'positionen_count': len(partlist_data),
+    }
+
+def getDocPath(zeichnungsnummer, zeichnungsindex=None, tree_path=None):
+    """
+    Search for a file in the Drawings tree that matches the exact zeichnungsnummer and (if given) zeichnungsindex.
+    Returns (full_path, filename) if found, else (None, None).
+    """
+    import re
+    if not tree_path:
+        tree_path = BASE_DIR / "data" / "raw" / "Drawings_tree" / "tree_Eigenprodukte_Jost_Artikel.txt"
+    zeichnungsnummer = str(zeichnungsnummer).strip()
+    zeichnungsindex = str(zeichnungsindex).strip() if zeichnungsindex else None
+    found_path = None
+    found_filename = None
+
+    def _normalize_code_part(value):
+        # Normalize drawing code tokens for strict equality checks.
+        if not value:
+            return ""
+        value = str(value).strip()
+        value = re.sub(r"\s+", " ", value)
+        value = value.rstrip("-").strip()
+        return value
+
+    expected_code = _normalize_code_part(zeichnungsnummer)
+    if zeichnungsindex:
+        expected_code = _normalize_code_part(f"{expected_code} {zeichnungsindex}")
+
+    def _read_text_with_fallback(path):
+        raw = Path(path).read_bytes()
+        encodings = ["utf-8-sig", "utf-8", "cp1252", "cp850", "latin1"]
+        for encoding in encodings:
+            try:
+                return raw.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return raw.decode("latin1", errors="replace")
+
+    tree_text = _read_text_with_fallback(tree_path)
+    current_dir = []
+    for line in tree_text.splitlines():
+        line = line.rstrip("\r\n")
+        if not line.strip() or line.strip().startswith("Auflistung"):
+            continue
+
+        # Directory line: preserve only the real ancestor chain for this depth.
+        dir_match = re.match(r"^(.*?)(\+---)(.*)$", line)
+        if dir_match:
+            prefix = dir_match.group(1)
+            item_name = dir_match.group(3).strip()
+            depth = len(prefix) // 4
+            if item_name:
+                current_dir = current_dir[:depth]
+                current_dir.append(item_name)
+            continue
+
+        # File line: use the current directory stack built from the tree.
+        filename = re.sub(r"^[^\w]+", "", line).strip()
+        if not filename.lower().endswith(".pdf"):
+            continue
+        # Extract drawing code from the beginning of filename (before description)
+        # and compare strictly with expected drawing number(+index).
+        doc_code_match = re.match(r"^\s*([0-9A-Za-z]+(?:\s+[0-9A-Za-z]+)*)\s*-?", filename)
+        if not doc_code_match:
+            continue
+        doc_code = _normalize_code_part(doc_code_match.group(1))
+        if doc_code != expected_code:
+            continue
+        path_parts = [p for p in current_dir if p]
+        full_path = os.path.join(*path_parts, filename) if path_parts else filename
+        found_path = full_path
+        found_filename = filename
+        break
+    return found_path, found_filename
+
+
+def build_docs_download_cache_csv(article_list_path=None, output_csv_path=None, articles=None):
+    """
+    Build DMSDocuments cache CSV for download flows.
+    Output columns follow the Docs mapping convention and are written as semicolon-separated UTF-8 CSV.
+    Returns {'output_path': str, 'rows_written': int}.
+    """
+    if output_csv_path is None:
+        output_csv_path = sheets_output_dir / "DMSDocuments.csv"
+    else:
+        output_csv_path = Path(output_csv_path)
+
+    if articles is None:
+        if not article_list_path:
+            raise ValueError("article_list_path is required when articles are not provided")
+        with open(article_list_path, "r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f, delimiter=';')
+            articles = list(reader)
+
+    fieldnames = [
+        "Artikelnummer",
+        "Identifikation",
+        "DMSDocId",
+        "Bezeichnung",
+        "Kategorie",
+        "Dokumenten Speicherort",
+        "Gleiches Dokument ersetzen",
+        "Als Verknüpfung importieren",
+        "Organisationseinheit",
+    ]
+
+    output_csv_path.parent.mkdir(parents=True, exist_ok=True)
+
+    seen = set()
+    rows_written = 0
+    with open(output_csv_path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=';')
+        writer.writeheader()
+
+        for article in (articles or []):
+            artnr = str(article.get("artnr", "") or "").strip()
+            zeichnr = str(
+                article.get("zeichnr")
+                or article.get("zeichnungsnummer")
+                or article.get("zeichr")
+                or ""
+            ).strip()
+            zeichindex = str(
+                article.get("zeichnungsindex")
+                or article.get("zeichindex")
+                or article.get("zeichnrindex")
+                or ""
+            ).strip()
+
+            if not artnr or not zeichnr:
+                continue
+
+            doc_path, doc_filename = getDocPath(zeichnr, zeichindex)
+            if not doc_path and not doc_filename:
+                continue
+
+
+            # Identifikation must always be empty
+            identifier = ""
+
+            dedupe_key = (artnr, str(doc_filename or "").strip(), str(doc_path or "").strip())
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+
+            # Use the tree-derived relative path directly; getDocPath now returns the correct ancestor chain.
+            base_doc_path = "T:/01 Jost AG/05 Produktion/11 Eigenprodukte Jost/"
+            relative_doc_path = str(doc_path or "").replace("\\", "/").strip("/")
+            if relative_doc_path:
+                full_doc_path = base_doc_path.rstrip("/") + "/" + relative_doc_path
+            else:
+                full_doc_path = base_doc_path.rstrip("/")
+            full_doc_path = full_doc_path.replace("\\", "/").replace("//", "/")
+
+            writer.writerow({
+                "Artikelnummer": artnr,
+                "Identifikation": identifier,
+                "DMSDocId": "",
+                "Bezeichnung": str(doc_filename or article.get("artbez1") or "").strip(),
+                "Kategorie": "11",
+                "Dokumenten Speicherort": full_doc_path,
+                "Gleiches Dokument ersetzen": "0",
+                "Als Verknüpfung importieren": "1",
+                "Organisationseinheit": "JOS",
+            })
+            rows_written += 1
+
+    return {
+        "output_path": str(output_csv_path),
+        "rows_written": rows_written,
     }
 

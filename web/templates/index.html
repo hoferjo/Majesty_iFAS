@@ -54,6 +54,7 @@
                 <button id="addArticleBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="addArticle"></button>
                 <button id="generateArticleDataBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="generateData"></button>
                 <button id="downloadArticleExcelBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="downloadArticleImport"></button>
+                <button id="downloadDocsXlsxBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;">Download Documents XLSX</button>
                 <button id="downloadArticlePartlistBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="downloadPartlistImport"></button>
                 <button id="downloadArticlePartlistTreeBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="downloadPartlistTree"></button>
             </div>
@@ -73,12 +74,14 @@
         </div>
         <!-- Module mode: all module-related buttons -->
         <div id="moduleModeContainer" style="display:none; flex-wrap:wrap; gap:0.7em; margin:1.5em 0 1.5em 0; max-width:520px;">
-                <button id="generateModuleBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="generateModule"></button>
-                <button id="generateModuleDataBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="generateModuleData"></button>
-                <button id="downloadModuleExcelBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="downloadModuleExcel"></button>
-                <button id="downloadPartlistExcelBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="downloadPartlistExcel"></button>
-                <button id="downloadPartlistTreeBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="downloadPartlistTree"></button>
+            <button id="generateModuleBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="generateModule"></button>
+            <button id="generateModuleDataBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="generateModuleData"></button>
+            <button id="downloadDocsXlsxBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;">Download Documents XLSX</button>
+            <button id="downloadModuleExcelBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="downloadModuleExcel"></button>
+            <button id="downloadPartlistExcelBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="downloadPartlistExcel"></button>
+            <button id="downloadPartlistTreeBtn" type="button" class="modern-btn" style="flex:1 1 180px; min-width:140px;" data-i18n="downloadPartlistTree"></button>
         </div>
+        <!-- Upload Existing Partlist moved to settings tab -->
         <!-- Removed: <button id="transformBtn" style="display:none;">Transform to iFAS Format</button> -->
         <div class="current-selection-container">
             <div id="currentSelectionLabel" class="current-selection-label" data-i18n="currentSelection"></div>
@@ -110,7 +113,7 @@
                     <input id="blockedReplacementArtnr" type="text" placeholder="Enter replacement artnr" style="width:100%; padding:8px 10px; border:1px solid #b6c6d6; border-radius:5px;" data-i18n-placeholder="modalReplacementPlaceholder" />
                 </div>
                 <div style="display:flex; gap:0.6em; justify-content:flex-end; margin-top:1em; flex-wrap:wrap;">
-                    <button id="blockedTextBtn" type="button" class="modern-btn tertiary" style="min-width:180px; margin:0;" data-i18n="modalTextBtn">Als Textartikel verwenden</button>
+                    <button id="blockedTextBtn" type="button" class="modern-btn tertiary" style="min-width:180px; margin:0;" data-i18n="modalTextBtn">Als Angebotsartikel definieren</button>
                     <button id="blockedIgnoreBtn" type="button" class="modern-btn secondary" style="min-width:130px; margin:0;" data-i18n="modalIgnore">Ignore</button>
                     <button id="blockedConfirmBtn" type="button" class="modern-btn" style="min-width:130px; margin:0;" data-i18n="modalConfirm">Confirm</button>
                 </div>
@@ -118,31 +121,43 @@
         </div>
     </div>
     <div id="settingsTab" class="tabcontent">
-        <h2 id="settingsHeading" data-i18n="settingsHeading"></h2>
+        <h2 id="settingsHeading" data-i18n="settingsHeading">Settings</h2>
         <form id="uploadForm" enctype="multipart/form-data" style="margin-bottom:1em;">
-            <label data-i18n="uploadIfas"></label>
+            <label data-i18n="uploadIfas">Upload iFAS Artikelstamm:</label>
             <input type="file" name="file" id="fileInput" style="margin-bottom:0.5em; display:inline-block;">
-            <label style="margin-left:0.7em;" data-i18n="updateTarget"></label>
+            <label style="margin-left:0.7em;" data-i18n="updateTarget">Update Target:</label>
             <select id="uploadTargetEnv" name="target_env">
                 <option value="test" selected>TEST</option>
                 <option value="prod">PROD</option>
             </select>
-            <button type="submit" class="modern-btn" style="min-width:120px; min-height:40px; padding:10px 0; margin:0;" data-i18n="uploadButton"></button>
+            <button type="submit" class="modern-btn" style="min-width:120px; min-height:40px; padding:10px 0; margin:0;" data-i18n="uploadButton">Upload</button>
         </form>
         <div id="uploadStatus"></div>
+
+        <form id="uploadExistingPartlistForm" style="margin-top:1em; margin-bottom:1em; display:flex; gap:0.7em; align-items:center; flex-wrap:wrap;" enctype="multipart/form-data">
+            <label for="existingPartlistFile" style="font-weight:500;">Upload Existing Partlist:</label>
+            <input type="file" id="existingPartlistFile" name="existing_partlist_file" accept=".csv" style="min-width:180px;">
+            <select id="existingPartlistEnv" name="partlist_env" style="padding:4px 8px; border-radius:4px; border:1px solid #b6c6d6;">
+                <option value="TEST">Test</option>
+                <option value="PROD">Prod</option>
+            </select>
+            <button type="submit" class="modern-btn" style="min-width:180px; margin:0;">Upload Existing Partlist</button>
+        </form>
+        <div id="existingPartlistUploadStatus" style="margin-bottom:1em;"></div>
+
         <div style="margin-bottom:1.5em; padding:0.6em; background:#f7f7f7; border:1px solid #ddd; border-radius:6px; max-width:520px;">
-            <div style="font-weight:bold; margin-bottom:0.35em;" data-i18n="existingArticleTarget"></div>
+            <div style="font-weight:bold; margin-bottom:0.35em;" data-i18n="existingArticleTarget">Existing Articles Target</div>
             <label style="display:block; margin-bottom:0.2em;">
                 <input type="radio" id="existingArticlesNone" name="existingArticlesTarget" value="none" checked>
-                <span data-i18n="none"></span>
+                <span data-i18n="none">None</span>
             </label>
             <label style="display:block; margin-bottom:0.2em;">
                 <input type="radio" id="existingArticlesProd" name="existingArticlesTarget" value="prod">
-                <span data-i18n="addToProd"></span>
+                <span data-i18n="addToProd">Add to PROD existing list</span>
             </label>
             <label style="display:block;">
                 <input type="radio" id="existingArticlesTest" name="existingArticlesTarget" value="test">
-                <span data-i18n="addToTest"></span>
+                <span data-i18n="addToTest">Add to TEST existing list</span>
             </label>
         </div>
         <div style="margin-top:2em; margin-bottom:1em;">
@@ -154,7 +169,7 @@
             </form>
             <span id="updateMajestyStatus" style="margin-left:1em; font-weight:500;"></span>
         </div>
-        <h3 data-i18n="activeSheets"></h3>
+        <h3 data-i18n="activeSheets">Active Sheets</h3>
         <form id="sheetsForm">
             <div id="sheetsCheckboxes"></div>
         </form>
