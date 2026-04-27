@@ -490,8 +490,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ─── Root type selection ──────────────────────────────────────────────
     function showRootTypeSelection(className, groupName) {
-        // Check if this group has sub-types (only Teileartikel does)
-        if (groupName === "Teileartikel") {
+        // Check if this group has sub-types (Teileartikel and Norm Einkaufsteile)
+        if (groupName === "Teileartikel" || groupName === "Norm Einkaufsteile") {
             fetchTypesForGroup(groupName).then(data => {
                 const area = document.getElementById("cs-hierarchy-area");
                 if (!area) return;
@@ -517,7 +517,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 });
             });
         } else {
-            // For non-Teileartikel groups, use group name as type and go to form directly
+            // For non-subtype groups, use group name as type and go to form directly
             showRootArticleForm(className, groupName, groupName);
         }
     }

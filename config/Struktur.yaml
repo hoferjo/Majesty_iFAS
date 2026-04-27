@@ -1,0 +1,63 @@
+classes:
+  - Produkt
+  - Service
+
+Produkt:
+  - Produktbaugruppenartikel
+  - Produktionsbaugruppenartikel
+  - Baugruppenartikel
+  - Teileartikel
+  - Norm Einkaufsteile
+  - Verbrauchsmaterial-Set
+  - Beschaffungs-Set
+
+Service:
+  - Service-Set
+  - Servicemodul
+
+Produktbaugruppenartikel:
+  - Produktbaugruppenartikel
+  - Produktoptionsbaugruppenartikel
+  - Baugruppenartikel
+  - Teileartikel
+
+Produktoptionsbaugruppenartikel:
+  - Produktbaugruppenartikel
+  - Produktoptionsbaugruppenartikel
+  - Baugruppenartikel
+  - Teileartikel
+
+Baugruppenartikel:
+  - Produktbaugruppenartikel
+  - Produktoptionsbaugruppenartikel
+  - Baugruppenartikel
+  - Teileartikel
+
+Teileartikel:
+  - Laser Fertigungsteil
+  - Mechanisches Fertigungsteil
+  - Listen Einkaufsteil
+  - Norm Einkaufsteil
+  - Text Artikel
+
+Norm Einkaufsteile:
+  - Norm Einkaufsteil
+  - Teileartikel
+
+Beschaffungs-Set:
+  - Teileartikel
+
+Service-Set:
+  - Servicemodul
+  - ReperaturBaugruppe
+
+Servicemodul:
+  - Arbeitsstunden
+  - Modul-Servicematerialien
+
+
+
+  
+
+
+
