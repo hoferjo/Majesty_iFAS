@@ -131,10 +131,40 @@ document.addEventListener("DOMContentLoaded", function() {
         return fetch("/api/creation/state").then(r => r.json());
     }
 
+    // ─── Hierarchical structure fetchers ──────────────────────────────────────
+    function fetchClasses() {
+        return fetch("/api/creation/structure")
+            .then(res => res.json())
+            .then(data => (Array.isArray(data.classes) ? data.classes : []));
+    }
+
+    function fetchGroupsForClass(className) {
+        return fetch(`/api/creation/groups?class_name=${encodeURIComponent(className)}`)
+            .then(res => res.json())
+            .then(data => (Array.isArray(data.groups) ? data.groups : []));
+    }
+
+    function fetchTypesForGroup(groupName) {
+        return fetch(`/api/creation/types?group_name=${encodeURIComponent(groupName)}`)
+            .then(res => res.json())
+            .then(data => ({
+                types: Array.isArray(data.types) ? data.types : [],
+                hasSubtypes: data.has_subtypes || false
+            }));
+    }
+
+    function fetchAllowedChildren(parentType) {
+        return fetch(`/api/creation/allowed-children?parent_type=${encodeURIComponent(parentType)}`)
+            .then(res => res.json())
+            .then(data => (Array.isArray(data.allowed_types) ? data.allowed_types : []));
+    }
+
     // ─── Fields renderer (shared between root and child forms) ────────────────
     function renderFieldsHtml(fields) {
         let html = '';
-        fields.forEach(field => {
+        // Filter to show only input fields
+        const inputFields = fields.filter(field => field.group === 'input');
+        inputFields.forEach(field => {
             const defVal = (field.value !== null && field.value !== undefined) ? String(field.value) : '';
             if (field.group === 'dropdown' && Array.isArray(field.options)) {
                 html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <select name='${escHtml(field.name)}' style='width:92%;padding:4px;'>`;
@@ -322,28 +352,48 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ─── Child type selection ─────────────────────────────────────────────────
     function showChildTypeSelection(isModule) {
-        fetchArticleTypes().then(types => {
-            if (!rootArticleFormContainer) return;
-            const label = isModule ? "module" : "article";
-            let html = `<div style='font-weight:600;margin-bottom:0.7em;'>Select type for new ${label}:</div>`;
-            html += `<div style="margin-bottom:1em;">`;
-            types.forEach(t => {
-                html += `<button class="modern-btn cs-type-btn" data-type="${escHtml(t)}" style="margin:0.3em 0.7em 0.3em 0;">${escHtml(t)}</button>`;
-            });
-            html += `</div>`;
-            html += `<button id="cs-cancel-type-btn" class="modern-btn secondary">Cancel</button>`;
-            html += `<div id="cs-child-form-area" style="margin-top:1em;"></div>`;
-            rootArticleFormContainer.innerHTML = html;
+        fetchCreationState().then(state => {
+            if (!rootArticleFormContainer || !state.stack || state.stack.length === 0) return;
+            // Get parent type from the last article in stack
+            const parentType = state.articles && state.articles.length > 0
+                ? state.articles[state.articles.length - 1].type
+                : null;
 
-            rootArticleFormContainer.querySelectorAll(".cs-type-btn").forEach(btn => {
-                btn.onclick = function () {
-                    const type = btn.getAttribute("data-type");
-                    showChildArticleForm(type, isModule);
-                };
-            });
-            const cancelBtn = document.getElementById("cs-cancel-type-btn");
-            if (cancelBtn) cancelBtn.onclick = () => fetchCreationState().then(renderSessionPanel);
+            // Fetch allowed children for parent type
+            if (parentType) {
+                fetchAllowedChildren(parentType).then(allowedTypes => {
+                    renderChildTypeSelectionUI(isModule, allowedTypes);
+                });
+            } else {
+                // Fallback: show all types
+                fetchArticleTypes().then(types => {
+                    renderChildTypeSelectionUI(isModule, types);
+                });
+            }
         });
+    }
+
+    function renderChildTypeSelectionUI(isModule, types) {
+        if (!rootArticleFormContainer || !types.length) return;
+        const label = isModule ? "module" : "article";
+        let html = `<div style='font-weight:600;margin-bottom:0.7em;'>Select type for new ${label}:</div>`;
+        html += `<div style="margin-bottom:1em;">`;
+        types.forEach(t => {
+            html += `<button class="modern-btn cs-type-btn" data-type="${escHtml(t)}" style="margin:0.3em 0.7em 0.3em 0;">${escHtml(t)}</button>`;
+        });
+        html += `</div>`;
+        html += `<button id="cs-cancel-type-btn" class="modern-btn secondary">Cancel</button>`;
+        html += `<div id="cs-child-form-area" style="margin-top:1em;"></div>`;
+        rootArticleFormContainer.innerHTML = html;
+
+        rootArticleFormContainer.querySelectorAll(".cs-type-btn").forEach(btn => {
+            btn.onclick = function () {
+                const type = btn.getAttribute("data-type");
+                showChildArticleForm(type, isModule);
+            };
+        });
+        const cancelBtn = document.getElementById("cs-cancel-type-btn");
+        if (cancelBtn) cancelBtn.onclick = () => fetchCreationState().then(renderSessionPanel);
     }
 
     // ─── Child article / module form ──────────────────────────────────────────
@@ -396,28 +446,84 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // ─── Root type selection ──────────────────────────────────────────────────
-    function showRootTypeSelection() {
-        fetchArticleTypes().then(types => {
+    // ─── Root class selection ────────────────────────────────────────────────
+    function showRootClassSelection() {
+        fetchClasses().then(classes => {
             if (!rootArticleFormContainer) return;
             rootArticleFormContainer.style.display = "block";
-            let html = `<div style='font-weight:600;margin-bottom:0.7em;'>Select root article type:</div>`;
+            let html = `<div style='font-weight:600;margin-bottom:0.7em;'>Select product class:</div>`;
             html += `<div style="margin-bottom:1em;">`;
-            types.forEach(t => {
-                html += `<button class="modern-btn cs-root-type-btn" data-type="${escHtml(t)}" style="margin:0.3em 0.7em 0.3em 0;">${escHtml(t)}</button>`;
+            classes.forEach(c => {
+                html += `<button class="modern-btn cs-class-btn" data-class="${escHtml(c)}" style="margin:0.3em 0.7em 0.3em 0;min-width:120px;">${escHtml(c)}</button>`;
             });
             html += `</div>`;
-            html += `<div id="cs-root-form-area"></div>`;
+            html += `<div id="cs-hierarchy-area" style="margin-top:1em;"></div>`;
             rootArticleFormContainer.innerHTML = html;
 
-            rootArticleFormContainer.querySelectorAll(".cs-root-type-btn").forEach(btn => {
-                btn.onclick = function () { showRootArticleForm(btn.getAttribute("data-type")); };
+            rootArticleFormContainer.querySelectorAll(".cs-class-btn").forEach(btn => {
+                btn.onclick = function () { showRootGroupSelection(btn.getAttribute("data-class")); };
             });
         });
     }
 
+    // ─── Root group selection ──────────────────────────────────────────────
+    function showRootGroupSelection(className) {
+        fetchGroupsForClass(className).then(groups => {
+            const area = document.getElementById("cs-hierarchy-area");
+            if (!area) return;
+            let html = `<div style='margin-top:0.5em;padding:0.8em;background:#f9f9f9;border-radius:6px;'>`;
+            html += `<div style='font-weight:600;margin-bottom:0.5em;color:#2980b9;'>Class: ${escHtml(className)}</div>`;
+            html += `<div style='font-weight:600;margin-bottom:0.7em;'>Select article group:</div>`;
+            groups.forEach(g => {
+                html += `<button class="modern-btn cs-group-btn" data-class="${escHtml(className)}" data-group="${escHtml(g)}" style="margin:0.3em 0.7em 0.3em 0;min-width:150px;">${escHtml(g)}</button>`;
+            });
+            html += `</div>`;
+            area.innerHTML = html;
+
+            area.querySelectorAll(".cs-group-btn").forEach(btn => {
+                btn.onclick = function () {
+                    showRootTypeSelection(btn.getAttribute("data-class"), btn.getAttribute("data-group"));
+                };
+            });
+        });
+    }
+
+    // ─── Root type selection ──────────────────────────────────────────────
+    function showRootTypeSelection(className, groupName) {
+        // Check if this group has sub-types (only Teileartikel does)
+        if (groupName === "Teileartikel") {
+            fetchTypesForGroup(groupName).then(data => {
+                const area = document.getElementById("cs-hierarchy-area");
+                if (!area) return;
+                const { types, hasSubtypes } = data;
+                let html = `<div style='margin-top:0.5em;padding:0.8em;background:#f0f8ff;border-radius:6px;'>`;
+                html += `<div style='font-weight:600;margin-bottom:0.3em;color:#2980b9;'>Class: ${escHtml(className)} › Group: ${escHtml(groupName)}</div>`;
+                html += `<div style='font-weight:600;margin-bottom:0.7em;'>Select article sub-type:</div>`;
+                types.forEach(t => {
+                    html += `<button class="modern-btn cs-type-btn" data-class="${escHtml(className)}" data-group="${escHtml(groupName)}" data-type="${escHtml(t)}" style="margin:0.3em 0.7em 0.3em 0;min-width:150px;">${escHtml(t)}</button>`;
+                });
+                html += `</div>`;
+                html += `<div id="cs-root-form-area"></div>`;
+                area.innerHTML = html;
+
+                area.querySelectorAll(".cs-type-btn").forEach(btn => {
+                    btn.onclick = function () {
+                        showRootArticleForm(
+                            btn.getAttribute("data-class"),
+                            btn.getAttribute("data-group"),
+                            btn.getAttribute("data-type")
+                        );
+                    };
+                });
+            });
+        } else {
+            // For non-Teileartikel groups, use group name as type and go to form directly
+            showRootArticleForm(className, groupName, groupName);
+        }
+    }
+
     // ─── Root article form ────────────────────────────────────────────────────
-    function showRootArticleForm(type) {
+    function showRootArticleForm(className, groupName, type) {
         fetchArticleFields(type).then(data => {
             const area = document.getElementById("cs-root-form-area");
             if (!area) return;
@@ -425,12 +531,15 @@ document.addEventListener("DOMContentLoaded", function() {
                 area.innerHTML = '<div style="color:#c00;">No fields found for this type.</div>';
                 return;
             }
-            let html = `<div style='font-weight:600;margin-bottom:0.7em;'>Create root ${escHtml(type)}:</div>`;
+            let html = `<div style='margin-top:0.5em;padding:0.8em;background:#f0f8ff;border-radius:6px;'>`;
+            html += `<div style='font-weight:600;margin-bottom:0.3em;color:#2980b9;'>Class: ${escHtml(className)} › Group: ${escHtml(groupName)} › Type: ${escHtml(type)}</div>`;
+            html += `<div style='font-weight:600;margin-bottom:0.7em;'>Create root ${escHtml(type)}:</div>`;
             html += `<form id="cs-root-form">`;
             html += renderFieldsHtml(data.fields);
             html += `<button type="submit" class="modern-btn" style="margin-top:0.7em;">Create Root</button>`;
             html += `</form>`;
             html += `<div id="cs-root-form-msg" style="margin-top:0.5em;"></div>`;
+            html += `</div>`;
             area.innerHTML = html;
             attachLieferantSearch(area);
             attachExistenceCheck(area, "#cs-root-form");
@@ -438,7 +547,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const form = document.getElementById("cs-root-form");
             if (form) form.addEventListener("submit", function (e) {
                 e.preventDefault();
-                const payload = { type };
+                const payload = { type, class: className, group: groupName };
                 form.querySelectorAll("input,select").forEach(el => { if (el.name) payload[el.name] = el.value; });
                 const msgDiv = document.getElementById("cs-root-form-msg");
                 if (msgDiv) msgDiv.innerHTML = '<span style="color:#888;">Creating...</span>';
@@ -468,10 +577,10 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (state.is_active) {
                         renderSessionPanel(state);
                     } else {
-                        showRootTypeSelection();
+                        showRootClassSelection();
                     }
                 })
-                .catch(() => showRootTypeSelection());
+                .catch(() => showRootClassSelection());
         });
     }
 
@@ -737,6 +846,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 downloadArticleImport: "Download Article Import",
                 downloadPartlistImport: "Download Partlist Import",
                 downloadPartlistTree: "Download Partlist Tree",
+                validateArtikelBezeichnungen: "Validate Artikelbezeichnungen",
                 modeArticle: "Article",
                 changeMode: "Change Mode",
                 currentSelection: "Current Selection",
@@ -760,6 +870,11 @@ document.addEventListener("DOMContentLoaded", function() {
                 modalNoResults: "No results found.",
                 modalNeedReplacement: "Please enter a replacement artnr or click Ignore.",
                 showBlockedArticles: "Show Blocked Articles",
+                validationModalTitle: "Validate Artikelbezeichnungen",
+                validationProgress: "Progress",
+                validationConfirm: "Confirm",
+                validationClose: "Close",
+                validationNoItems: "No cache entries found.",
                 langEnglish: "English",
                 langGerman: "German",
                 uploadIfas: "Upload iFAS artikelstamm.txt:",
@@ -771,7 +886,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 addToTest: "Add to existing articles TEST",
                 updateMajesty: "Update Majesty Data",
                 hardUpdateMajesty: "Hard Update Majesty Data",
-                activeSheets: "Active Sheets"
+                activeSheets: "Active Sheets",
+                bezeichnungenAnpassen: "Bezeichnungen Anpassen"
             },
             de: {
                 tabSearch: "Suche & Transformation",
@@ -783,6 +899,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 downloadArticleImport: "Artikel-Import herunterladen",
                 downloadPartlistImport: "Stücklisten-Import herunterladen",
                 downloadPartlistTree: "Stücklistenbaum herunterladen",
+                validateArtikelBezeichnungen: "Artikelbezeichnungen prüfen",
                 modeArticle: "Artikel",
                 changeMode: "Modus wechseln",
                 currentSelection: "Aktuelle Auswahl",
@@ -806,6 +923,11 @@ document.addEventListener("DOMContentLoaded", function() {
                 modalNoResults: "Keine Ergebnisse gefunden.",
                 modalNeedReplacement: "Bitte Ersatz-Artikelnr eingeben oder Ignorieren klicken.",
                 showBlockedArticles: "Gesperrte Artikel anzeigen",
+                validationModalTitle: "Artikelbezeichnungen prüfen",
+                validationProgress: "Fortschritt",
+                validationConfirm: "Bestätigen",
+                validationClose: "Schließen",
+                validationNoItems: "Keine Cache-Einträge gefunden.",
                 langEnglish: "Englisch",
                 langGerman: "Deutsch",
                 uploadIfas: "iFAS artikelstamm.txt hochladen:",
@@ -817,7 +939,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 addToTest: "Zu bestehenden Artikeln TEST hinzufügen",
                 updateMajesty: "Majesty-Daten aktualisieren",
                 hardUpdateMajesty: "Majesty-Daten hart aktualisieren",
-                activeSheets: "Aktive Sheets"
+                activeSheets: "Aktive Sheets",
+                bezeichnungenAnpassen: "Bezeichnungen anpassen"
             }
         };
         var currentLanguage = "en";
@@ -955,6 +1078,25 @@ document.addEventListener("DOMContentLoaded", function() {
         var blockedConfirmBtn = document.getElementById("blockedConfirmBtn");
         var blockedIgnoreBtn = document.getElementById("blockedIgnoreBtn");
         var blockedTextBtn = document.getElementById("blockedTextBtn");
+        var validateArtikelBezeichnungenBtn = document.getElementById("validateArtikelBezeichnungenBtn");
+        var validationModal = document.getElementById("validationModal");
+        var validationModalMeta = document.getElementById("validationModalMeta");
+        var validationArtnr = document.getElementById("validationArtnr");
+        var validationBezeichnung1 = document.getElementById("validationBezeichnung1");
+        var validationBezeichnung2 = document.getElementById("validationBezeichnung2");
+        var validationLieferantBezeichnung = document.getElementById("validationLieferantBezeichnung");
+        var validationLieferantZusatz = document.getElementById("validationLieferantZusatz");
+        var validationArtbez1 = document.getElementById("validationArtbez1");
+        var validationArtbez2 = document.getElementById("validationArtbez2");
+        var validationArtbez3 = document.getElementById("validationArtbez3");
+        var validationArtbezMem = document.getElementById("validationArtbezMem");
+        var validationStatus = document.getElementById("validationStatus");
+        var validationConfirmBtn = document.getElementById("validationConfirmBtn");
+        var validationCloseBtn = document.getElementById("validationCloseBtn");
+        var validationQueue = [];
+        var validationIndex = 0;
+        var validationCurrentItem = null;
+        var validationSaving = false;
         if (blockedArticlesContainer && showBlockedArticlesBtn && blockedArticlesArea) {
             showBlockedArticlesBtn.addEventListener("click", function() {
                 if (blockedArticlesArea.style.display === "none") {
@@ -1115,7 +1257,6 @@ document.addEventListener("DOMContentLoaded", function() {
                         idx += 1;
                         showCurrentBlockedItem();
                     };
-
                     blockedIgnoreBtn.onclick = function() {
                         idx += 1;
                         showCurrentBlockedItem();
@@ -1132,6 +1273,156 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
 
                 showCurrentBlockedItem();
+            });
+        }
+
+        function setValidationStatus(message, isError) {
+            if (validationStatus) {
+                validationStatus.textContent = message || "";
+                validationStatus.style.color = isError ? "#c00" : "#2c3e50";
+            }
+        }
+
+        function hideValidationModal() {
+            if (validationModal) {
+                validationModal.style.display = "none";
+            }
+            validationCurrentItem = null;
+            validationQueue = [];
+            validationIndex = 0;
+            validationSaving = false;
+            setValidationStatus("");
+        }
+
+        function fillValidationForm(item) {
+            if (!item) {
+                return;
+            }
+            validationCurrentItem = item;
+            if (validationArtnr) validationArtnr.value = item.artnr || "";
+            if (validationBezeichnung1) validationBezeichnung1.value = item.bezeichnung1_de || "";
+            if (validationBezeichnung2) validationBezeichnung2.value = item.bezeichnung2_de || "";
+            if (validationLieferantBezeichnung) validationLieferantBezeichnung.value = item.lieferant_bezeichnung || "";
+            if (validationLieferantZusatz) validationLieferantZusatz.value = item.lieferant_zusatz || "";
+            if (validationArtbez1) validationArtbez1.value = item.artbez1 || "";
+            if (validationArtbez2) validationArtbez2.value = item.artbez2 || "";
+            if (validationArtbez3) validationArtbez3.value = item.artbez3 || "";
+            if (validationArtbezMem) validationArtbezMem.value = item.artbezmem || "";
+            if (validationModalMeta) {
+                validationModalMeta.textContent = `${t("validationProgress") || "Progress"}: ${validationIndex + 1} / ${validationQueue.length}`;
+            }
+            setValidationStatus("");
+            if (validationModal) {
+                validationModal.style.display = "flex";
+            }
+            setTimeout(function() {
+                if (validationBezeichnung1 && typeof validationBezeichnung1.focus === "function") {
+                    validationBezeichnung1.focus();
+                }
+            }, 0);
+        }
+
+        function getValidationUpdates() {
+            return {
+                bezeichnung1_de: validationBezeichnung1 ? validationBezeichnung1.value : "",
+                bezeichnung2_de: validationBezeichnung2 ? validationBezeichnung2.value : "",
+                lieferant_bezeichnung: validationLieferantBezeichnung ? validationLieferantBezeichnung.value : "",
+                lieferant_zusatz: validationLieferantZusatz ? validationLieferantZusatz.value : "",
+                artbez1: validationArtbez1 ? validationArtbez1.value : "",
+                artbez2: validationArtbez2 ? validationArtbez2.value : "",
+                artbez3: validationArtbez3 ? validationArtbez3.value : "",
+                artbezmem: validationArtbezMem ? validationArtbezMem.value : ""
+            };
+        }
+
+        function showNextValidationItem() {
+            if (validationIndex >= validationQueue.length) {
+                hideValidationModal();
+                var feedbackLogDone = document.getElementById("feedbackLog");
+                if (feedbackLogDone) {
+                    feedbackLogDone.innerHTML = `<div><b>Validate Artikelbezeichnungen:</b> <span style='color:#27ae60;'>Completed ${validationQueue.length} entries.</span></div>` + feedbackLogDone.innerHTML;
+                }
+                return;
+            }
+            fillValidationForm(validationQueue[validationIndex]);
+        }
+
+        function startValidationFlow() {
+            if (!validateArtikelBezeichnungenBtn) {
+                return;
+            }
+            validateArtikelBezeichnungenBtn.disabled = true;
+            validateArtikelBezeichnungenBtn.textContent = "Loading...";
+            fetch("/api/validate-artikelbezeichnungen")
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (!data || data.status !== "ok") {
+                        throw new Error((data && data.message) || "Failed to load validation queue.");
+                    }
+                    validationQueue = Array.isArray(data.items) ? data.items : [];
+                    validationIndex = 0;
+                    if (!validationQueue.length) {
+                        alert(t("validationNoItems") || "No cache entries found.");
+                        return;
+                    }
+                    showNextValidationItem();
+                })
+                .catch(function(err) {
+                    alert(err.message || String(err));
+                })
+                .finally(function() {
+                    validateArtikelBezeichnungenBtn.disabled = false;
+                    validateArtikelBezeichnungenBtn.textContent = t("validateArtikelBezeichnungen") || "Validate Artikelbezeichnungen";
+                });
+        }
+
+        if (validateArtikelBezeichnungenBtn) {
+            validateArtikelBezeichnungenBtn.addEventListener("click", startValidationFlow);
+        }
+
+        if (validationConfirmBtn) {
+            validationConfirmBtn.addEventListener("click", function() {
+                if (validationSaving || !validationCurrentItem) {
+                    return;
+                }
+                validationSaving = true;
+                setValidationStatus("Saving...");
+                fetch("/api/validate-artikelbezeichnungen/save", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        artnr: validationCurrentItem.artnr,
+                        updates: getValidationUpdates()
+                    })
+                })
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (!data || data.status !== "ok") {
+                        throw new Error((data && data.message) || "Failed to save validation item.");
+                    }
+                    var feedbackLog = document.getElementById("feedbackLog");
+                    if (feedbackLog) {
+                        feedbackLog.innerHTML = `<div><b>Validate Artikelbezeichnungen:</b> <span style='color:#27ae60;'>Saved ${validationCurrentItem.artnr || ""}.</span></div>` + feedbackLog.innerHTML;
+                    }
+                    validationIndex += 1;
+                    showNextValidationItem();
+                })
+                .catch(function(err) {
+                    setValidationStatus(err.message || String(err), true);
+                })
+                .finally(function() {
+                    validationSaving = false;
+                });
+            });
+        }
+
+        if (validationCloseBtn) {
+            validationCloseBtn.addEventListener("click", function() {
+                hideValidationModal();
             });
         }
     // Set Search & Transform as default tab
@@ -1191,6 +1482,41 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     loadSheetCheckboxes();
+
+    function loadBezeichnungenAnpassenToggle() {
+        var toggle = document.getElementById("bezeichnungenAnpassenToggle");
+        if (!toggle) return;
+
+        fetch("/api/bezeichnungen-anpassen")
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data || data.status !== "success") {
+                    return;
+                }
+                toggle.checked = !!data.enabled;
+            })
+            .catch(function() {});
+
+        toggle.addEventListener("change", function() {
+            fetch("/api/bezeichnungen-anpassen", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ enabled: !!toggle.checked })
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data || data.status !== "success") {
+                    throw new Error((data && data.message) || "Failed to save setting");
+                }
+            })
+            .catch(function(err) {
+                toggle.checked = !toggle.checked;
+                alert(err.message || String(err));
+            });
+        });
+    }
+
+    loadBezeichnungenAnpassenToggle();
 
     // Search mode toggle
     var toggleModeBtn = document.getElementById("toggleModeBtn");
