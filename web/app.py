@@ -2119,4 +2119,27 @@ def api_generate_article_number(data: dict = Body(...)):
         logging.error(f"Article number generation error: {e}")
         return {"status": "error", "message": f"Error: {str(e)}"}
 
+
+@app.get("/api/generated-numbers")
+def api_get_generated_numbers():
+    """
+    Get list of all previously generated article numbers.
+
+    Returns: {"status": "ok", "numbers": [...], "count": N}
+    """
+    try:
+        from etl.Nummer_vergeben import _load_generated_numbers
+
+        config_dir = BASE_DIR
+        generated = _load_generated_numbers(config_dir)
+
+        return {
+            "status": "ok",
+            "numbers": sorted(list(generated)),
+            "count": len(generated)
+        }
+    except Exception as e:
+        logging.error(f"Error loading generated numbers: {e}")
+        return {"status": "error", "message": str(e)}
+
     
