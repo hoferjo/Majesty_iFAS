@@ -32,16 +32,26 @@ def _load_generated_numbers(base_dir: Path) -> Set[str]:
     generated = set()
     numbers_path = _get_generated_numbers_path(base_dir)
 
-    if numbers_path.exists():
-        try:
-            with open(numbers_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    number = str(row.get('number', '')).strip()
-                    if number:
-                        generated.add(number)
-        except Exception as e:
-            logging.warning(f"Error loading generated numbers: {e}")
+    if not numbers_path.exists():
+        return generated
+
+    try:
+        with open(numbers_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            if reader is None or reader.fieldnames is None:
+                logging.warning(f"Invalid CSV format in {numbers_path}")
+                return generated
+
+            for row in reader:
+                if row is None:
+                    continue
+                number = str(row.get('number', '')).strip()
+                if number and len(number) > 0:
+                    generated.add(number)
+
+        logging.info(f"Loaded {len(generated)} previously generated numbers")
+    except Exception as e:
+        logging.error(f"Error loading generated numbers from {numbers_path}: {e}")
 
     return generated
 
@@ -58,10 +68,20 @@ def _save_generated_number(base_dir: Path, number: str) -> None:
     numbers_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        # Check if file exists and has content
-        file_exists = numbers_path.exists() and numbers_path.stat().st_size > 0
+        # Check if file exists and has more than just the header
+        file_exists = numbers_path.exists()
+        has_data = False
 
-        with open(numbers_path, 'a', encoding='utf-8', newline='') as f:
+        if file_exists:
+            try:
+                with open(numbers_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    has_data = len(lines) > 1  # More than just header
+            except:
+                has_data = False
+
+        # Write to file (create if doesn't exist)
+        with open(numbers_path, 'w' if not file_exists else 'a', encoding='utf-8', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=['number', 'timestamp'])
 
             # Write header if file is new
@@ -74,8 +94,11 @@ def _save_generated_number(base_dir: Path, number: str) -> None:
                 'number': number,
                 'timestamp': datetime.datetime.now().isoformat()
             })
+
+        logging.info(f"Saved generated number: {number}")
     except Exception as e:
-        logging.error(f"Error saving generated number: {e}")
+        logging.error(f"Error saving generated number {number}: {e}")
+        raise
 
 
 def _load_existing_numbers(base_dir: Path) -> Set[str]:
