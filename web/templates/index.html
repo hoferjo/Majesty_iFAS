@@ -91,6 +91,9 @@
         </div>
         <!-- Feedback log area moved here -->
         <div id="feedbackLog" style="margin-top:1em; background:#f1f1f1; padding:1em; border-radius:5px; min-height:2em; max-height:200px; overflow-y:auto;"></div>
+        <div style="margin-top:1.2em; margin-bottom:1em;">
+            <button id="validateArtikelBezeichnungenBtn" type="button" class="modern-btn" style="min-width:240px;" data-i18n="validateArtikelBezeichnungen">Validate Artikelbezeichnungen</button>
+        </div>
         <div id="blockedArticlesContainer" style="display:none; margin-top:1em;">
             <button id="showBlockedArticlesBtn" type="button" class="modern-btn" style="margin-bottom:0.5em;" data-i18n="showBlockedArticles">Show Blocked Articles</button>
             <textarea id="blockedArticlesArea" rows="8" readonly style="width:100%; display:none; font-family:monospace;"></textarea>
@@ -169,13 +172,81 @@
             </form>
             <span id="updateMajestyStatus" style="margin-left:1em; font-weight:500;"></span>
         </div>
+        <div style="margin:1em 0; padding:0.6em; background:#f7f7f7; border:1px solid #ddd; border-radius:6px; max-width:520px;">
+            <label style="display:flex; align-items:center; gap:0.6em; font-weight:500;">
+                <input type="checkbox" id="bezeichnungenAnpassenToggle" />
+                <span data-i18n="bezeichnungenAnpassen">Bezeichnungen Anpassen</span>
+            </label>
+        </div>
         <h3 data-i18n="activeSheets">Active Sheets</h3>
         <form id="sheetsForm">
             <div id="sheetsCheckboxes"></div>
         </form>
-        <!-- Removed duplicate Update Majesty Data button and status area -->
+
+        <!-- Article Number Generation Form -->
+        <div style="margin-top:2em; margin-bottom:1em; padding:1em; background:#f0f8ff; border:1px solid #b6c6d6; border-radius:6px; max-width:520px;">
+            <h3 style="margin-top:0; color:#2980b9;">Generate Article Number</h3>
+            <label for="numberPrefix" style="display:block; font-weight:500; margin-bottom:0.5em;">Number Prefix (optional):</label>
+            <input id="numberPrefix" type="text" placeholder="Examples: 10 or 10.20 or 10.20.5678" style="width:90%; padding:6px; margin-bottom:0.7em; border:1px solid #b6c6d6; border-radius:4px;">
+            <button id="generateNumberBtn" class="modern-btn" type="button" style="min-width:150px; margin-bottom:0.5em;">Generate Number</button>
+            <div id="numberGenerationStatus" style="margin-bottom:0.5em; font-weight:500; min-height:20px;"></div>
+            <label for="generatedNumber" style="display:block; font-weight:500; margin-bottom:0.3em;">Generated Number:</label>
+            <input id="generatedNumber" type="text" readonly placeholder="Generated number will appear here" style="width:90%; padding:6px; background:#f9f9f9; border:1px solid #ddd; border-radius:4px;">
+        </div>
+        <!-- End Article Number Generation Form -->
         <!-- Add more settings controls here -->
     </div>
+
+    <div id="validationModal" class="validation-modal-overlay" style="display:none;">
+        <div class="validation-modal-dialog">
+            <h3 id="validationModalTitle" style="margin-top:0;" data-i18n="validationModalTitle">Validate Artikelbezeichnungen</h3>
+            <div id="validationModalMeta" class="validation-modal-meta"></div>
+            <div class="validation-modal-grid">
+                <div class="validation-modal-field">
+                    <label for="validationArtnr">Artikelnummer</label>
+                    <input id="validationArtnr" type="text" readonly />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationBezeichnung1">Bezeichnung 1 [de]</label>
+                    <input id="validationBezeichnung1" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationBezeichnung2">Bezeichnung 2 [de]</label>
+                    <input id="validationBezeichnung2" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationLieferantBezeichnung">Artikelbezeichnung Lieferant</label>
+                    <input id="validationLieferantBezeichnung" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationLieferantZusatz">Artikel-Zusatz-Bezeichnung Lieferant</label>
+                    <input id="validationLieferantZusatz" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationArtbez1">artbez1</label>
+                    <input id="validationArtbez1" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationArtbez2">artbez2</label>
+                    <input id="validationArtbez2" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationArtbez3">artbez3</label>
+                    <input id="validationArtbez3" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationArtbezMem">artbezmem</label>
+                    <input id="validationArtbezMem" type="text" />
+                </div>
+            </div>
+            <div id="validationStatus" class="validation-modal-status"></div>
+            <div style="display:flex; gap:0.6em; justify-content:flex-end; margin-top:1em; flex-wrap:wrap;">
+                <button id="validationCloseBtn" type="button" class="modern-btn secondary" style="min-width:130px; margin:0;" data-i18n="validationClose">Close</button>
+                <button id="validationConfirmBtn" type="button" class="modern-btn" style="min-width:130px; margin:0;" data-i18n="validationConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/script.js"></script>
 </body>
 </html>

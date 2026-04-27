@@ -28,6 +28,32 @@ BASE_DIR = Path(__file__).parent.parent
 def load_yaml(path: Path):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def _parse_bool_flag(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _read_bezeichnungen_anpassen_setting() -> bool:
+    try:
+        current_settings = load_yaml(settings_path) or {}
+        features = current_settings.get("features") or {}
+        return _parse_bool_flag(features.get("bezeichnungen_anpassen"), default=False)
+    except Exception:
+        return False
+
+
+def _write_bezeichnungen_anpassen_setting(enabled: bool) -> None:
+    current_settings = load_yaml(settings_path) or {}
+    features = current_settings.get("features") or {}
+    features["bezeichnungen_anpassen"] = bool(enabled)
+    current_settings["features"] = features
+    with open(settings_path, "w", encoding="utf-8", newline="") as handle:
+        yaml.safe_dump(current_settings, handle, allow_unicode=True, sort_keys=False)
     
 settings_path = BASE_DIR / "config" / "settings.yaml"
 settings = load_yaml(settings_path)
@@ -162,6 +188,7 @@ from etl.load import (
     create_partlist_excel_from_template,
     create_partlist_import_excel_from_cache,
 )
+from etl.validate import load_article_validation_queue, save_article_validation_item
 
 
 
@@ -578,6 +605,24 @@ def sheets_config():
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/api/bezeichnungen-anpassen")
+def api_get_bezeichnungen_anpassen():
+    return {
+        "status": "success",
+        "enabled": _read_bezeichnungen_anpassen_setting(),
+    }
+
+
+@app.post("/api/bezeichnungen-anpassen")
+def api_set_bezeichnungen_anpassen(data: dict = Body(...)):
+    enabled = _parse_bool_flag((data or {}).get("enabled"), default=False)
+    try:
+        _write_bezeichnungen_anpassen_setting(enabled)
+        return {"status": "success", "enabled": enabled}
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
 
 
 
@@ -1352,6 +1397,86 @@ def remove_article_from_list(data: dict = Body(...)):
 
 _creation_session: dict | None = None
 
+# --- Hierarchical Structure Endpoints ---
+
+@app.get("/api/creation/structure")
+def api_creation_structure():
+	"""Return available classes from Struktur.yaml"""
+	config_dir = Path(__file__).parent.parent / "config"
+	creator = ArticleCreator(config_dir)
+	classes = creator.get_classes()
+	return {"status": "ok", "classes": classes}
+
+
+@app.get("/api/creation/groups")
+def api_creation_groups(class_name: str = Query(...)):
+	"""Return available groups for a given class"""
+	config_dir = Path(__file__).parent.parent / "config"
+	creator = ArticleCreator(config_dir)
+	groups = creator.get_groups_for_class(class_name)
+	if not groups:
+		return {"status": "error", "message": f"No groups found for class '{class_name}'", "groups": []}
+	return {"status": "ok", "groups": groups}
+
+
+@app.get("/api/creation/types")
+def api_creation_types(group_name: str = Query(...)):
+	"""Return available types for a given group"""
+	config_dir = Path(__file__).parent.parent / "config"
+	creator = ArticleCreator(config_dir)
+	types = creator.get_types_for_group(group_name)
+	if not types:
+		return {"status": "error", "message": f"No types found for group '{group_name}'", "types": []}
+	# Check if this group has sub-types (e.g., Teileartikel)
+	has_subtypes = group_name == "Teileartikel" and len(types) > 0
+	return {"status": "ok", "types": types, "has_subtypes": has_subtypes}
+
+
+@app.get("/api/creation/allowed-children")
+def api_creation_allowed_children(parent_type: str = Query(...)):
+	"""Return allowed child types for a parent article type"""
+	config_dir = Path(__file__).parent.parent / "config"
+	creator = ArticleCreator(config_dir)
+	allowed = creator.get_allowed_children(parent_type)
+	if not allowed:
+		return {"status": "info", "message": f"No child types defined for '{parent_type}'", "allowed_types": []}
+	return {"status": "ok", "allowed_types": allowed}
+
+
+@app.post("/api/creation/select-group")
+def api_creation_select_group(data: dict = Body(...)):
+	"""Select and remember current class and group for article creation"""
+	class_name = str(data.get("class", "")).strip()
+	group_name = str(data.get("group", "")).strip()
+
+	if not class_name or not group_name:
+		return {"status": "error", "message": "class and group parameters required"}
+
+	config_dir = Path(__file__).parent.parent / "config"
+	creator = ArticleCreator(config_dir)
+
+	# Validate class and group exist
+	classes = creator.get_classes()
+	if class_name not in classes:
+		return {"status": "error", "message": f"Class '{class_name}' not found"}
+
+	groups = creator.get_groups_for_class(class_name)
+	if group_name not in groups:
+		return {"status": "error", "message": f"Group '{group_name}' not found in class '{class_name}'"}
+
+	# Get group defaults
+	group_defaults = creator.get_group_defaults(group_name)
+
+	return {
+		"status": "success",
+		"class": class_name,
+		"group": group_name,
+		"defaults": group_defaults
+	}
+
+
+# ─── Creation Session State ────────────────────────────────────────────────────
+
 # --- Creation Session CSV Utilities ---
 def _cs_append_article_list(cache_dir: Path, artnr: str, artbez1: str, zeichnr: str):
     """Append a row to article_list_creation_mode.csv in the cache directory."""
@@ -1406,6 +1531,8 @@ def _cs_new() -> dict:
     return {
         "is_active": False,
         "is_complete": False,
+        "current_class": None,
+        "current_group": None,
         "stack": [],
         "articles": [],
         "partlist_rows": [],
@@ -1520,12 +1647,20 @@ def api_creation_start(data: dict = Body(...)):
     config_dir = Path(__file__).parent.parent / "config"
     creator = ArticleCreator(config_dir)
     type_name = data.get("type")
+    class_name = data.get("class")
+    group_name = data.get("group")
+
     if not type_name:
         return {"status": "error", "message": "No article type provided."}
     tpl = creator.get_template(type_name)
     if not tpl:
         return {"status": "error", "message": f"Template '{type_name}' not found."}
-    input_data = {k: v for k, v in data.items() if k not in ("type", "is_module")}
+
+    # Apply group defaults if group is specified
+    if group_name:
+        tpl = creator.merge_defaults(group_name, tpl)
+
+    input_data = {k: v for k, v in data.items() if k not in ("type", "is_module", "class", "group")}
     cache_dir = _cs_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     try:
@@ -1537,6 +1672,8 @@ def api_creation_start(data: dict = Body(...)):
     zeichnr = input_data.get("zeichnr", "")
     session = _cs_new()
     session["is_active"] = True
+    session["current_class"] = class_name
+    session["current_group"] = group_name
     session["stack"] = [{"artnr": artnr, "artbez1": artbez1, "zeichnr": zeichnr, "pos_counter": 1}]
     session["articles"] = [{"artnr": artnr, "artbez1": artbez1, "zeichnr": zeichnr, "type": type_name, "depth": 0}]
     session["tree_lines"] = [{"depth": 0, "artnr": artnr, "artbez1": artbez1, "zeichnr": zeichnr}]
@@ -1558,13 +1695,19 @@ def api_creation_add_child(data: dict = Body(...)):
     config_dir = Path(__file__).parent.parent / "config"
     creator = ArticleCreator(config_dir)
     type_name = data.get("type")
+    group_name = data.get("group")
     is_module = bool(data.get("is_module", False))
     if not type_name:
         return {"status": "error", "message": "No article type provided."}
     tpl = creator.get_template(type_name)
     if not tpl:
         return {"status": "error", "message": f"Template '{type_name}' not found."}
-    input_data = {k: v for k, v in data.items() if k not in ("type", "is_module")}
+
+    # Apply group defaults if group is specified
+    if group_name:
+        tpl = creator.merge_defaults(group_name, tpl)
+
+    input_data = {k: v for k, v in data.items() if k not in ("type", "is_module", "group")}
     cache_dir = _cs_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     try:
@@ -1772,6 +1915,26 @@ def cache_article_field(data: dict = Body(...)):
         yaml.safe_dump(cache_data, f, allow_unicode=True)
     return {"status": "ok", "cache_id": cache_id, "field": field, "value": value}
 
+
+@app.get("/api/validate-artikelbezeichnungen")
+def api_validate_artikelbezeichnungen():
+    base = Path(__file__).parent.parent
+    try:
+        return load_article_validation_queue(base)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+
+
+@app.post("/api/validate-artikelbezeichnungen/save")
+def api_validate_artikelbezeichnungen_save(data: dict = Body(...)):
+    base = Path(__file__).parent.parent
+    artnr = str(data.get("artnr") or "").strip()
+    updates = data.get("updates") or {}
+    try:
+        return save_article_validation_item(base, artnr, updates)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+
 @app.get("/api/search-lieferant")
 def search_lieferant(q: str = Query("", min_length=1)):
     """
@@ -1926,5 +2089,34 @@ def download_docs_xlsx(mode: str = Query("module")):
         filename="docs_export.xlsx",
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
+
+@app.post("/api/generate-article-number")
+def api_generate_article_number(data: dict = Body(...)):
+    """
+    Generate the next available article number in XX.YY.ZZZZ format.
+
+    Input: {"prefix": ""} (optional prefix)
+    - Empty: lowest unused number (00.00.0000+)
+    - "10": lowest starting with 10 (10.00.0000+)
+    - "10.20": lowest starting with 10.20 (10.20.0000+)
+    - "10.20.5678": that number if available, else next
+
+    Returns: {"status": "ok", "number": "XX.YY.ZZZZ"} or {"status": "error", "message": "..."}
+    """
+    try:
+        from etl.Nummer_vergeben import generate_article_number
+        import logging
+
+        config_dir = BASE_DIR
+        prefix = data.get("prefix", "").strip()
+
+        number = generate_article_number(config_dir, prefix)
+        return {"status": "ok", "number": number}
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    except Exception as e:
+        logging.error(f"Article number generation error: {e}")
+        return {"status": "error", "message": f"Error: {str(e)}"}
 
     

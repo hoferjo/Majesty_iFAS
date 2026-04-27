@@ -1887,4 +1887,44 @@ document.addEventListener("DOMContentLoaded", function() {
             document.body.removeChild(link);
         });
     }
+
+    // ─── Article Number Generation Handler ────────────────────────────────────
+    const generateNumberBtn = document.getElementById("generateNumberBtn");
+    const numberPrefixInput = document.getElementById("numberPrefix");
+    const generatedNumberInput = document.getElementById("generatedNumber");
+    const numberStatusDiv = document.getElementById("numberGenerationStatus");
+
+    if (generateNumberBtn) {
+        generateNumberBtn.addEventListener("click", function() {
+            const prefix = numberPrefixInput.value.trim();
+            numberStatusDiv.innerHTML = '<span style="color:#888;">Generating...</span>';
+
+            fetch("/api/generate-article-number", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prefix })
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.status === "ok") {
+                    generatedNumberInput.value = result.number;
+                    numberStatusDiv.innerHTML = '<span style="color:#27ae60;">✓ Number generated successfully</span>';
+                } else {
+                    numberStatusDiv.innerHTML = `<span style="color:#c00;">Error: ${escHtml(result.message)}</span>`;
+                    generatedNumberInput.value = "";
+                }
+            })
+            .catch(err => {
+                numberStatusDiv.innerHTML = `<span style="color:#c00;">Error: ${escHtml(String(err))}</span>`;
+                generatedNumberInput.value = "";
+            });
+        });
+
+        // Allow Enter key to generate number
+        numberPrefixInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                generateNumberBtn.click();
+            }
+        });
+    }
 });
