@@ -40,10 +40,15 @@ def _load_generated_numbers(base_dir: Path) -> Set[str]:
 
     try:
         with open(numbers_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
+            # First, count the lines for logging
+            content = f.read()
+            lines = content.split('\n')
             logging.info(f"[LOAD] File has {len(lines)} lines total")
 
+            # Reset file pointer to beginning for CSV reading
+            f.seek(0)
             reader = csv.DictReader(f)
+
             if reader is None or reader.fieldnames is None:
                 logging.warning(f"[LOAD] Invalid CSV format in {numbers_path}")
                 return generated
