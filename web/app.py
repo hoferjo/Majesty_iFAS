@@ -2104,19 +2104,24 @@ def api_generate_article_number(data: dict = Body(...)):
 
     Returns: {"status": "ok", "number": "XX.YY.ZZZZ"} or {"status": "error", "message": "..."}
     """
+    import logging
     try:
         from etl.Nummer_vergeben import generate_article_number
-        import logging
 
         config_dir = BASE_DIR
         prefix = data.get("prefix", "").strip()
 
+        logging.info(f"[API] Generating article number with prefix='{prefix}'")
         number = generate_article_number(config_dir, prefix)
+        logging.info(f"[API] Successfully generated: {number}")
         return {"status": "ok", "number": number}
     except ValueError as e:
+        logging.warning(f"[API] ValueError during generation: {e}")
         return {"status": "error", "message": str(e)}
     except Exception as e:
-        logging.error(f"Article number generation error: {e}")
+        logging.error(f"[API] Unexpected error during generation: {type(e).__name__}: {e}")
+        import traceback
+        logging.error(f"[API] Traceback: {traceback.format_exc()}")
         return {"status": "error", "message": f"Error: {str(e)}"}
 
 
