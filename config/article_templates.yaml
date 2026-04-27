@@ -1,43 +1,19 @@
-Verkaufsartikel:
-  - name: artnr
-    group: input
-    value: null
-    editable: true
-  - name: artbez1
-    group: input
-    value: null
-    editable: true
-  - name: artbez2_masse
-    group: input
-    value: null
-    editable: true
-  - name: artbez2_root
-    group: input
-    value: null
-    editable: true
-  - name: artbez2_material
-    group: input
-    value: null
-    editable: true 
-  - name: artbez2_DIN
-    group: input
-    value: null
-    editable: true
-  - name: artbez2_oberflaeche
-    group: input
-    value: null
-    editable: true
-  - name: preis
-    group: input
-    value: null
-    editable: true
-  - name: bestand
-    group: input
-    value: null
-    editable: true
-
-
-Modulartikel:
+# ============================================================================
+# Article Templates Configuration
+# ============================================================================
+#
+# All article types use the same base template: fallback:mapping
+#
+# To override specific field defaults for a particular article group,
+# use config/create_defaults.yaml
+#
+# Field Groups:
+#   - input: Required user input fields
+#   - default: Default values (can be overridden by create_defaults.yaml)
+#   - derivative: Derived from other fields
+#   - empty: Empty fields
+#
+fallback:mapping:
   - name: Artikelnummer
     group: input
     value: null
@@ -66,91 +42,9 @@ Modulartikel:
     group: default
     value: null
     editable: true
-  - name: root
-    group: derived
-    value: root
-    editable: true
-  - name: masse
-    group: input
-    value: null
-    editable: true
-  - name: material
-    group: input
-    value: null
-    editable: true
-  - name: DIN
-    group: input
-    value: null
-    editable: true
   - name: Bezeichnung 2 [de]
-    group: derived
-    value: root + material + masse + DIN
-    editable: true
-  - name: Bezeichnung 2 [en]
-    group: input
-    value: null
-    editable: true
-  - name: Bezeichnung 2 [fr]
-    group: input
-    value: null
-    editable: true
-  - name: Bezeichnung 2 [it]
-    group: input
-    value: null
-    editable: true
-  - name: Suchbegriff 1 [de]
-    group: input
-    value: null
-    editable: true
-
-Normartikel:
-  - name: Artikelnummer
-    group: input
-    value: null
-    editable: true
-  - name: Initvariante Identifikation
     group: default
     value: null
-    editable: false
-  - name: Artikelstatus
-    group: default
-    value: 9
-    editable: true
-  - name: Bezeichnung 1 [de]
-    group: input
-    value: null
-    editable: true
-  - name: Bezeichnung 1 [en]
-    group: default
-    value: null
-    editable: true
-  - name: Bezeichnung 1 [fr]
-    group: default
-    value: null
-    editable: true
-  - name: Bezeichnung 1 [it]
-    group: default
-    value: null
-    editable: true
-  - name: root
-    group: derived
-    value: root
-    editable: true
-  - name: masse
-    group: input
-    value: null
-    editable: true
-  - name: material
-    group: input
-    value: null
-    editable: true
-  - name: DIN
-    group: input
-    value: null
-    editable: true
-  - name: Bezeichnung 2 [de]
-    group: derived
-    value: merge_text(root, material, masse, DIN)
     editable: true
   - name: Bezeichnung 2 [en]
     group: default
@@ -165,40 +59,28 @@ Normartikel:
     value: null
     editable: true
   - name: Suchbegriff 1 [de]
-    group: default
+    group: input
     value: null
     editable: true
-  - name: Suchbegriff 1 [en]
-    group: default
+  - name: root
+    group: derivative
+    value: root
+    editable: true
+  - name: masse
+    group: input
     value: null
     editable: true
-  - name: Suchbegriff 1 [fr]
-    group: default
+  - name: material
+    group: input
     value: null
     editable: true
-  - name: Suchbegriff 1 [it]
-    group: default
-    value: null
-    editable: true
-  - name: Suchbegriff 2 [de]
-    group: default
-    value: null
-    editable: true
-  - name: Suchbegriff 2 [en]
-    group: default
-    value: null
-    editable: true
-  - name: Suchbegriff 2 [fr]
-    group: default
-    value: null
-    editable: true
-  - name: Suchbegriff 2 [it]
-    group: default
+  - name: DIN
+    group: input
     value: null
     editable: true
   - name: Einkaufsartikel
     group: default
-    value: "0"
+    value: "1"
     editable: true
   - name: Verkaufsartikel
     group: default
@@ -218,7 +100,7 @@ Normartikel:
     editable: true
   - name: Freigabe Einkauf
     group: default
-    value: "0"
+    value: "1"
     editable: true
   - name: Freigabe Verkauf
     group: default
@@ -270,64 +152,29 @@ Normartikel:
     editable: true
   - name: Masseinheit
     group: dropdown
-    options: ["Stück", "Meter", "Liter", "Millimeter"]
-    value: null
+    options:
+      - Stück
+      - kg
+      - m
+      - m²
+      - m³
+    value: Stück
     editable: true
-  - name: Masseinheit Verkauf
-    group: derived
-    value: Masseinheit
+  - name: Inventurart
+    group: default
+    value: "1"
     editable: true
-  - name: Gebindeinhalt Verkauf
+  - name: Inventur Periodizität (Tage)
     group: default
     value: null
     editable: true
-  - name: Anzahl Artikel pro Verkaufs-Masseinheit
+  - name: Ist MW Aktiv
     group: default
-    value: null
+    value: "1"
     editable: true
-  - name: Nettogewicht (kg)
+  - name: Lagerbewertungsverfahren
     group: default
-    value: null
-    editable: true
-  - name: Masseinheit Produktion
-    group: derived
-    value: Masseinheit
-    editable: true
-  - name: Nettogewicht Produktion
-    group: default
-    value: null
-    editable: true
-  - name: Gebindeinhalt Produktion
-    group: default
-    value: null
-    editable: true
-  - name: Umrechnungsfaktor PE/LVE
-    group: default
-    value: null
-    editable: true
-  - name: Masseinheit Einkauf
-    group: derived
-    value: Masseinheit
-    editable: true
-  - name: Gebindeinhalt Einkauf
-    group: default
-    value: null
-    editable: true
-  - name: Anzahl Artikel pro Einkaufs-Masseinheit
-    group: default
-    value: null
-    editable: true
-  - name: Nettogewicht Einkauf (kg)
-    group: default
-    value: null
-    editable: true
-  - name: Masseinheit Lager
-    group: derived
-    value: Masseinheit
-    editable: true
-  - name: Anzahl Artikel pro Lager-Masseinheit
-    group: default
-    value: null
+    value: "1"
     editable: true
   - name: Lieferantennummer
     group: search
@@ -343,14 +190,6 @@ Normartikel:
     value: null
     editable: true
   - name: Spezifisches Gewicht
-    group: default
-    value: null
-    editable: true
-  - name: Inventurart
-    group: default
-    value: null
-    editable: true
-  - name: Inventur Periodizität (Tage)
     group: default
     value: null
     editable: true
@@ -381,14 +220,6 @@ Normartikel:
   - name: Arbeitsplan
     group: default
     value: null
-    editable: true
-  - name: Ist MW Aktiv
-    group: default
-    value: "1"
-    editable: true
-  - name: Lagerbewertungsverfahren
-    group: default
-    value: "2"
     editable: true
   - name: Seriennummern
     group: default
@@ -515,11 +346,11 @@ Normartikel:
     value: null
     editable: true
   - name: Warengruppe
-    group: default
-    value: ALLG
+    group: input
+    value: null
     editable: true
   - name: Artikelgruppe 1
-    group: default
+    group: input
     value: null
     editable: true
   - name: Artikelgruppe 2
@@ -559,96 +390,8 @@ Normartikel:
     value: null
     editable: true
   - name: Kontierungsgruppe
-    group: default
+    group: input
     value: Material
-    editable: true
-  - name: Freier Text 1
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text 2
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text 3
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text 4
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text 5
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text 6
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text 7
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text 8
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text 9
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text 10
-    group: derived
-    value: Import_create_{datetime}
-    editable: true
-  - name: Freier Text lokalisiert 1 [de]
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text lokalisiert 1 [en]
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text lokalisiert 1 [fr]
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text lokalisiert 1 [it]
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text lokalisiert 2 [de]
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text lokalisiert 2 [en]
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text lokalisiert 2 [fr]
-    group: default
-    value: null
-    editable: true
-  - name: Freier Text lokalisiert 2 [it]
-    group: default
-    value: null
-    editable: true
-  - name: Meldungskonfiguration
-    group: default
-    value: null
-    editable: true
-  - name: Artikeltyp
-    group: default
-    value: null
-    editable: true
-  - name: Alte System Nr.
-    group: default
-    value: null
-    editable: true
-  - name: Nachfolger
-    group: default
-    value: null
     editable: true
   - name: Zeichnungsnummer
     group: input
@@ -656,10 +399,6 @@ Normartikel:
     editable: true
   - name: Zeichnungsindex
     group: input
-    value: null
-    editable: true
-  - name: Vorgänger
-    group: default
     value: null
     editable: true
   - name: Höhe (Dimension)
@@ -790,11 +529,7 @@ Normartikel:
     group: default
     value: "JOS"
     editable: true
-  - name: Mindestbestellmenge Verkauf
-    group: default
-    value: null
-    editable: true
-  - name: Optimale Losgrösse Verkauf
-    group: default
-    value: null
+  - name: Freier Text 10
+    group: derived
+    value: Import_create_{datetime}
     editable: true
