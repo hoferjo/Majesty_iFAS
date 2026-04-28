@@ -123,8 +123,10 @@ document.addEventListener("DOMContentLoaded", function() {
             .then(data => (Array.isArray(data.types) ? data.types : []));
     }
 
-    function fetchArticleFields(type) {
-        return fetch(`/api/article-fields?type=${encodeURIComponent(type)}`).then(r => r.json());
+    function fetchArticleFields(type, group) {
+        const query = [`type=${encodeURIComponent(type)}`];
+        if (group) query.push(`group=${encodeURIComponent(group)}`);
+        return fetch(`/api/article-fields?${query.join("&")}`).then(r => r.json());
     }
 
     function fetchCreationState() {
@@ -162,18 +164,20 @@ document.addEventListener("DOMContentLoaded", function() {
     // ─── Fields renderer (shared between root and child forms) ────────────────
     function renderFieldsHtml(fields) {
         let html = '';
-        // Filter to show only input fields
-        const inputFields = fields.filter(field => field.group === 'input');
-        inputFields.forEach(field => {
+        fields.forEach(field => {
             const defVal = (field.value !== null && field.value !== undefined) ? String(field.value) : '';
             if (field.group === 'dropdown' && Array.isArray(field.options)) {
-                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <select name='${escHtml(field.name)}' style='width:92%;padding:4px;'>`;
+                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <select name='${escHtml(field.name)}' style='width:92%;padding:4px;' ${field.editable === false ? 'disabled' : ''}>`;
                 field.options.forEach(opt => {
                     html += `<option value='${escHtml(opt)}'${defVal === opt ? ' selected' : ''}>${escHtml(opt)}</option>`;
                 });
                 html += `</select></label>`;
             } else if (field.group === 'search' && field.search_query === 'lieferant') {
-                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <input type='text' name='${escHtml(field.name)}' value='${escHtml(defVal)}' style='width:80%;padding:4px;display:inline-block;' readonly><button type='button' class='lieferant-search-btn' data-field='${escHtml(field.name)}' style='margin-left:0.5em;'>🔍</button></label>`;
+                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <input type='text' name='${escHtml(field.name)}' value='${escHtml(defVal)}' style='width:80%;padding:4px;display:inline-block;' ${field.editable === false ? 'readonly' : ''}><button type='button' class='lieferant-search-btn' data-field='${escHtml(field.name)}' style='margin-left:0.5em;'>🔍</button></label>`;
+            } else if (field.group === 'default' && !field.editable) {
+                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <input type='text' name='${escHtml(field.name)}' value='${escHtml(defVal)}' style='width:90%;padding:4px;' readonly></label>`;
+            } else if (field.group === 'derivative' || field.group === 'derived') {
+                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <input type='text' name='${escHtml(field.name)}' value='${escHtml(defVal)}' style='width:90%;padding:4px;' ${field.editable === false ? 'readonly' : ''}></label>`;
             } else {
                 html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <input type='text' name='${escHtml(field.name)}' value='${escHtml(defVal)}' style='width:90%;padding:4px;' ${field.editable === false ? 'readonly' : ''}></label>`;
             }
@@ -398,7 +402,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ─── Child article / module form ──────────────────────────────────────────
     function showChildArticleForm(type, isModule) {
-        fetchArticleFields(type).then(data => {
+        fetchCreationState().then(state => {
+            const currentGroup = state.current_group || null;
+            return fetchArticleFields(type, currentGroup).then(data => ({ data, currentGroup }));
+        }).then(({ data, currentGroup }) => {
             const area = document.getElementById("cs-child-form-area");
             if (!area) return;
             if (data.status !== "ok" || !Array.isArray(data.fields) || !data.fields.length) {
@@ -425,6 +432,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (form) form.addEventListener("submit", function (e) {
                 e.preventDefault();
                 const payload = { type, is_module: isModule };
+                if (currentGroup) payload.group = currentGroup;
                 form.querySelectorAll("input,select").forEach(el => { if (el.name) payload[el.name] = el.value; });
                 const msgDiv = document.getElementById("cs-child-form-msg");
                 if (msgDiv) msgDiv.innerHTML = '<span style="color:#888;">Saving...</span>';
@@ -524,7 +532,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // ─── Root article form ────────────────────────────────────────────────────
     function showRootArticleForm(className, groupName, type) {
-        fetchArticleFields(type).then(data => {
+        fetchArticleFields(type, groupName).then(data => {
             const area = document.getElementById("cs-root-form-area");
             if (!area) return;
             if (data.status !== "ok" || !Array.isArray(data.fields) || !data.fields.length) {
@@ -681,10 +689,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 alert("No article selected.");
                 return;
             }
+            var existingArticlesTarget = getExistingArticlesTarget();
             fetch("/add-article", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ artnr: selectedResult.artnr })
+                body: JSON.stringify({
+                    artnr: selectedResult.artnr,
+                    existing_articles_target: existingArticlesTarget
+                })
             })
             .then(response => response.json())
             .then(data => {
@@ -714,10 +726,16 @@ document.addEventListener("DOMContentLoaded", function() {
                 alert("No sheets selected in Settings.");
                 return;
             }
+            var existingArticlesTarget = getExistingArticlesTarget();
             fetch("/generate-module-data", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ artnr: selectedResult.artnr, selected_headers: selectedHeaders, mode: "article" })
+                body: JSON.stringify({
+                    artnr: selectedResult.artnr,
+                    selected_headers: selectedHeaders,
+                    mode: "article",
+                    existing_articles_target: existingArticlesTarget
+                })
             })
             .then(response => response.json())
             .then(data => {

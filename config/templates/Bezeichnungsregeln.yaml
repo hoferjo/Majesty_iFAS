@@ -1,0 +1,136 @@
+Artikelbezeichnung 1 [de]: 
+  Normteile:
+    DIN-Teile:
+      Metrisch:
+        Schraube:
+          Ausführung
+          Metrischer Nenndurchmesser
+          Länge
+          Härte
+          Material
+
+        Mutter:
+          Ausführung
+          Metrischer Nenndurchmesser
+          Höhe
+          Härte
+          Material
+        
+      Unterlegscheibe:
+        Ausführung
+        Metrischer Nenndurchmesser
+        Innendurchmesser
+        Außendurchmesser
+        Dicke
+        Härte
+        Material
+
+    Listenteile: Bezeichnung Webshop
+
+  Laserteile:
+    Bezeichnung auf Zeichnung
+
+  Mechanisch bearbeitete Teile:
+    Bezeichnung auf Zeichnung
+
+  Rohmaterialien:
+    Bezeichnung auf Zeichnung
+
+
+
+Artikelbezeichnung 2 [de]: 
+  Normteile:
+    DIN-Teile:
+      Metrisch:  
+        Schraube:
+          DIN Nummer
+        Mutter:
+          DIN Nummer
+      Unterlegscheibe:
+        DIN Nummer
+
+    Listenteile: ""
+
+  Laserteile: ""
+  Mechanisch bearbeitete Teile: ""
+  Rohmaterialien: ""
+
+Artikelbezeichnung Lieferant: 
+  Normteile:
+    DIN-Teile:
+      Metrisch:  
+        Schraube:
+          Ausführung
+          Metrischer Nenndurchmesser
+          Länge
+          Härte
+          Material
+        Mutter:
+          Ausführung
+          Metrischer Nenndurchmesser
+          Höhe
+          Härte
+          Material
+        
+      Unterlegscheibe:
+        Ausführung
+        Metrischer Nenndurchmesser
+        Innendurchmesser
+        Außendurchmesser
+        Dicke
+        Härte
+        Material
+    
+    Listenteile: Bezeichnung Webshop
+
+  Laserteile:
+    Artikelbezeichnung von Zeichnung
+
+  Mechanisch bearbeitete Teile:
+    Artikelbezeichnung von Zeichnung
+  
+  Rohmaterialien:
+    Typ
+    Abmessungen "mm"
+    "Länge:" Länge "mm"
+
+Artikel-Zusatzbezeichnung:
+  Normteile:
+    DIN-Teile:
+      Metrisch:  
+        Schraube:
+          DIN Nummer
+
+        Mutter:
+          DIN Nummer
+
+      Unterlegscheibe:
+        DIN Nummer
+      
+    Listenteile: Spezifikation Webshop
+
+  Laserteile:
+    Arbeitsgänge
+    Besonderheiten
+    "Details ersichtlich auf Zeichnung"
+  
+  Mechanisch bearbeitete Teile:
+    Arbeitsgänge
+    Besonderheiten
+    "Details ersichtlich auf Zeichnung"
+
+  Rohmaterialien:
+    Material
+
+
+
+
+
+
+
+
+Beispiele Artikel-Zusatz-Bezeichnung:
+  Laserteil: 
+    Laserschneiden, abkanten, schweissen, inklusive Material
+  Mechanisch bearbeitetes Teil: 
+    Drehen, Fräsen, Bohren, inklusive Material en, Fräsen, Bohren, inklusive Material 

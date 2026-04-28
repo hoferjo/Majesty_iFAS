@@ -197,6 +197,18 @@ from etl.validate import load_article_validation_queue, save_article_validation_
 app = FastAPI()
 
 
+def _load_article_creator() -> ArticleCreator:
+    config_dir = Path(__file__).parent.parent / "config"
+    return ArticleCreator(config_dir)
+
+
+def _get_effective_template(creator: ArticleCreator, type_name: str, group_name: str | None = None):
+    tpl = creator.get_template(type_name)
+    if tpl and group_name:
+        tpl = creator.merge_defaults(group_name, tpl)
+    return tpl
+
+
 
 # --- Root Article/Module Creation Workflow ---
 from fastapi import APIRouter
@@ -823,6 +835,7 @@ def generate_module_data(data: dict = Body(...)):
     artnr = data.get("artnr")
     selected_headers = data.get("selected_headers", [])
     mode = _normalize_mode(data.get("mode"), "module")
+    existing_articles_target = _normalize_existing_target(data.get("existing_articles_target", "none"))
     if not artnr:
         return {"status": "error", "message": "No artnr provided"}
     if not isinstance(selected_headers, list):
@@ -892,6 +905,9 @@ def generate_module_data(data: dict = Body(...)):
                 "status": "error",
                 "message": "No sheets selected."
             }
+
+        if mode == "article" and existing_articles_target != "none":
+            _ = get_path("existing articles", existing_articles_target, BASE_DIR)
 
         # Build using resolvable mapping names from selected columns.
         build_sheet_names = []
@@ -1206,6 +1222,7 @@ def add_article(data: dict = Body(...)):
     artnr = data.get("artnr")
     if not artnr:
         return JSONResponse(status_code=400, content={"status": "error", "message": "No artnr provided"})
+    requested_target = _normalize_existing_target(data.get("existing_articles_target", "none"))
     base= BASE_DIR
     article_list_path = get_path("article list", "article")
     artikelstamm_path = get_path("artikelstamm")
@@ -1230,18 +1247,17 @@ def add_article(data: dict = Body(...)):
                     key = line.strip().split(';')[0].strip()
                     if key:
                         existing_artnr.add(key)
-        # Also check both existing-articles targets, because these should not be appended either.
+        # Check the selected active existing-articles target when provided.
         existing_targets_artnr = set()
-        for target in ["prod", "test"]:
-            target_file = get_path("existing articles", target, base)
-            if not target_file or not target_file.exists():
-                continue
-            with open(target_file, 'r', encoding='utf-8-sig') as f:
-                next(f, None)
-                for line in f:
-                    key = line.strip().split(',')[0].strip()
-                    if key:
-                        existing_targets_artnr.add(key)
+        if requested_target != "none":
+            target_file = get_path("existing articles", requested_target, base)
+            if target_file and target_file.exists():
+                with open(target_file, 'r', encoding='utf-8-sig') as f:
+                    next(f, None)
+                    for line in f:
+                        key = line.strip().split(',')[0].strip()
+                        if key:
+                            existing_targets_artnr.add(key)
         # Find the article in artikelstamm
         found = False
         with open(artikelstamm_path, encoding='utf-8-sig') as f:
@@ -1258,7 +1274,7 @@ def add_article(data: dict = Body(...)):
                     if artnr in existing_targets_artnr:
                         return {
                             "status": "success",
-                            "message": f"Article {artnr} already exists in existing articles (PROD/TEST). Nothing appended."
+                            "message": f"Article {artnr} already exists in existing articles ({requested_target.upper()}). Nothing appended."
                         }
                     if artnr not in existing_artnr:
                         # Write header if file does not exist or is empty
@@ -1283,11 +1299,11 @@ def generate_article(data: dict = Body(...)):
         return JSONResponse(status_code=400, content={"status": "error", "message": "No article list provided"})
 
     base = Path(__file__).parent.parent
-    article_list_path = get_path("article list", "creation_mode")
-    # Use dedicated creation mode cache files (CSV) for isolation
-    creation_cache_dir = base / "data" / "processed" / "cache" / "created_articles"
-    creation_partlist_path = creation_cache_dir / "partlist_creation_mode.csv"
-    creation_partlist_tree_path = creation_cache_dir / "partlist_creation_mode_tree.txt"
+    existing_articles_target = _normalize_existing_target(data.get("existing_articles_target", "none"))
+    cache_paths = _cache_paths(base, "article")
+    article_list_path = cache_paths["article_list"]
+    partlist_path = cache_paths["partlist"]
+    partlist_tree_path = cache_paths["partlist_tree"]
     try:
         import csv
         from etl.transform import check_utf8_file, process_module_structure
@@ -1300,6 +1316,16 @@ def generate_article(data: dict = Body(...)):
                     key = line.strip().split(';')[0].strip()
                     if key:
                         existing_artnr.add(key)
+        existing_targets_artnr = set()
+        if existing_articles_target != "none":
+            target_file = get_path("existing articles", existing_articles_target, base)
+            if target_file and target_file.exists():
+                with open(target_file, 'r', encoding='utf-8-sig') as f:
+                    next(f, None)
+                    for line in f:
+                        key = line.strip().split(',')[0].strip()
+                        if key:
+                            existing_targets_artnr.add(key)
         # Generate export, partlist, and tree for all articles in the list
         write_header = not article_list_path.exists() or article_list_path.stat().st_size == 0
         for idx, artnr in enumerate(artnr_list):
@@ -1313,6 +1339,8 @@ def generate_article(data: dict = Body(...)):
                     if str(row.get('artnr', '')).strip() == str(artnr).strip():
                         artbez1 = row.get('artbez1', '')
                         zeichnr = row.get('zeichnr', '')
+                        if artnr in existing_targets_artnr:
+                            return JSONResponse(status_code=200, content={"status": "success", "message": f"Article {artnr} already exists in existing articles ({existing_articles_target.upper()}). Nothing appended."})
                         if artnr not in existing_artnr:
                             with open(article_list_path, 'a', encoding='utf-8') as out:
                                 if write_header:
@@ -1333,17 +1361,17 @@ def generate_article(data: dict = Body(...)):
                 str(artikelstamm_path),
                 str(stuecklistenstamm_path),
                 str(article_list_path),
-                str(creation_partlist_path),
-                mode = "creation",
+                str(partlist_path),
+                mode = "article",
                 reset_files=reset_files
             )
         # Return download links (point to creation mode files if needed)
         return {
             "status": "success",
-            "message": f"Generated export and partlist for {len(artnr_list)} articles (creation mode).",
+            "message": f"Generated export and partlist for {len(artnr_list)} articles (article mode).",
             "creation_article_list": str(article_list_path.name),
-            "creation_partlist": str(creation_partlist_path.name),
-            "creation_partlist_tree": str(creation_partlist_tree_path.name)
+            "creation_partlist": str(partlist_path.name),
+            "creation_partlist_tree": str(partlist_tree_path.name)
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
@@ -1622,9 +1650,9 @@ def _cs_tree_text(session: dict) -> str:
     return "\n".join(lines)
 
 
-def _cs_do_create_article(creator: "ArticleCreator", type_name: str, input_data: dict, cache_dir: Path) -> dict:
+def _cs_do_create_article(creator: "ArticleCreator", type_name: str, input_data: dict, cache_dir: Path, template=None) -> dict:
     """Create + save YAML cache for one article. Returns article field dict."""
-    article = creator.create_article(type_name, input_data)
+    article = creator.create_article(type_name, input_data, template=template)
     artnr = input_data.get("artnr") or input_data.get("modnr") or "article"
     cache_path = cache_dir / f"{type_name}_{artnr}.yaml"
     creator.save_article_cache(article, cache_path)
@@ -1644,27 +1672,22 @@ def api_creation_state():
 @app.post("/api/creation/start")
 def api_creation_start(data: dict = Body(...)):
     """Start a new creation session with a root article/module."""
-    config_dir = Path(__file__).parent.parent / "config"
-    creator = ArticleCreator(config_dir)
+    creator = _load_article_creator()
     type_name = data.get("type")
     class_name = data.get("class")
     group_name = data.get("group")
 
     if not type_name:
         return {"status": "error", "message": "No article type provided."}
-    tpl = creator.get_template(type_name)
+    tpl = _get_effective_template(creator, type_name, group_name)
     if not tpl:
         return {"status": "error", "message": f"Template '{type_name}' not found."}
-
-    # Apply group defaults if group is specified
-    if group_name:
-        tpl = creator.merge_defaults(group_name, tpl)
 
     input_data = {k: v for k, v in data.items() if k not in ("type", "is_module", "class", "group")}
     cache_dir = _cs_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     try:
-        _cs_do_create_article(creator, type_name, input_data, cache_dir)
+        _cs_do_create_article(creator, type_name, input_data, cache_dir, template=tpl)
     except Exception as e:
         return {"status": "error", "message": str(e)}
     artnr = input_data.get("artnr") or input_data.get("modnr") or "root_article"
@@ -1692,26 +1715,21 @@ def api_creation_add_child(data: dict = Body(...)):
     stack = session.get("stack", [])
     if not stack:
         return {"status": "error", "message": "No parent in stack."}
-    config_dir = Path(__file__).parent.parent / "config"
-    creator = ArticleCreator(config_dir)
+    creator = _load_article_creator()
     type_name = data.get("type")
     group_name = data.get("group")
     is_module = bool(data.get("is_module", False))
     if not type_name:
         return {"status": "error", "message": "No article type provided."}
-    tpl = creator.get_template(type_name)
+    tpl = _get_effective_template(creator, type_name, group_name)
     if not tpl:
         return {"status": "error", "message": f"Template '{type_name}' not found."}
-
-    # Apply group defaults if group is specified
-    if group_name:
-        tpl = creator.merge_defaults(group_name, tpl)
 
     input_data = {k: v for k, v in data.items() if k not in ("type", "is_module", "group")}
     cache_dir = _cs_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
     try:
-        _cs_do_create_article(creator, type_name, input_data, cache_dir)
+        _cs_do_create_article(creator, type_name, input_data, cache_dir, template=tpl)
     except Exception as e:
         return {"status": "error", "message": str(e)}
     artnr = input_data.get("artnr") or input_data.get("modnr") or "article"
@@ -1790,13 +1808,12 @@ def api_article_types():
     return {"types": types}
 
 @app.get("/api/article-fields")
-def api_article_fields(type: str):
+def api_article_fields(type: str, group: str | None = None):
     """
     Returns the fields for a given article type/template.
     """
-    config_dir = Path(__file__).parent.parent / "config"
-    creator = ArticleCreator(config_dir)
-    tpl = creator.get_template(type)
+    creator = _load_article_creator()
+    tpl = _get_effective_template(creator, type, group)
     if not tpl:
         return {"status": "error", "fields": []}
     # Return all fields with their properties
@@ -1808,18 +1825,18 @@ def api_generate_root_article(data: dict = Body(...)):
     """
     Creates and saves a root article of the selected type with the provided data.
     """
-    config_dir = Path(__file__).parent.parent / "config"
-    creator = ArticleCreator(config_dir)
+    creator = _load_article_creator()
     type_name = data.get("type")
+    group_name = data.get("group")
     if not type_name:
         return {"status": "error", "message": "No article type provided."}
-    tpl = creator.get_template(type_name)
+    tpl = _get_effective_template(creator, type_name, group_name)
     if not tpl:
         return {"status": "error", "message": f"Template '{type_name}' not found."}
     # Remove 'type' from data
-    input_data = {k: v for k, v in data.items() if k != "type"}
+    input_data = {k: v for k, v in data.items() if k not in {"type", "group"}}
     try:
-        article = creator.create_article(type_name, input_data)
+        article = creator.create_article(type_name, input_data, template=tpl)
         # Save to cache (YAML for now, could be CSV)
         artnr = input_data.get("artnr") or input_data.get("modnr") or "root_article"
         cache_path = cache_dir_path / f"{type_name}_{artnr}.yaml"

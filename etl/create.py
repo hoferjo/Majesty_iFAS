@@ -9,19 +9,26 @@ class FieldGroup:
 	"""
 	Represents a field and its group: input, derivative, default, or empty.
 	"""
-	def __init__(self, name: str, group: str, value: Any = None, editable: bool = True) -> None:
+	def __init__(self, name: str, group: str, value: Any = None, editable: bool = True, options: Optional[List[str]] = None, search_query: Optional[str] = None) -> None:
 		self.name: str = name
 		self.group: str = group  # 'input', 'derivative', 'default', 'empty'
 		self.value: Any = value
 		self.editable: bool = editable
+		self.options: Optional[List[str]] = options
+		self.search_query: Optional[str] = search_query
 
 	def as_dict(self) -> Dict[str, Any]:
-		return {
+		result = {
 			"name": self.name,
 			"group": self.group,
 			"value": self.value,
 			"editable": self.editable,
 		}
+		if self.options is not None:
+			result["options"] = self.options
+		if self.search_query is not None:
+			result["search_query"] = self.search_query
+		return result
 
 class ArticleTemplate:
 	"""
@@ -52,6 +59,8 @@ class ArticleCreator:
 		logging.basicConfig(level=logging.INFO)
 		self.logger = logging.getLogger(__name__)
 		self.templates: Dict[str, ArticleTemplate] = self._load_templates()
+		self.struktur: Dict[str, Any] = self._load_struktur()
+		self.group_defaults: Dict[str, Dict[str, Any]] = self._load_group_defaults()
 
 	def _load_templates(self) -> Dict[str, ArticleTemplate]:
 		"""
@@ -76,15 +85,163 @@ class ArticleCreator:
 		# Add built-in types if needed
 		return templates
 
+	def _load_struktur(self) -> Dict[str, Any]:
+		"""
+		Load hierarchy structure from Struktur.yaml.
+		Returns:
+			Dict[str, Any]: Structure with classes and their hierarchies.
+		"""
+		struktur_path = self.config_dir / "Struktur.yaml"
+		try:
+			if struktur_path.exists():
+				with open(struktur_path, "r", encoding="utf-8") as f:
+					data = yaml.safe_load(f) or {}
+				self.logger.info(f"Loaded structure from {struktur_path}.")
+				return data
+			else:
+				self.logger.warning(f"Struktur file {struktur_path} does not exist.")
+		except Exception as e:
+			self.logger.error(f"Error loading structure: {e}")
+		return {}
+
+	def _load_group_defaults(self) -> Dict[str, Dict[str, Any]]:
+		"""
+		Load group-specific field defaults from create_defaults.yaml.
+		Returns:
+			Dict[str, Dict[str, Any]]: Group defaults for field overrides.
+		"""
+		defaults_path = self.config_dir / "create_defaults.yaml"
+		try:
+			if defaults_path.exists():
+				with open(defaults_path, "r", encoding="utf-8") as f:
+					data = yaml.safe_load(f) or {}
+				self.logger.info(f"Loaded group defaults from {defaults_path}.")
+				return data
+			else:
+				self.logger.info(f"No create_defaults.yaml found at {defaults_path}.")
+		except Exception as e:
+			self.logger.error(f"Error loading group defaults: {e}")
+		return {}
+
 	def get_template(self, name: str) -> Optional[ArticleTemplate]:
 		"""
-		Get a template by name.
+		Get a template by name. Falls back to 'fallback:mapping' if not found.
 		Args:
 			name (str): Template name.
 		Returns:
-			Optional[ArticleTemplate]: The template or None if not found.
+			Optional[ArticleTemplate]: The template or fallback, or None if neither exists.
 		"""
-		return self.templates.get(name)
+		if name in self.templates:
+			return self.templates[name]
+		# Fallback to 'fallback:mapping' if specific template not found
+		if "fallback:mapping" in self.templates:
+			return self.templates["fallback:mapping"]
+		return None
+
+	def get_classes(self) -> List[str]:
+		"""
+		Get list of top-level classes from structure.
+		Returns:
+			List[str]: Class names (e.g., ['Produkt', 'Service'])
+		"""
+		if "classes" in self.struktur:
+			classes = self.struktur["classes"]
+			if isinstance(classes, str):
+				return [c.strip() for c in classes.split('\n') if c.strip()]
+			elif isinstance(classes, list):
+				return [c.strip() for c in classes if c and isinstance(c, str)]
+		return []
+
+	def get_groups_for_class(self, class_name: str) -> List[str]:
+		"""
+		Get article groups available for a given class.
+		Args:
+			class_name (str): Class name (e.g., 'Produkt', 'Service')
+		Returns:
+			List[str]: List of group names
+		"""
+		if class_name not in self.struktur:
+			return []
+		groups = self.struktur[class_name]
+		if isinstance(groups, str):
+			return [g.strip() for g in groups.split('\n') if g.strip()]
+		elif isinstance(groups, list):
+			return [g.strip() for g in groups if g and isinstance(g, str)]
+		return []
+
+	def get_types_for_group(self, group_name: str) -> List[str]:
+		"""
+		Get article types available for a given group.
+		Args:
+			group_name (str): Group name (e.g., 'Teileartikel')
+		Returns:
+			List[str]: List of type names
+		"""
+		if group_name not in self.struktur:
+			return []
+		types_data = self.struktur[group_name]
+		if isinstance(types_data, str):
+			return [t.strip() for t in types_data.split('\n') if t.strip()]
+		elif isinstance(types_data, list):
+			return [t.strip() for t in types_data if t and isinstance(t, str)]
+		return []
+
+	def get_allowed_children(self, parent_type: str) -> List[str]:
+		"""
+		Get allowed child types for a parent article type.
+		Args:
+			parent_type (str): Parent article type
+		Returns:
+			List[str]: List of allowed child types
+		"""
+		if parent_type not in self.struktur:
+			return []
+		children = self.struktur[parent_type]
+		if isinstance(children, str):
+			return [c.strip() for c in children.split('\n') if c.strip()]
+		elif isinstance(children, list):
+			return [c.strip() for c in children if c and isinstance(c, str)]
+		return []
+
+	def get_group_defaults(self, group_name: str) -> Dict[str, Any]:
+		"""
+		Get field defaults for a specific group.
+		Args:
+			group_name (str): Group name
+		Returns:
+			Dict[str, Any]: Default field values for the group
+		"""
+		return self.group_defaults.get(group_name, {})
+
+	def merge_defaults(self, group_name: str, template: ArticleTemplate) -> ArticleTemplate:
+		"""
+		Merge group-specific defaults with template fields.
+		Group defaults override template defaults.
+		Args:
+			group_name (str): Group name to get defaults from
+			template (ArticleTemplate): Original template
+		Returns:
+			ArticleTemplate: New template with merged defaults
+		"""
+		group_defaults = self.get_group_defaults(group_name)
+		if not group_defaults:
+			return template
+
+		existing_fields = {field.name: field for field in template.fields}
+		merged_fields = []
+		for field in template.fields:
+			default_match = next((item for item in group_defaults if item.get("name") == field.name), None)
+			if default_match is not None:
+				merged_fields.append(FieldGroup(**default_match))
+			else:
+				merged_fields.append(field)
+
+		for default_field in group_defaults:
+			field_name = default_field.get("name")
+			if field_name and field_name not in existing_fields:
+				merged_fields.append(FieldGroup(**default_field))
+
+		return ArticleTemplate(template.name, merged_fields)
 
 	def list_templates(self) -> List[str]:
 		"""
@@ -98,7 +255,8 @@ class ArticleCreator:
 		self,
 		template_name: str,
 		input_data: Dict[str, Any],
-		derivatives: Optional[Dict[str, Any]] = None
+		derivatives: Optional[Dict[str, Any]] = None,
+		template: Optional[ArticleTemplate] = None,
 	) -> Dict[str, Any]:
 		"""
 		Create an article/module dict, filling fields by input, derivative, default, or empty.
@@ -111,7 +269,8 @@ class ArticleCreator:
 		Raises:
 			ValueError: If template is not found or input validation fails.
 		"""
-		template = self.get_template(template_name)
+		if template is None:
+			template = self.get_template(template_name)
 		if not template:
 			self.logger.error(f"Template '{template_name}' not found.")
 			raise ValueError(f"Template '{template_name}' not found.")

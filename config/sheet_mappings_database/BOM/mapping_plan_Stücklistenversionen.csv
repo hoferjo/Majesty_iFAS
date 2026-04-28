@@ -1,0 +1,7 @@
+columnname;function;arguments
+Stücklistennummer;;stulinr;
+Versionsnummer;getNameOrNumber;number,stulinr,'Version';
+Gültig von;date;today;
+Gültig bis;defaultvalue;31.12.2099;
+Bemerkung;getNameOrNumber;name,stulinr,'Version';
+Org.Einheit Identifier;default;JOS;

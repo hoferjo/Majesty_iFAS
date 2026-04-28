@@ -1,10 +1,10 @@
-columnname;function;arguments
-Artikelnummer;;artnr;
-Lieferantennummer;getLieferantennummer;artnr;
-Artikelnummer Lieferant;getEntryFromCSV;artikelstamm_path,artnr,atnrlief;
+columnname;function;arguments;database;inputcolumn;outputcolumn;cachefile;cachecolumn;
+Artikelnummer;;artnr;;;;;;
+Lieferantennummer;getLieferantennummer;artnr;;;;;;
+Artikelnummer Lieferant;;;artlief;artnr,artnrlief;;;;
 Artikelbezeichnung Lieferant;getBezeichnungNachRegeln;artnr,lieferant;
-Artikel-Zusatz-Bezeichnung Lieferant;getBezeichnungNachRegeln;artnr,zusatz;
-Artikelbemerkung Lieferant;;;
+Artikel-Zusatz-Bezeichnung Lieferant;;;artlief;
+Artikelbemerkung Lieferant;;;;;;;;
 Hersteller;;;
 Bewertungskatalog;;;
 Masseinheit Einkauf Lieferant;;;

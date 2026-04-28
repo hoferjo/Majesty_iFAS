@@ -1,9 +1,9 @@
 columnname;function;arguments
 Artikelnummer;;artnr;
-Lieferantennummer;getLieferantendaten;artnr;
-Artikelnummer Lieferant;getEntryFromCSV;atnrlief;
-Artikelbezeichnung Lieferant;getEntryFromCSV;artbez1;
-Artikel-Zusatz-Bezeichnung Lieferant;getBezeichnung2;artnr;
+Lieferantennummer;getLieferantennummer;artnr;
+Artikelnummer Lieferant;getEntryFromCSV;artikelstamm_path,artnr,atnrlief;
+Artikelbezeichnung Lieferant;getBezeichnungNachRegeln;artnr,lieferant;
+Artikel-Zusatz-Bezeichnung Lieferant;getBezeichnungNachRegeln;artnr,zusatz;
 Artikelbemerkung Lieferant;;;
 Hersteller;;;
 Bewertungskatalog;;;
@@ -18,5 +18,5 @@ Kontaktnummer Kontakt Lieferant;;;
 Verpackungseinheit;;;
 Ursprungszeugnis;;;
 Zolltarifnummer;;;
-Ursprungsland;getEntryFromCSV;artikelstamm,artnr,'ursprland';
+Ursprungsland;getEntryFromCSV;artikelstamm_path,artnr,ursprland;
 Org.Einheit Identifier;default;JOS;

@@ -1,0 +1,9 @@
+columnname;function;arguments
+Versionsnummer;getNameOrNumber;number,stulinr,'Version';
+Auswahlvarianten-Nr;getNameOrNumber;number,stulinr,'Auswahlvariante';
+Bezeichnung [de];getNameOrNumber;name,stulinr,'Auswahlvariante';
+Bezeichnung [en];;;
+Bezeichnung [fr];;;
+Bezeichnung [it];;;
+Anzahl Positionen Minimum;;;
+Anzahl Positionen Maximum;;;

@@ -1,0 +1,9 @@
+columnname;function;arguments
+Stücklistennummer;;;stulinr;
+Versionsnummer;;;getNameOrNumber;number,stulinr,'Version';
+Stückliste auflösen in PA?;;;
+Stückliste auflösen in Belegen??;;;
+Stücklistenpositionen MWAktiv?;;;
+Preise auf Stücklistenpositionen?;;;
+Stücklistenpositionen fakturieren?;;;
+Org.Einheit Identifier;default;JOS;

@@ -1,0 +1,95 @@
+Normteile genormt nach DIN:
+  Metrisch:
+    Schrauben:
+      Ausführungen:
+        6-kt-Schraube:
+          Vollgewinde:
+            DIN nummer: DIN 933
+          Teilgewinde:
+            DIN nummer: DIN 931
+          Aliases: [6-kt-Schrauben, Sechskantschrauben, Sechskant-Schrauben]
+          name: Sechskantschraube
+          abbrevation: 6-kt-Schraube
+        Z-Schraube:
+          Aliases: [Zylinderschrauben, ZK-Schrauben, Zylinderkopfschrauben, Innen-Sechskant-Schrauben,I-6-kt-Schrauben]
+          DIN nummer: DIN 912
+          name: Zylinderschraube Innensechskant
+          abbrevation: I-6-kt-Schraube, ZK-Schraube
+          Gewindeart: [Vollgewinde, Teilgewinde]
+        SK-Schraube:
+          Aliases: [SK-Schrauben, Senkkopfschrauben]
+          DIN nummer: DIN 965
+          name: Senkkopfschraube
+          abbrevation: SK-Schraube
+        Linsenkopfschraube:
+          Aliases: [Linsenkopfschrauben, Linsen-Schrauben]
+          DIN nummer: DIN 7985
+          name: Linsenkopfschraube
+          abbrevation: LK-Schraube
+        TorX-Schraube:
+          Aliases: [TorX-Schrauben, Torx-Schrauben]
+          DIN nummer: DIN 7984
+          name: TorX-Schraube
+          abbrevation: TX-Schraube
+      Härten: [8.8, 10.9, 12.9, A2, A4]
+      Materialien: [Stahl, Stahl blank, Stahl feuerverzinkt, Stahl blau-verzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium]
+      Metrische Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
+      Länge: [5mm, 8mm, 10mm, 12mm, 16mm, 20mm, 25mm, 30mm, 40mm, 50mm, 60mm, 80mm, 100mm]
+      Gewindeart: [Vollgewinde, Teilgewinde]
+
+    Muttern:
+      Ausführungen:
+        Sechskantmutter:
+          Aliases: [Sechskantmuttern, 6-kt-Muttern]
+          DIN nummer: [DIN 934, ISO 4032, ISO 4033]
+        Flügelmutter:
+          Aliases: [Flügelmuttern, Flügel-Muttern]
+          DIN nummer: DIN 315
+        Rändelmutter:
+          Aliases: [Rändelmuttern, Rändel-Muttern]
+          DIN nummer: DIN 6923
+      Materialien: [Stahl fvz, Stahl blank, Stahl feuerverzinkt, Stahl blau-verzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium]
+      Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
+      Härte: [8.8, 10.9, 12.9, A2, A4]
+      Höhe: [0.8 d, 1.0 d, 1.5 d, 2.0 d, 2.5 d, 3.0 d, 4.0 d, 5.0 d, 6.0 d, 8.0 d, 10.0 d, 12.0 d]
+
+    Unterlegscheiben:
+      Ausführungen:
+        Unterlegscheibe:
+          Aliases: [Unterlegscheiben, U-Scheiben]
+          DIN nummer: [DIN 125 A, DIN 125B]
+        Federring:
+          Aliases: [Federringe, Federring-Unterlegscheiben]
+          DIN nummer: DIN 127
+      Materialien: [Stahl, Stahl blank, Stahl feuerverzinkt, Stahl blau-verzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium]
+      Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
+      Innendurchmesser: [3.2mm, 4.3mm, 5.3mm, 6.4mm, 8.4mm, 10.5mm, 13mm, 17mm, 21mm, 27mm, 33mm, 39mm]
+      Außendurchmesser: [6mm, 8mm, 10mm, 12mm, 16mm, 20mm, 25mm, 30mm, 40mm, 50mm, 60mm, 80mm]
+      Dicke: [0.5mm, 1mm, 1.5mm, 2mm, 3mm, 4mm, 5mm]
+
+    Blindnieten:
+      Aliases: [Blindnieten, Blind-Nieten, Nieten]
+      Materialien: [Stahl, Stahl blank, Stahl feuerverzinkt, Stahl blau-verzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium]
+      Durchmesser: [2mm, 3mm, 4mm, 5mm, 6mm, 8mm, 10mm, 12mm]
+      Länge: [10mm, 16mm, 25mm, 40mm, 50mm, 60mm, 80mm, 100mm]
+      DIN nummer: DIN 7337
+
+    Blindnietmuttern:
+      Aliases: [Blindnietmuttern, Blind-Nietmuttern, Nietmuttern, Threaded Inserts, TubTara]
+      Materialien: [Stahl, Stahl blank, Stahl feuerverzinkt, Stahl blau-verzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium]
+      Durchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
+      Länge: [10mm, 16mm, 25mm, 40mm, 50mm, 60mm, 80mm, 100mm]
+      DIN nummer: DIN 7338
+
+    Holzschrauben:
+      Ausführungen:
+        Spanplattenschraube:
+          Aliases: [Spanplattenschrauben, Spanplatten-Schrauben]
+          DIN nummer: DIN 7505
+        Blechschraube:
+          Aliases: [Blechschrauben, Blech-Schrauben]
+          DIN nummer: DIN 7504
+      Materialien: [Stahl, Stahl blank, Stahl feuerverzinkt, Stahl blau-verzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium]
+      Durchmesser: [2mm, 3mm, 4mm, 5mm, 6mm, 8mm, 10mm, 12mm]
+      Länge: [10mm, 16mm, 25mm, 40mm, 50mm, 60mm, 80mm, 100mm]
+      Gewindeart: [Vollgewinde, Teilgewinde]

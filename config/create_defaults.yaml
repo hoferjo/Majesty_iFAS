@@ -1,0 +1,92 @@
+# Group-specific field defaults for article creation
+# Format: group_name: { field_name: default_value }
+# These defaults override template defaults when creating articles for specific groups
+
+Produktbaugruppenartikel:
+  - name: Kontierungsgruppe
+    group: default
+    value: "Verkauf Fertigprodukt"
+    editable: true
+  - name: Stückliste auflösen in Produktionsauftrag
+    group: default
+    value: "1"
+    editable: true
+  - name: Stückliste auflösen in Belegen
+    group: default
+    value: "1"
+    editable: true
+  - name: Verkaufsartikel
+    group: default
+    value: "1"
+    editable: true
+  - name: Freigabe Verkauf
+    group: default
+    value: "1"
+    editable: true
+  
+Produktoptionsbaugruppenartikel:
+  - name: Ist Geräteoptionsartikel
+    group: default
+    value: "1"
+    editable: true
+  - name: Stückliste auflösen in Produktionsauftrag
+    group: default
+    value: "1"
+    editable: true
+  - name: Stückliste auflösen in Belegen
+    group: default
+    value: "1"
+    editable: true
+  - name: Verkaufsartikel
+    group: default
+    value: "1"
+    editable: true
+  - name: Freigabe Verkauf
+    group: default
+    value: "1"
+    editable: true
+
+Baugruppenartikel:
+  - name: Stückliste auflösen in Produktionsauftrag
+    group: default
+    value: "1"
+    editable: true
+  - name: Stückliste auflösen in Belegen
+    group: default
+    value: "1"
+    editable: true
+
+Service-Set:
+  - name: Stückliste auflösen in Produktionsauftrag
+    group: default
+    value: "1"
+    editable: true
+  - name: Stückliste auflösen in Belegen
+    group: default
+    value: "1"
+    editable: true
+
+Servicemodul:
+  - name: Serviceartikel
+    group: default
+    value: "1"
+    editable: true
+  - name: Freigabe Service
+    group: default
+    value: "1"
+    editable: true
+  - name: Stücklistenpositionen auflösen in Produktionsauftrag
+    group: default
+    value: "1"
+    editable: true
+  - name: Stücklistenpositionen auflösen in Belegen
+    group: default
+    value: "1"
+    editable: true
+
+Beschaffungs-Set:
+  - name: Stückliste
+    group: derived
+    value: Artikelnummer
+    editable: true
+

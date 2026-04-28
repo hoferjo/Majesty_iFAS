@@ -7,7 +7,6 @@ Produkt:
   - Produktionsbaugruppenartikel
   - Baugruppenartikel
   - Teileartikel
-  - Norm Einkaufsteile
   - Verbrauchsmaterial-Set
   - Beschaffungs-Set
 
@@ -40,8 +39,14 @@ Teileartikel:
   - Norm Einkaufsteil
   - Text Artikel
 
-Norm Einkaufsteile:
-  - Norm Einkaufsteil
+Norm Einkaufsteil:
+  - Schraube
+  - Mutter
+  - Unterlegscheibe
+  - Blindniete
+  - Blindnietmutter
+
+Verbrauchsmaterial-Set:
   - Teileartikel
 
 Beschaffungs-Set:

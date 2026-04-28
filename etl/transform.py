@@ -1,8 +1,10 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-import yaml
 import os 
+import re
+import unicodedata
+import yaml
 
 BASE_DIR = Path(__file__).parent.parent
 etl_dir = BASE_DIR / "etl"
@@ -95,6 +97,10 @@ sheets_output_dir = BASE_DIR / settings["paths"]["sheets_dir"]
 template_dir = BASE_DIR / settings["paths"]["template_dir"]
 artikelstamm_import_template_path = get_path("artikelstamm_import_template")
 partlist_import_template_path = get_path("partlist_import_template")
+bezeichnungsregeln_path = BASE_DIR / "config" / "templates" / "Bezeichnungsregeln.yaml"
+din_normteile_path = BASE_DIR / "config" / "templates" / "DIN-Normteile.yaml"
+steel_table_path = BASE_DIR / "config" / "materials" / "stahltabelle.csv"
+validation_overrides_path = BASE_DIR / settings["paths"]["sheets_dir"] / "Artikelbezeichnungen_validation_overrides.csv"
 
 #output_paths
 output_dir = BASE_DIR / settings["paths"]["output_dir"]
@@ -136,20 +142,52 @@ def is_existing_article(artnr, existing_articles_path=None):
     return False
 
 def getEntryFromCSV(filename, rowname, columnname):
-    with open(filename, mode='r', encoding='utf-8-sig') as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=';')
-#        print(f"CSV headers: {reader.fieldnames}") #debugging line to check headers
-        found = False
-        for row in reader:
-#            print(f"Row: {row}") #debugging line to check row content
-            if row.get('artnr') == rowname:
-#                print(f"Match found for artnr={rowname}: {row}") # shows the row that matches the artnr
-                found = True
-                return row.get(columnname, f"Column '{columnname}' not found")
-        if not found:
-            if DEBUG:
-                print(f"No match found for artnr={rowname}")
+    row = _get_row_cached(filename, rowname, key_column='artnr', delimiter=';')
+    if row is not None:
+        return row.get(columnname, f"Column '{columnname}' not found")
+    if DEBUG:
+        print(f"No match found for artnr={rowname}")
     return 0
+
+
+def _load_table_index_cached(filename, key_column='artnr', delimiter=';', encoding='utf-8-sig'):
+    path_obj = Path(filename)
+    exists = path_obj.exists()
+    cache_key = (
+        'csv_index',
+        str(path_obj.resolve() if exists else path_obj),
+        key_column,
+        delimiter,
+        encoding,
+        path_obj.stat().st_mtime if exists else None,
+    )
+    if cache_key in _GLOBAL_TABLE_CACHE:
+        return _GLOBAL_TABLE_CACHE[cache_key]
+
+    rows_by_key = {}
+    if exists:
+        with open(path_obj, mode='r', encoding=encoding) as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=delimiter)
+            for row in reader:
+                key_val = str((row or {}).get(key_column, '') or '').strip()
+                if key_val:
+                    rows_by_key[key_val] = row
+
+    _GLOBAL_TABLE_CACHE[cache_key] = rows_by_key
+    return rows_by_key
+
+
+def _get_row_cached(filename, rowname, key_column='artnr', delimiter=';', encoding='utf-8-sig'):
+    rows_by_key = _load_table_index_cached(
+        filename,
+        key_column=key_column,
+        delimiter=delimiter,
+        encoding=encoding,
+    )
+    row_key = str(rowname or '').strip()
+    if not row_key:
+        return None
+    return rows_by_key.get(row_key)
 
 def addColumnToCSV(filename, columname, defaultvalue):
     with open(filename, mode='r', encoding='utf-8-sig') as csvfile:
@@ -176,6 +214,439 @@ def mergeTexts(text1, text2, text3=None, text4=None):
     else:
         return ''
 
+
+def _normalize_rule_text(value):
+    normalized = unicodedata.normalize('NFKD', str(value or ''))
+    normalized = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r'[^a-z0-9]+', '', normalized.lower())
+
+
+def _join_nonempty(values, separator=', '):
+    cleaned = []
+    for value in values:
+        text = str(value or '').strip()
+        if text:
+            cleaned.append(text.strip(' ,;'))
+    return separator.join(cleaned)
+
+
+def _clean_source_value(value):
+    if value in (None, 0):
+        return ''
+    text = str(value).strip()
+    return '' if text == '0' else text
+
+
+def _load_yaml_cached(path):
+    path_obj = Path(path)
+    cache_key = ('yaml', str(path_obj.resolve()), path_obj.stat().st_mtime if path_obj.exists() else None)
+    if cache_key in _GLOBAL_TABLE_CACHE:
+        return _GLOBAL_TABLE_CACHE[cache_key]
+    data = {}
+    if path_obj.exists():
+        try:
+            data = load_yaml(path_obj)
+        except yaml.YAMLError as exc:
+            # Deactivate invalid optional rule tables to keep module generation stable.
+            print(f"[WARN] Invalid YAML in {path_obj}. Rule table disabled. Error: {exc}")
+            data = {}
+        except OSError as exc:
+            print(f"[WARN] Could not read YAML {path_obj}. Rule table disabled. Error: {exc}")
+            data = {}
+    _GLOBAL_TABLE_CACHE[cache_key] = data or {}
+    return data or {}
+
+
+def _load_steel_table_csv_cached(path):
+    path_obj = Path(path)
+    cache_key = ('steel_csv', str(path_obj.resolve()), path_obj.stat().st_mtime if path_obj.exists() else None)
+    if cache_key in _GLOBAL_TABLE_CACHE:
+        return _GLOBAL_TABLE_CACHE[cache_key]
+
+    rows = []
+    if path_obj.exists():
+        try:
+            with open(path_obj, mode='r', encoding='utf-8-sig', newline='') as handle:
+                reader = csv.DictReader(handle, delimiter=';')
+                rows = [{str(k or '').strip(): str(v or '').strip() for k, v in (row or {}).items()} for row in reader]
+        except OSError as exc:
+            print(f"[WARN] Could not read steel CSV {path_obj}. Steel table disabled. Error: {exc}")
+            rows = []
+
+    _GLOBAL_TABLE_CACHE[cache_key] = rows
+    return rows
+
+
+def _get_article_description_parts(artnr):
+    artnr = str(artnr or '').strip()
+    artikel_row = _get_row_cached(artikelstamm_path, artnr, key_column='artnr', delimiter=';') or {}
+    parts = {
+        'artbez1': _clean_source_value(artikel_row.get('artbez1', '')),
+        'artbez2': _clean_source_value(artikel_row.get('artbez2', '')),
+        'artbez3': _clean_source_value(artikel_row.get('artbez3', '')),
+        'artbezmem': _clean_source_value(artikel_row.get('artbezmem', '')),
+    }
+    blob = _join_nonempty(parts.values(), ' ')
+    return parts, blob, _normalize_rule_text(blob)
+
+
+def _get_validation_override_value(artnr, ziel_normalized):
+    target_column = None
+    if ziel_normalized in {'bezeichnung1', 'artikelbezeichnung1', 'bezeichnung1de'}:
+        target_column = 'bezeichnung1_de'
+    elif ziel_normalized in {'bezeichnung2', 'artikelbezeichnung2', 'bezeichnung2de'}:
+        target_column = 'bezeichnung2_de'
+    elif ziel_normalized in {'lieferant', 'artikelbezeichnunglieferant', 'bezeichnunglieferant'}:
+        target_column = 'lieferant_bezeichnung'
+    elif ziel_normalized in {'zusatz', 'artikelzusatzbezeichnung', 'artikelzusatzbezeichnunglieferant', 'zusatzbezeichnung'}:
+        target_column = 'lieferant_zusatz'
+
+    if not target_column:
+        return ''
+
+    row = _get_row_cached(validation_overrides_path, str(artnr or '').strip(), key_column='artnr', delimiter=';') or {}
+    return str(row.get(target_column, '') or '').strip()
+
+
+def _parse_bool_flag(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
+
+
+def _is_bezeichnungen_anpassen_enabled():
+    path_obj = settings_path
+    cache_key = ('feature_flag_bezeichnungen_anpassen', str(path_obj.resolve()), path_obj.stat().st_mtime if path_obj.exists() else None)
+    if cache_key in _GLOBAL_TABLE_CACHE:
+        return _GLOBAL_TABLE_CACHE[cache_key]
+
+    enabled = False
+    if path_obj.exists():
+        try:
+            current_settings = load_yaml(path_obj) or {}
+            features = current_settings.get('features') or {}
+            enabled = _parse_bool_flag(features.get('bezeichnungen_anpassen'), default=False)
+        except Exception as exc:
+            print(f"[WARN] Could not read bezeichnungen_anpassen from {path_obj}. Defaulting to disabled. Error: {exc}")
+            enabled = False
+
+    _GLOBAL_TABLE_CACHE[cache_key] = enabled
+    return enabled
+
+
+def _compose_bezeichnung_value_legacy(parts, ziel_normalized):
+    artbez1 = parts.get('artbez1') or ''
+    artbez2 = parts.get('artbez2') or ''
+    artbez3 = parts.get('artbez3') or ''
+    artbezmem = parts.get('artbezmem') or ''
+
+    if ziel_normalized in {'bezeichnung1', 'artikelbezeichnung1', 'bezeichnung1de'}:
+        return artbez1
+    if ziel_normalized in {'bezeichnung2', 'artikelbezeichnung2', 'bezeichnung2de'}:
+        return mergeTexts(artbez2, artbez3, artbezmem)
+    if ziel_normalized in {'lieferant', 'artikelbezeichnunglieferant', 'bezeichnunglieferant'}:
+        return mergeTexts(artbez1, artbez2, artbez3, artbezmem)
+    if ziel_normalized in {'zusatz', 'artikelzusatzbezeichnung', 'artikelzusatzbezeichnunglieferant', 'zusatzbezeichnung'}:
+        return mergeTexts(artbez2, artbez3, artbezmem)
+    return ''
+
+
+def _merge_parameter_options(inherited, local):
+    merged = {str(k): list(v) for k, v in (inherited or {}).items()}
+    for key, values in (local or {}).items():
+        merged[str(key)] = list(values)
+    return merged
+
+
+def _extract_node_parameter_options(node):
+    if not isinstance(node, dict):
+        return {}
+
+    blocked_keys = {
+        'Aliases', 'aliases',
+        'DIN nummer', 'DIN Nummer', 'DIN number', 'DIN Number',
+        'Ausführungen',
+    }
+    params = {}
+    for key, value in node.items():
+        if key in blocked_keys:
+            continue
+        if isinstance(value, list):
+            options = [str(item).strip() for item in value if str(item or '').strip()]
+            if options:
+                params[str(key)] = options
+        elif isinstance(value, (str, int, float)):
+            text = str(value).strip()
+            if text:
+                params[str(key)] = [text]
+    return params
+
+
+def _match_parameter_values(normalized_blob, parameter_options):
+    matches = {}
+    for key, options in (parameter_options or {}).items():
+        best_value = ''
+        best_score = -1
+        for option in options:
+            normalized_option = _normalize_rule_text(option)
+            if not normalized_option:
+                continue
+            if normalized_option in normalized_blob:
+                score = len(normalized_option)
+                if score > best_score:
+                    best_score = score
+                    best_value = str(option).strip()
+        if best_value:
+            matches[str(key)] = best_value
+    return matches
+
+
+def _flatten_din_normteile(din_data):
+    entries = []
+
+    def walk(node, path, inherited_params):
+        if not isinstance(node, dict):
+            return
+
+        local_params = _extract_node_parameter_options(node)
+        parameter_options = _merge_parameter_options(inherited_params, local_params)
+
+        aliases = node.get('Aliases') or node.get('aliases') or []
+        din_number = node.get('DIN nummer') or node.get('DIN Nummer') or node.get('DIN number') or node.get('DIN Number')
+        children = {
+            key: value for key, value in node.items()
+            if key not in {'Aliases', 'aliases', 'DIN nummer', 'DIN Nummer', 'DIN number', 'DIN Number'}
+        }
+
+        if aliases or din_number:
+            display_name = path[-1] if path else ''
+            if _normalize_rule_text(display_name) in {'vollgewinde', 'teilgewinde'} and len(path) >= 2:
+                primary_name = path[-2]
+            else:
+                primary_name = display_name
+            search_terms = [display_name, primary_name, din_number, *aliases]
+            entries.append({
+                'path': path,
+                'display_name': display_name,
+                'primary_name': primary_name,
+                'aliases': [str(alias) for alias in aliases if str(alias or '').strip()],
+                'din_number': str(din_number or '').strip(),
+                'parameter_options': parameter_options,
+                'search_terms': [str(term).strip() for term in search_terms if str(term or '').strip()],
+            })
+
+        for key, value in children.items():
+            if isinstance(value, dict):
+                walk(value, path + [key], parameter_options)
+
+    for key, value in (din_data or {}).items():
+        if isinstance(value, dict):
+            walk(value, [key], {})
+
+    return entries
+
+
+def _flatten_steel_table(steel_rows):
+    entries = []
+
+    for row in (steel_rows or []):
+        if not isinstance(row, dict):
+            continue
+
+        current_norm = row.get('EN', '') or row.get('EN ', '')
+        old_norm = row.get('Markenname', '')
+        din_17100 = row.get('Werkstoff', '')
+        steel_group = row.get('Produktgruppe', '')
+        entry_name = current_norm or din_17100 or old_norm
+        if not str(entry_name or '').strip():
+            continue
+
+        search_terms = [entry_name, current_norm, old_norm, din_17100, steel_group]
+        for value in row.values():
+            text = str(value or '').strip()
+            if text:
+                search_terms.append(text)
+
+        entries.append({
+            'path': [entry_name],
+            'entry_name': str(entry_name or '').strip(),
+            'current_norm': str(current_norm or '').strip(),
+            'old_norm': str(old_norm or '').strip(),
+            'din_17100': str(din_17100 or '').strip(),
+            'steel_group': str(steel_group or '').strip(),
+            'search_terms': [str(term).strip() for term in search_terms if str(term or '').strip()],
+        })
+
+    return entries
+
+
+def _find_best_match(normalized_blob, entries):
+    best_entry = None
+    best_score = -1
+    for entry in entries:
+        for term in entry.get('search_terms', []):
+            normalized_term = _normalize_rule_text(term)
+            if not normalized_term:
+                continue
+            if normalized_term in normalized_blob:
+                score = len(normalized_term)
+                if score > best_score:
+                    best_score = score
+                    best_entry = entry
+    return best_entry
+
+
+def _get_bezeichnungsregel_context(artnr):
+    artnr = str(artnr or '').strip()
+    cache_key = ('bezeichnungsregel_context', artnr)
+    if cache_key in _GLOBAL_TABLE_CACHE:
+        return _GLOBAL_TABLE_CACHE[cache_key]
+
+    parts, blob, normalized_blob = _get_article_description_parts(artnr)
+    bezeichnungsregeln = _load_yaml_cached(bezeichnungsregeln_path)
+    din_normteile = _load_yaml_cached(din_normteile_path)
+    steel_table = _load_steel_table_csv_cached(steel_table_path)
+
+    din_entries = _flatten_din_normteile(din_normteile)
+    steel_entries = _flatten_steel_table(steel_table)
+
+    steel_match = _find_best_match(normalized_blob, steel_entries)
+    normteil_match = _find_best_match(normalized_blob, din_entries)
+    normteil_parameter_matches = _match_parameter_values(
+        normalized_blob,
+        (normteil_match or {}).get('parameter_options') or {},
+    )
+
+    top_group = 'Sonstige'
+    subgroup = ''
+    if steel_match:
+        top_group = 'Rohmaterialien'
+        subgroup = steel_match.get('entry_name', '')
+    elif normteil_match:
+        top_group = 'Normteile'
+        subgroup = normteil_match.get('primary_name', '')
+    else:
+        laser_keywords = ['laserteil', 'laserteile', 'laserschneiden', 'laser', 'abkanten', 'schweiss', 'schweissen', 'schweißen']
+        mech_keywords = ['mechanisch bearbeitet', 'mechanische bearbeitung', 'drehen', 'fräsen', 'fraesen', 'bohren']
+        raw_keywords = ['rohmaterial', 'rundstahl', 'flachstahl', 'blech', 'profil', 'rohr', 'stahl', 'edelstahl', 'inox', 'aluminium']
+
+        if any(keyword in normalized_blob for keyword in (_normalize_rule_text(item) for item in laser_keywords)):
+            top_group = 'Laserteile'
+        elif any(keyword in normalized_blob for keyword in (_normalize_rule_text(item) for item in mech_keywords)):
+            top_group = 'Mechanisch bearbeitete Teile'
+        elif any(keyword in normalized_blob for keyword in (_normalize_rule_text(item) for item in raw_keywords)):
+            top_group = 'Rohmaterialien'
+
+    context = {
+        'artnr': artnr,
+        'parts': parts,
+        'blob': blob,
+        'normalized_blob': normalized_blob,
+        'bezeichnungsregeln': bezeichnungsregeln,
+        'din_normteile': din_normteile,
+        'steel_table': steel_table,
+        'steel_match': steel_match,
+        'normteil_match': normteil_match,
+        'normteil_parameter_matches': normteil_parameter_matches,
+        'group': top_group,
+        'subgroup': subgroup,
+    }
+    _GLOBAL_TABLE_CACHE[cache_key] = context
+    return context
+
+
+def _resolve_steel_material(context):
+    match = context.get('steel_match') or {}
+    if not match:
+        return ''
+    current_norm = match.get('current_norm') or ''
+    din_17100 = match.get('din_17100') or ''
+    steel_group = match.get('steel_group') or ''
+    primary = current_norm or din_17100 or match.get('old_norm') or match.get('entry_name') or ''
+    if primary and steel_group:
+        return f"{primary} / {steel_group}"
+    return primary or steel_group
+
+
+def _compose_bezeichnung_value(context, ziel):
+    ziel_normalized = _normalize_rule_text(ziel)
+    description_targets = {
+        'bezeichnung1', 'artikelbezeichnung1', 'bezeichnung1de',
+        'bezeichnung2', 'artikelbezeichnung2', 'bezeichnung2de',
+        'lieferant', 'artikelbezeichnunglieferant', 'bezeichnunglieferant',
+        'zusatz', 'artikelzusatzbezeichnung', 'artikelzusatzbezeichnunglieferant', 'zusatzbezeichnung',
+    }
+    override_value = _get_validation_override_value(context.get('artnr', ''), ziel_normalized)
+    if override_value:
+        return override_value
+
+    parts = context.get('parts') or {}
+    if not _is_bezeichnungen_anpassen_enabled():
+        if ziel_normalized in description_targets:
+            return _compose_bezeichnung_value_legacy(parts, ziel_normalized)
+
+    artbez1 = parts.get('artbez1') or ''
+    artbez2 = parts.get('artbez2') or ''
+    artbez3 = parts.get('artbez3') or ''
+    artbezmem = parts.get('artbezmem') or ''
+    group = context.get('group') or ''
+    subgroup = context.get('subgroup') or ''
+    normteil_match = context.get('normteil_match') or {}
+    normteil_parameter_matches = context.get('normteil_parameter_matches') or {}
+    normteil_parameter_text = _join_nonempty(normteil_parameter_matches.values(), ' ')
+    steel_value = _resolve_steel_material(context)
+
+    if ziel_normalized in {'bezeichnung1', 'artikelbezeichnung1', 'bezeichnung1de'}:
+        if group == 'Normteile':
+            if subgroup:
+                return _join_nonempty([subgroup, artbez2, artbez3, normteil_parameter_text], ' ')
+            return artbez1 or _join_nonempty([artbez2, artbez3, artbezmem], ' ')
+        if group == 'Rohmaterialien' and steel_value:
+            return artbez1 or steel_value
+        return artbez1 or _join_nonempty([artbez2, artbez3, artbezmem], ' ')
+
+    if ziel_normalized in {'bezeichnung2', 'artikelbezeichnung2', 'bezeichnung2de'}:
+        if group == 'Normteile':
+            din_number = normteil_match.get('din_number') or ''
+            if din_number:
+                return din_number
+            return _join_nonempty([artbez2, artbez3, artbezmem], ', ')
+        if group == 'Rohmaterialien' and steel_value:
+            return _join_nonempty([steel_value, artbez2], ', ')
+        return _join_nonempty([artbez2, artbez3, artbezmem], ', ')
+
+    if ziel_normalized in {'lieferant', 'artikelbezeichnunglieferant', 'bezeichnunglieferant'}:
+        if group == 'Normteile':
+            base = _join_nonempty([subgroup or artbez1, artbez2, artbez3, normteil_parameter_text], ' ')
+            din_number = normteil_match.get('din_number') or ''
+            return _join_nonempty([base, din_number], ' ')
+        if group == 'Rohmaterialien' and steel_value:
+            return _join_nonempty([artbez1, steel_value, artbez2, artbez3], ' ')
+        return _join_nonempty([artbez1, artbez2, artbez3, artbezmem], ' ')
+
+    if ziel_normalized in {'zusatz', 'artikelzusatzbezeichnung', 'artikelzusatzbezeichnunglieferant', 'zusatzbezeichnung'}:
+        if group == 'Normteile':
+            return _join_nonempty([artbez3, artbezmem], ', ')
+        if group == 'Rohmaterialien' and steel_value:
+            return _join_nonempty([steel_value, artbez3, artbezmem], ', ')
+        return _join_nonempty([artbez2, artbez3, artbezmem], ', ')
+
+    if ziel_normalized == 'material':
+        if steel_value:
+            return steel_value
+        if group == 'Normteile' and normteil_match.get('primary_name'):
+            return normteil_match.get('primary_name')
+        return ''
+
+    return ''
+
+
+def getBezeichnungNachRegeln(artnr, ziel):
+    context = _get_bezeichnungsregel_context(artnr)
+    return _compose_bezeichnung_value(context, ziel)
+
 def getLieferantennummer(artnr):
     letzt_lief = getEntryFromCSV(artikelstamm_path, artnr, 'letzt_lief')
     # Use as string, no padding
@@ -199,6 +670,11 @@ def getBezeichnung2(artnr):
     artbez3 = getEntryFromCSV(artikelstamm_path, artnr, 'artbez3')
     artbezmem= getEntryFromCSV(artikelstamm_path, artnr, 'artbezmem')
     return mergeTexts(artbez2, artbez3, artbezmem)
+
+
+def getMaterialNachRegeln(artnr):
+    context = _get_bezeichnungsregel_context(artnr)
+    return _compose_bezeichnung_value(context, 'material')
 
 
 def API_import(first_parent_artnr=None):
@@ -786,6 +1262,20 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
                 return get_entry_cached(filename, artnr_val, columnname)
             return ''
 
+        if func == 'getBezeichnungNachRegeln':
+            # args: artnr, ziel
+            if len(arglist) >= 2:
+                artnr_val = article.get(arglist[0], arglist[0])
+                return getBezeichnungNachRegeln(artnr_val, arglist[1])
+            return ''
+
+        if func == 'getMaterialNachRegeln':
+            # args: artnr
+            if len(arglist) >= 1:
+                artnr_val = article.get(arglist[0], arglist[0])
+                return getMaterialNachRegeln(artnr_val)
+            return ''
+
         if func == 'getBezeichnung2':
             # args: artnr
             if len(arglist) >= 1:
@@ -948,6 +1438,10 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
                 # --- Custom filtering for ArtikelLieferantendaten ---
                 if sheet in ("ArtikelLieferantendaten", "Artikel_Lieferantendaten"):
                     beschaffungsart = str(article.get("beschaffungsart", "")).strip()
+                    if not beschaffungsart:
+                        artnr_for_filter = str(article.get('artnr', '') or '').strip()
+                        if artnr_for_filter:
+                            beschaffungsart = str(get_beschaffungsart_cached(artnr_for_filter)).strip()
                     if beschaffungsart not in ("Einkauf", "6"):
                         continue  # Skip this article for Lieferantendaten
 

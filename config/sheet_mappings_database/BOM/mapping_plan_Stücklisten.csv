@@ -1,0 +1,12 @@
+columnname;function;arguments;
+Stücklistennummer;;stulinr;
+IVADId;;;
+Artikelnummer;;stulinr;
+Stücklistenstatus;defaultvalue;90;
+Bezeichnung [de];;stulinr;
+Bezeichnung [en];;;
+Bezeichnung [fr];;;
+Bezeichnung [it];;;
+Bemerkung;API_import;;
+SL-Bezugsmenge;defaultvalue;1;
+Org.Einheit Identifier;defaultvalue;JOS;

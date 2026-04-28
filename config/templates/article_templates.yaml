@@ -1,0 +1,18 @@
+Einkaufsteile:
+  Laserteile:
+    ArtikelLieferantendaten: 
+      - Artikelnummer Lieferant: artnrlief
+      - Artikelbezeichnung Lieferant: Artikelbezeichnung von Zeichnung
+      - Artikel-Zusatz-Bezeichnung Lieferant: Laserschneiden, {beachten}
+
+  Normteile:
+    DIN-Teile:
+      Artikelnummernschema: 10.10.xxxxx
+      ArtikelLieferantendaten: 
+        - Artikelnummer Lieferant: get(artnrlief)
+        - Artikelbezeichnung Lieferant: get(artbez1)
+        - Artikel-Zusatz-Bezeichnung Lieferant: Ausführung, Metrischer  
+      Artikelstamm: 
+        - Bezeichnung1 [de]: 
+
+     

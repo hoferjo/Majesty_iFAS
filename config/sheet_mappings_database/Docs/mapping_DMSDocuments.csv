@@ -1,0 +1,10 @@
+column;function;arguments
+Artikelnummer;;artnr;
+Identifikation;;;
+DMSDocId;;;
+Bezeichnung;getDocPath;artnr,zeichnr,"filename";;
+Kategorie;defaultvalue;11;
+Dokumenten Speicherort;getDocPath;artnr,zeichnr,"path";
+Gleiches Dokument ersetzen;defaultvalue;0;
+Als Verknüpfung importieren;defaultvalue;1;
+Organisationseinheit;defaultvalue;JOS;
