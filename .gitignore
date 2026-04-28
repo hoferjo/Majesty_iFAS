@@ -23,8 +23,10 @@ ENV/
 Thumbs.db
 
 # Generated runtime data
-data/processed/
-data/uploaded_files/
+# Ignore all raw/archive/processed data by default to keep repo clean
+data/
+# If you need to track specific data files, add exceptions below, e.g.:
+# !data/some-needed-file.csv
 
 # Local logs and temp files
 *.log
