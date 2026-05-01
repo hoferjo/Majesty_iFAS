@@ -24,7 +24,10 @@ Thumbs.db
 
 # Generated runtime data
 # Ignore all raw/archive/processed data by default to keep repo clean
-data/
+data/raw/databases
+data/archive
+data/processed/cache
+
 # If you need to track specific data files, add exceptions below, e.g.:
 # !data/some-needed-file.csv
 

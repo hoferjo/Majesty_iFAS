@@ -1,0 +1,394 @@
+stulinr;posnr;menge;artnr;artbez1
+61.02.0100;10;1;61.02.0298;KZW10 Grundmaschine
+61.02.0298;10;1;10.10.0092;6-kt-Schrauben
+61.02.0298;20;2;10.10.01657;6-kt-Schrauben
+61.02.0298;30;1;10.10.01391;U-Scheibe
+61.02.0298;40;1;10.10.01294;U-Scheiben
+61.02.0298;50;2;10.10.01988;6-kt-Muttern
+61.02.0298;60;16;10.50.0014;Blindnietmutter Multigrip BCT
+61.02.0298;70;4;60.17.1007;Schäkel, Seil-Ø 21 mm, 1/2"
+61.02.0298;80;1;12.31.0008;Manometer NG 63, 0-250bar
+61.02.0298;90;1;10.43.0023;Steckbolzen mit Axialsicherung, inox
+61.02.0298;100;2;10.30.0006;Rastbolzen M12 x 1.5
+61.02.0298;120;1;10.70.0001;Handgriff Ø26x107
+61.02.0298;130;1BLOCKED;12.41.0105;Starter-Batterie 12V
+61.02.0298;140;1;61.02.0188;Kettenschutz unten
+61.02.0188;10;1;61.02.0188-L;Kettenschutz unten
+61.02.0298;160;2;61.02.0024;Exzenter
+61.02.0298;170;2;61.02.0035;Distanzscheibe Rastbolzen
+61.02.0298;180;1;61.02.0185;Batteriebefestigung
+61.02.0298;190;1;61.02.0186;Batterieunterlage
+61.02.0298;200;1;61.02.0187;Kettenschutz
+61.02.0187;10;1;61.02.0187-L;Kettenschutz
+61.02.0298;210;1;61.02.0205;Pumpenabdeckung
+61.02.0205;10;1;61.02.0205-L;Pumpenabdeckung
+61.02.0298;220;1;61.02.0204;Auflage Bedienpult
+61.02.0204;10;1;61.02.0204-L;Auflage Bedienpult
+61.02.0298;230;1;61.02.0181;Traverse PMC14S
+61.02.0181;10;1;61.02.0181-L;Traverse PMC14S
+61.02.0298;240;1;61.02.0101;Baugrp Chassis
+61.02.0101;20;1;61.02.0103;Seitenteil l
+61.02.0101;30;1;61.02.0104;Seitenteil ul
+61.02.0101;40;1;61.02.0105;Seitenteil lII
+61.02.0101;50;1;61.02.0106;Seitenteil ur
+61.02.0101;60;1;61.02.0107;Querrohr vorne
+61.02.0101;80;2;61.02.0108;Achslager
+61.02.0101;90;2;61.02.0109;Abschlussblech
+61.02.0101;100;1;61.02.0110;Verstärkungsrippe
+61.02.0101;110;2;61.02.0111;Stütztplatte
+61.02.0101;120;1;61.02.0114;Verstärkungsrippe
+61.02.0101;130;1;61.02.0115;Quertraverse vorne
+61.02.0101;140;1;61.02.0116;Quertraverse hinten
+61.02.0101;150;1;61.02.0117;Querrohr hinten
+61.02.0101;160;1;61.02.0118;Gewindehülse 16x40
+61.02.0101;170;3;61.02.0119;Gewindehülse M12x40
+61.02.0101;180;4;61.02.0120;Gewindehülse M10x40
+61.02.0101;190;4;61.02.0121;Verankerungslasche hinten
+61.02.0101;200;2;61.02.0122;Stützenführung
+61.02.0101;210;1;61.02.0123;Stützenführung vorne
+61.02.0101;230;2;61.02.0125;Hebeblechlasche
+61.02.0101;10;6;10.50.0015;Blindnietmutter Multigrip BCT
+61.02.0101;70;1;61.02.0180;Auflageblech
+61.02.0101;5;2;10.50.0014;Blindnietmutter Multigrip BCT
+61.02.0101;260;2;61.02.0124;Deichselhalter
+61.02.0101;250;1;61.02.0207;Hebelasche
+61.02.0207;10;1;40.10.4009;Stahlblech 8mm, 1500x 3000mm
+61.02.0101;240;1;61.02.0208;Hebelasche rechts
+61.02.0101;270;1;61.02.0299;Hebelasche
+61.02.0298;250;2;61.02.0176;Baugrp Rad Ø350
+61.02.0176;10;2;10.10.01235;Gewindestift
+61.02.0176;20;2;10.30.0138;Stellringe DIN 705 A aus Stahl verzinkt
+61.02.0176;30;1;12.14.0012;Rad mit Luftreifen, mit Stahlblech-Felge
+61.02.0176;40;1;61.02.0034;Radachse
+61.02.0298;260;1;61.02.0259;Baugrp Hydraulikmotor
+61.02.0259;10;2;10.10.0046;6-kt-Muttern 0,8 d
+61.02.0259;20;3;10.10.0045;6-kt-Muttern 0,8 d
+61.02.0259;40;4;10.10.0097;6-kt-Schraube
+61.02.0259;50;1;10.10.01406;Gewindestifte mit Ringschneide
+61.02.0259;60;2;10.10.0741;SK-Schrauben I-6-kt
+61.02.0259;70;1;10.10.01446;Sicherungsringe für Wellen
+61.02.0259;80;2;10.10.0944;U-Scheiben
+61.02.0259;110;1;10.30.0057;Kettenradsatz zweifach, z=15
+61.02.0259;130;1;61.02.0030;Umlenkachse
+61.02.0259;140;1;61.02.0058;Kettenrad
+61.02.0058;10;1;10.30.0076;Kettenrad zweifach Z19
+61.02.0259;150;1;61.02.0241;Baugrp Konsole Hydraulikmotor
+61.02.0241;10;1;61.02.0237;Grundplatte Hydraulikmotor
+61.02.0241;20;1;61.02.0239;Aufnahmeplatte
+61.02.0241;30;2;61.02.0238;Spickel
+61.02.0241;40;1;61.02.0240;Spannkörper
+61.02.0259;100;4;10.10.1044;U-Scheibe ohne Fase
+61.02.0259;120;1;12.96.0002;Torqmotor TE0195
+61.02.0259;30;2;10.10.0102;6-kt-Schrauben
+61.02.0259;90;2;10.10.0943;U-Scheiben
+61.02.0298;270;1;61.02.0277;Baugrp Zugeinheit ohne Spill
+61.02.0277;10;1;10.20.0002;Flanschlager
+61.02.0277;20;1;10.20.0096;Kugellagerkugel
+61.02.0277;30;2;10.10.1043;Kegelkerbstift Ø6x40
+61.02.0277;50;2;10.10.0500;Passcheiben
+61.02.0277;80;2;10.10.0237;6-kt-Schrauben
+61.02.0277;40;2;10.10.01108;Zylinderstifte
+61.02.0277;90;1;10.10.03555;Gewindestifte mit Zapfen
+61.02.0277;100;1;10.10.03556;Gewindestifte mit Zapfen
+61.02.0277;110;4;10.10.01016;ZK-Schrauben I-6-kt.
+61.02.0277;120;1;10.10.0512;Passfedern
+61.02.0277;130;2;10.10.0637;Sicherungsringe für Bohrungen
+61.02.0277;160;8;10.10.0943;U-Scheiben
+61.02.0277;170;1;10.39.0007;Normdruckfeder d=1.25, D=6.3, Lo=12mm
+61.02.0277;180;2;10.20.0003;Rillenkugellager 6007
+61.02.0277;190;1;10.30.0055;Kettenschloss gerade, zweifach
+61.02.0277;200;2,5;10.30.0054;Rollenkette-zweifach
+61.02.0277;210;1;61.02.0052;Mitnehmerbolzen
+61.02.0277;220;1;61.02.0043;Spillwelle
+61.02.0277;230;1;61.02.0053;Wellenschutz
+61.02.0277;240;1;61.02.0042;Lagerbock
+61.02.0277;250;1;61.02.0230;Gegenplatte Lagerbock
+61.02.0277;260;1;40.10.7707;Grundplatte Lagerbock
+61.02.0277;270;1;61.02.0057;Baugrp Kettenradscheibe
+61.02.0277;60;2;10.10.0047;6-kt-Muttern 0,8 d
+61.02.0277;65;2;10.10.0045;6-kt-Muttern 0,8 d
+61.02.0277;70;4;10.10.0184;6-kt-Schrauben
+61.02.0277;135;2;10.10.0682;Sicherungsringe für Wellen
+61.02.0277;140;4;10.10.0945;U-Scheiben
+61.02.0298;280;1;61.03.0088;Baugrp Haspelachse
+61.03.0088;40;2;10.20.0029;Rillenkugellager 6206 2RS
+61.03.0088;70;1;61.03.0138;Distanzring
+61.03.0088;80;1;61.03.0139;Lageraufnahme
+61.03.0088;60;1;61.03.0140;Achsgriff
+61.03.0088;90;1;61.03.0137;Haspelachse
+61.03.0088;10;1;10.10.01150;Passcheiben
+61.03.0088;20;2;10.10.0637;Sicherungsringe für Bohrungen
+61.03.0088;30;1;10.10.0679;Sicherungsringe für Wellen
+61.03.0088;50;1;10.10.1062;Spannhülsen schwer
+61.02.0298;290;1;61.02.0126;Baugrp Seilführungsarm
+61.02.0126;10;1;12.89.1002;Lastmessbolzen 25kN, Ø25h6, 4-20mA
+61.02.0126;20;1;10.43.0009;Halteseil, rostfrei mit 2 Schlüsselringe
+61.02.0126;30;2;10.10.0063;6-kt-Schrauben
+61.02.0126;50;2;10.10.0346;Gewindestifte mit Kegelkuppe
+61.02.0126;60;3;10.10.01284;ZK-Schrauben I-6-kt.
+61.02.0126;80;2;10.10.0636;Sicherungsringe für Bohrungen
+61.02.0126;90;2;10.10.0684;Sicherungsringe für Wellen
+61.02.0126;100;2;10.10.0665;Sicherungsring für Wellen
+61.02.0126;110;2;10.10.01200;Sicherungsringe für Wellen
+61.02.0126;120;1;10.10.01364;Flügelschrauben
+61.02.0126;130;2;10.10.0933;U-Scheiben
+61.02.0126;140;1;10.10.0940;U-Scheiben
+61.02.0126;170;2;10.39.0023;Normdruckfeder d=0.8, D=6.3, Lo=23mm
+61.02.0126;180;1;10.30.0003;Kugelknopf DIN 319 Pr, Form C, 40mm, M10
+61.02.0126;200;3;10.20.0008;Rillenkugellager 6304
+61.02.0126;210;1;10.20.0005;Rillenkugellager 61908
+61.02.0126;220;1;10.20.0007;Rillenkugellager 6005 2RS
+61.02.0126;230;1;10.10.1004;Vorstecker einfach Ø3
+61.02.0126;240;2;10.10.1042;Sechskant-Verlängerungsmutter 3d
+61.02.0126;250;1;10.20.0004;Axial Rillenkugellager
+61.02.0126;260;1;61.02.0144;Baugruppe Schutz Längenmessung
+61.02.0144;10;1;61.02.0145;Schutzblech hinten
+61.02.0144;20;1;61.02.0146;Schutzblech vorne
+61.02.0126;270;1;61.02.0141;Baugruppe Schutzrohr
+61.02.0141;10;1;61.02.0142;Schutzrohr
+61.02.0141;20;2;61.02.0143;Lasche
+61.02.0126;280;1;61.02.0136;Baugruppe Support Seilführungsarm
+61.02.0136;10;1;61.02.0137;Grundplatte
+61.02.0136;20;1;61.02.0138;Platte hinten
+61.02.0136;30;1;61.02.0139;Spickel
+61.02.0136;40;1;61.02.0140;Platte vorne
+61.02.0126;150;2;12.31.0017;Sensor induktiv
+61.02.0126;160;2;12.31.0020;Steckverbinder M12, 4-polig, 90°
+61.02.0126;190;1;10.44.0044;Sterngriff M5
+61.02.0126;290;1;61.02.0127;Baugrp Seilführungsarm geschweisst
+61.02.0127;10;1;10.10.0022;6-kt-Muttern
+61.02.0127;20;1;61.02.0128;Längenmessplatte
+61.02.0127;30;1;61.02.0129;Seitenteil links
+61.02.0127;40;1;61.02.0130;Seitenteil rechts
+61.02.0127;50;1;61.02.0131;Distanzhalter
+61.02.0127;60;1;61.02.0132;Lagergehäuse Seilführungsarm
+61.02.0127;70;2;61.02.0133;Lagerauge
+61.02.0127;80;2;61.02.0134;Zapfenführung
+61.02.0127;90;1;61.02.0135;Führungsrohr
+61.02.0135;10;1;40.10.3247;Stahlrohr präz. nahtl. E235 (St 35)
+61.02.0126;300;1;61.02.0147;Verdrehsicherung
+61.02.0126;310;1;61.02.0148;Kraftmesshülse
+61.02.0126;320;1;61.02.0149;Kraftmessrolle
+61.02.0126;330;1;61.02.0150;Längenmessrolle (KZW10)
+61.02.0126;340;1;61.02.0151;Hebel
+61.02.0126;350;2;61.02.0152;Druckstift
+61.02.0126;360;1;61.02.0153;Umlenkachse
+61.02.0126;370;1;61.02.0154;Umlenkhülse
+61.02.0126;380;1;61.02.0155;Achse
+61.02.0126;390;2;61.02.0156;Distanzscheibe
+61.02.0126;400;1;61.02.0157;Scheibe
+61.02.0126;165;1;12.31.0021;Steckverbinder M12, 4-polig, gerade
+61.02.0126;166;2;10.80.0071;Wellrohr NW10, schwarz
+61.02.0126;167;1;12.19.0108;RSG Gummiklammer 12
+61.02.0126;145;1;10.10.0559;PH-Schrauben
+61.02.0126;26;1;10.10.01434;6-kt-Schrauben
+61.02.0126;40;1;10.10.01037;ZK-Schrauben I-6-kt.
+61.02.0126;45;1;10.10.0107;6-kt-Schrauben
+61.02.0126;48;1;10.10.0114;6-kt-Schrauben
+61.02.0126;123;1;10.10.0043;6-kt-Muttern 0,8 d
+61.02.0126;125;1;10.10.0944;U-Scheiben
+61.02.0126;128;1;10.10.0945;U-Scheiben
+61.02.0126;70;2;10.10.0637;Sicherungsringe für Bohrungen
+61.02.0298;300;1;61.02.0199;Baugrp Seileinlauf
+61.02.0199;10;7;10.10.0090;6-kt-Schrauben
+61.02.0199;20;7;10.10.0942;U-Scheiben
+61.02.0199;30;1;10.43.0023;Steckbolzen mit Axialsicherung, inox
+61.02.0199;40;1;10.43.0010;Halteseil, rostfrei mit Lasche + Ring
+61.02.0199;50;1;10.43.0008;Klemmhebel verstellbar
+61.02.0199;60;8;10.60.0001;Sinterbronce-Zylinderlager
+61.02.0199;70;4;61.02.0195;Rolle Seileinlauf
+61.02.0199;80;4;61.02.0225;Achse Seileinlauf
+61.02.0199;90;1;61.02.0189;Seileinlauf oben
+61.02.0199;100;1;61.02.0194;Baugrp Seileinlauf geschw.
+61.02.0194;10;1;61.02.0190;Grundblech
+61.02.0194;20;1;61.02.0191;Winkel rechts
+61.02.0194;30;1;61.02.0192;Winkel links
+61.02.0199;15;1;10.10.01691;Gewindestifte mit Ringschneide
+61.02.0199;25;1;10.10.0619;Sicherungsmuttern
+61.02.0298;310;1;61.02.0182;Baugrp Hebeblech
+61.02.0182;10;1;61.02.0183;Hebeblech
+61.02.0182;20;2;61.02.0184;Auflage Hebeblech
+61.02.0298;320;1;61.02.0228;Baugrp Verstellhebel Hebeblech
+61.02.0228;10;1;61.02.0226;Verstellwelle
+61.02.0228;20;1;61.02.0227;Verstellhebel
+61.02.0298;330;1;61.02.0278;Baugrp Haspelbremse
+61.02.0278;10;1;10.10.01349;Zylinderschraube mit Schlitz
+61.02.0278;20;1;10.10.01499;Sicherungsmutter Poly-Stop
+61.02.0278;30;2;10.10.0025;6-kt-Muttern
+61.02.0278;40;1;10.10.0030;6-kt-Muttern 0,5 d
+61.02.0278;50;4;10.10.00651;6-kt-Schrauben
+61.02.0278;60;1;10.10.0150;6-kt-Schrauben
+61.02.0278;70;1;10.10.0344;Gewindestifte mit Kegelkuppe
+61.02.0278;80;8;10.10.0941;U-Scheiben
+61.02.0278;90;1;10.30.0004;Kugelknopf DIN 319 Pr, Form C, 30mm, M8
+61.02.0278;110;1;10.10.01212;Flache Kette Ø2.5
+61.02.0278;120;1;10.39.0001;Zugfeder
+61.02.0278;130;4;10.10.0612;Sicherungsmuttern
+61.02.0278;140;2;61.02.0251;Seitenteil Haspelbremse
+61.02.0251;10;1;61.02.0251-L;Seitenteil Haspelbremse
+61.02.0278;150;1;61.03.0078;Baugrp Bremselement
+61.03.0078;10;1;40.10.3065;Rohr
+61.03.0078;20;1;40.10.2113;Segment
+61.02.0278;160;1;61.03.0077;Baugrp Bremshebel
+61.03.0077;20;1;40.10.7481;Federhalter
+61.03.0077;10;1;61.03.0188;Bremshebel
+61.03.0077;30;1;61.03.0189;Nabe Bremshebel
+61.02.0278;100;1;12.51.0121;Haken zu Gummischnur 8mm
+61.02.0298;340;1;61.02.0158;Baugrp Abstützung vorn
+61.02.0158;10;1;61.02.0159;Hohlprofil
+61.02.0158;20;1;61.02.0160;Stützplatte
+61.02.0298;350;2;61.02.0161;Baugrp Abstützung
+61.02.0161;10;1;61.02.0162;Hohlprofil
+61.02.0161;20;1;61.02.0160;Stützplatte
+61.02.0298;370;1;61.02.0203;Baugrp Deichsel geschweisst
+61.02.0203;10;1;61.02.0222;Befestigungsrohr
+61.02.0203;20;1;61.02.0223;Vertikalrohr
+61.02.0203;30;1;61.02.0224;Deichselrohr
+61.02.0298;520;1;50.41.0000;Typenschild Jost
+61.02.0298;530;1;61.02.0163;Baugrp Hydrauliktank
+61.02.0163;10;1;61.02.0164;Pumpenträger
+61.02.0163;20;1;61.02.0165;Grundblech
+61.02.0163;30;1;61.02.0166;Deckblech
+61.02.0163;40;1;61.02.0167;Träger EM
+61.02.0163;50;1;61.02.0168;Einschweissbuchse M8
+61.02.0163;60;1;61.02.0169;Stutzen 1/2
+61.02.0163;70;3;61.02.0170;Anschweissbuchse 3/4
+61.02.0163;80;2;61.02.0172;Anschweissbuchse 3/8 lang
+61.02.0163;90;1;61.02.0212;Träger BM
+61.02.0298;540;1;61.02.0213;Baugrp Pumpenhebel
+61.02.0213;10;1;10.10.01052;ZK-Schrauben I-6-kt.
+61.02.0213;20;1;10.10.01380;Schweissmuttern DIN 929
+61.02.0213;30;1;61.02.0214;Verstellrohr
+61.02.0214;10;1;40.10.3190;Stahlrohr präz. nahtl. E235 (St 35)
+61.02.0298;550;1;61.02.0173;Baugrp Pumpenanlenkung
+61.02.0173;10;1;61.02.0174;Anschweisshebel
+61.02.0174;10;1;40.11.1086;Rundstahl blank,  S355JR+C (St.52-3K)
+61.02.0173;20;1;61.02.0175;Pumpenanlenkung
+61.02.0298;560;1;61.02.0178;Baugrp Pumpenblech
+61.02.0178;10;1;10.10.01538;Schweissmutter
+61.02.0178;20;1;61.02.0179;Pumpenblech
+61.02.0298;570;1;61.02.0220;Baugrp Hydraulikpumpe
+61.02.0220;10;1;12.96.0001;Axialkolben-Verstellpumpe
+61.02.0298;521;1;61.02.0215;Schlauchsatz KZW10
+61.02.0298;522;1;10.80.0015;Not-Aus-Pilzdrucktaster
+61.02.0298;580;1;12.91.0004;Gehänge
+61.02.0298;590;1;12.19.0114;Rohrkabelschuhe KRF25-8, 25 mm² (Ø8)
+61.02.0298;600;3;12.19.0115;Rohrkabelschuhe KRF25-6, 25 mm² (Ø8)
+61.02.0298;610;1;12.41.0102;Ladegerät Optimate 2
+61.02.0298;620;1;12.41.0101;Nachladewarner
+61.02.0298;360;1;61.02.0302;Baugrp Halter Haspelachse kompl
+61.02.0302;10;1;10.10.0559;PH-Schrauben
+61.02.0302;20;2;10.10.1043;Kegelkerbstift Ø6x40
+61.02.0302;30;2;10.10.0148;6-kt-Schrauben
+61.02.0302;40;2;10.10.0286;Federringe
+61.02.0302;50;2;10.10.0945;U-Scheiben
+61.02.0302;60;1;10.10.01249;Verschlussglied Ø5x50, Öffnung 6.5mm
+61.02.0302;70;0,3;10.10.01212;Flache Kette Ø2.5
+61.02.0302;80;1;10.10.0577;Ringschrauben
+61.02.0302;90;1;61.02.0250;Stecknagel (Ø20)
+61.02.0302;100;1;61.02.0249;Gegenplatte Halter Haspelachse
+61.02.0302;110;1;61.02.0245;Baugrp Halter Haspelachse
+61.02.0245;10;1;61.02.0242;Grundplatte
+61.02.0245;20;1;61.02.0243;Spickel
+61.02.0245;30;1;61.02.0244;Lasche
+61.02.0298;110;4;10.43.0049;Steckbolzen mit Axialsicherung Ø12x45
+61.02.0100;20;1;61.02.0219;Baugrp Power Unit BM+EM
+61.02.0219;10;15;10.10.0942;U-Scheiben
+61.02.0219;30;2;10.10.1049;U-Scheiben
+61.02.0219;40;2;10.10.0090;6-kt-Schrauben
+61.02.0219;50;4;10.10.0094;6-kt-Schrauben
+61.02.0219;60;2;10.10.0099;6-kt-Schrauben
+61.02.0219;70;1;10.10.0100;6-kt-Schrauben
+61.02.0219;80;1;12.20.0003;6-kt-Schrauben UNF-Gewinde
+61.02.0219;90;2;10.10.0044;6-kt-Muttern 0,8 d
+61.02.0219;100;2;10.10.0045;6-kt-Muttern 0,8 d
+61.02.0219;110;4;10.10.0619;Sicherungsmuttern
+61.02.0219;120;1;10.10.0324;Flügelschrauben
+61.02.0219;150;1;10.30.0003;Kugelknopf DIN 319 Pr, Form C, 40mm, M10
+61.02.0219;160;1;12.20.0002;Fliehkraftkupplung 2-Rillig
+61.02.0219;180;1;61.02.0216;Distanzring Fliehkraftkupplung
+61.02.0219;200;1;61.02.0217;Distanzring Kupplung 2R
+61.02.0219;210;2;61.02.0218;Keilriemen SPA 825
+61.02.0219;220;1;12.15.0002;Keilriemenscheibe SPA 85, 1-Rillig
+61.02.0219;240;1;61.02.0221;Baugrp Elektromotor kombiniert
+61.02.0219;230;1;12.15.0003;Taper-Lock Spannbuchse
+61.02.0219;20;3;10.10.0943;U-Scheiben
+61.02.0219;130;1;10.10.0506;Passfedern
+61.02.0219;235;1;12.20.0155;Keil 3/16"x3/16"
+61.02.0219;170;1;12.20.0226;Benzinmotor 6.5HP mit Elektrostart
+61.02.0100;30;1;12.91.0004;Gehänge
+61.02.0100;40;1;12.51.0122;Abdeckhülle zu KZW10, Masch. Nr. 1922
+61.02.0100;50;1;60.02.5100;Transportanhänger bis 100 km/h zugelasse
+61.02.0100;60;1;60.03.0851;Logo zu Abdeckblache
+61.02.0100;70;1;60.02.5120;Messdatenregistrierung PMC 14 S
+60.02.5120;10;1;12.64.0017;USB Stick 4GB
+61.02.0100;80;1BLOCKED;61.02.0280;Baugruppe Haspel Nr. 5
+61.02.0280;10;8;61.02.0281;Querstrebe
+61.02.0280;20;2;61.06.0250;Rohrreif
+61.02.0280;30;2;61.02.0283;Querstrebe
+61.02.0280;40;2;61.02.0284;Seitenwand
+61.02.0280;60;4;61.02.0288;Baugruppe Querstrebe verstärkt
+61.02.0288;20;2;61.02.0287;Verstärkung
+61.02.0288;10;1;61.02.0289;Querstrebe
+61.02.0280;70;2;61.02.0290;Baugruppe Haspellager
+61.02.0290;10;4;40.10.8022;Winkelstahl St. 37 scharfkantig
+61.02.0280;80;1;61.02.0292;Baugruppe Haspelrohr mit Seilhaken
+61.02.0292;10;2;61.02.0291;Seilhaken
+61.02.0292;20;1;61.02.0293;Stahlrohr starkw. nahtl. E355 (St. 52)
+61.02.0100;90;1;61.02.0279;Baugruppe Zugeinheit mit Spill
+61.02.0279;10;1;10.20.0002;Flanschlager
+61.02.0279;20;1;10.20.0096;Kugellagerkugel
+61.02.0279;30;2;10.10.1043;Kegelkerbstift Ø6x40
+61.02.0279;50;2;10.10.0500;Passcheiben
+61.02.0279;60;2;10.10.0025;6-kt-Muttern
+61.02.0279;70;2;10.10.0097;6-kt-Schraube
+61.02.0279;80;2;10.10.0237;6-kt-Schrauben
+61.02.0279;40;2;10.10.01108;Zylinderstifte
+61.02.0279;90;1;10.10.03555;Gewindestifte mit Zapfen
+61.02.0279;100;1;10.10.03556;Gewindestifte mit Zapfen
+61.02.0279;110;4;10.10.01016;ZK-Schrauben I-6-kt.
+61.02.0279;120;1;10.10.0512;Passfedern
+61.02.0279;130;2;10.10.0637;Sicherungsringe für Bohrungen
+61.02.0279;140;4;10.10.0938;U-Scheiben
+61.02.0279;150;2;10.10.0682;Sicherungsringe für Wellen
+61.02.0279;160;8;10.10.0943;U-Scheiben
+61.02.0279;170;1;10.39.0007;Normdruckfeder d=1.25, D=6.3, Lo=12mm
+61.02.0279;180;2;10.20.0003;Rillenkugellager 6007
+61.02.0279;190;1;10.30.0055;Kettenschloss gerade, zweifach
+61.02.0279;200;1;10.30.0054;Rollenkette-zweifach
+61.02.0279;210;1;61.02.0052;Mitnehmerbolzen
+61.02.0279;220;1;61.02.0043;Spillwelle
+61.02.0279;230;1;61.02.0053;Wellenschutz
+61.02.0279;240;1;61.02.0042;Lagerbock
+61.02.0279;250;1;61.02.0230;Gegenplatte Lagerbock
+61.02.0279;260;1;40.10.7707;Grundplatte Lagerbock
+61.02.0279;270;1;61.02.0057;Baugrp Kettenradscheibe
+61.02.0279;280;2;10.10.01988;6-kt-Muttern
+61.02.0279;290;1;61.03.0280;Baugrp Spill
+61.03.0280;10;8;10.10.0073;6-kt-Schrauben
+61.03.0280;20;8;10.10.0934;U-Scheiben
+61.03.0280;30;1;61.03.0099;Spill
+61.03.0280;40;1;61.02.0044;Spillnabe
+61.02.0100;100;1;60.02.5110;Fernbetätigung Windenantrieb
+60.02.5110;20;2;10.44.0043;Sterngriffschraube
+60.02.5110;30;1;12.75.0010;Stellhebel 46.66 ohne Sperre
+60.02.5110;40;1;12.75.0012;Druck-Zug-Kabel für Stellhebel
+60.02.5110;50;1;12.75.0011;Gabelkopf mit ES-Bolzen, verzinkt
+60.02.5110;90;1;12.30.2023;Bauchgurt zu Funksender Tiger G2
+60.02.5110;60;1;61.02.0209;Winkel Bedienung
+60.02.5110;70;1;61.02.0211;Halter Bedienung
+60.02.5110;80;2;61.02.0206;Gurthalter
+60.02.5110;55;1;12.74.0030;Feder stark (ET. 102)
+61.02.0100;110;1;60.02.5115;Messsteuerung PMC14 S Direktzug
+60.02.5115;20;5;12.64.0120;Baugrp Klemmenkasten KZW10
+60.02.5115;30;5;12.64.0121;Baugrp Bedieneinheit KZW10
+60.02.5115;40;5;12.64.0006;Ein-/ Ausgangsmodul
+60.02.5115;50;5;12.64.0005;Anzeige-/Bediengerät
+60.02.5115;60;5;12.64.0008;JVM-104 Befestigungs Set Einbau
+60.02.5115;70;1;61.02.0141;Baugruppe Schutzrohr
+60.02.5115;80;1;61.02.0144;Baugruppe Schutz Längenmessung
+60.02.5115;90;1;12.89.1002;Lastmessbolzen 25kN, Ø25h6, 4-20mA
+60.02.5115;100;2;12.31.0017;Sensor induktiv
+60.02.5115;110;2;12.31.0020;Steckverbinder M12, 4-polig, 90°
+60.02.5115;120;1;12.31.0021;Steckverbinder M12, 4-polig, gerade
+61.02.0100;120;1;50.41.0000;Typenschild Jost

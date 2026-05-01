@@ -1,0 +1,140 @@
+﻿Stücklistennummer;Status;Bezeichnung;Bemerkung;Versionsnummer;Gültig von;Gültig bis;Bemerkung Version;Anzahl Artikel;Erster Artikel verknüpft
+1100004;90 - Freigegeben;Haspel Moser;;1;21.07.2025;31.12.2099;;1;1100004 | Haspel Moser |
+1100024;10 - In Bearbeitung;Baugruppe Kollektorabgang Hatz;;2;15.04.2026;31.12.2099;;1;1100024 | Baugruppe Kollektorabgang Hatz | KZW 20 / RK049
+1100032;90 - Freigegeben;Modul 1 Mechanik;;1;01.04.2026;31.12.2099;;1;1100032 | Modul 1 Mechanik |
+1100033;90 - Freigegeben;Modul 2 Elektrik;;1;01.04.2026;31.12.2099;;1;1100033 | Modul 2 Elektrik |
+12.60.0015;90 - Freigegeben;Baugruppe Absenkbremse;;1;20.10.2025;31.12.2099;;1;12.60.0015 | Baugruppe Absenkbremse | KZW 20
+60.03.7000;90 - Freigegeben;KZW 20 / RK049;;1;21.10.2025;31.12.2099;;1;60.03.7000 | KZW 20 / RK049 | Grundmaschine ohne Raupenfahrwerk
+60.03.7001;90 - Freigegeben;Baugruppe Raupenfahrwerk Benzin;;1;19.11.2025;31.12.2099;;1;60.03.7001 | Baugruppe Raupenfahrwerk Benzin | KZW20 / RK049
+60.03.7002;90 - Freigegeben;Baugruppe Raupenfahrwerk Diesel;;1;19.11.2025;31.12.2099;;1;60.03.7002 | Baugruppe Raupenfahrwerk Diesel | KZW 20 / RK049
+60.03.7003;90 - Freigegeben;Baugruppe Aufbau Partikelfilter;;1;19.11.2025;31.12.2099;;1;60.03.7003 | Baugruppe Aufbau Partikelfilter | KZW 20 / RK049
+60.03.7012;90 - Freigegeben;KZW20/RK049 mit Benzinmotor und Dozershild mit Zähnen;;1;04.02.2026;31.12.2099;;1;60.03.7012 | KZW20/RK049 mit Benzinmotor und Dozerschild mit Zähnen |
+60.06.0500;10 - In Bearbeitung;60.06.0500;;1;01.01.1900;01.01.2099;DM Version 1;0;
+60.50.0001;90 - Freigegeben;hNEA 200 kVA;;1;23.01.2026;31.12.2099;;1;60.50.0001 | hNEA 200 kVA | Mobile hybride Netzersatzanlage
+61.02.0292;10 - In Bearbeitung;61.02.0292;Test-Stückliste 2 von Datenmigration;1;01.01.1900;01.01.2099;DM Version 2;0;
+61.03.0088;90 - Freigegeben;Baugruppe Haspelachse;;1;09.10.2025;31.12.2099;;1;61.03.0088 | Baugruppe Haspelachse | KZW 15, HSW 500, KZW 20, KZW 10
+61.03.6006;90 - Freigegeben;Baugruppe Ventilblock;;1;08.10.2025;31.12.2099;;1;61.03.6006 | Baugruppe Ventilblock | KZW 20
+61.03.6008;90 - Freigegeben;Baugruppe Poclainmotor;;1;08.10.2025;31.12.2099;;1;61.03.6008 | Baugruppe Poclainmotor | KZW 20
+61.03.6009;90 - Freigegeben;Baugruppe Zugeinheit;;1;09.10.2025;31.12.2099;;1;61.03.6009 | Baugruppe Zugeinheit | KZW 20
+61.03.6010;90 - Freigegeben;Baugruppe Seilführungsarm;;1;10.10.2025;31.12.2099;;1;61.03.6010 | Baugruppe Seilführungsarm | KZW 20
+61.03.6011;90 - Freigegeben;Baugruppe Kraftmessung;;1;10.10.2025;31.12.2099;;1;61.03.6011 | Baugruppe Kraftmessung | KZW 20
+61.03.6012;90 - Freigegeben;Baugruppe Seileinlauf;;1;13.10.2025;31.12.2099;;1;61.03.6012 | Baugruppe Seileinlauf | KZW 20
+61.03.6014;90 - Freigegeben;Baugruppe Kettenschutz;;1;14.10.2025;31.12.2099;;1;61.03.6014 | Baugruppe Kettenschutz | KZW 20
+61.03.6015;90 - Freigegeben;Baugruppe Spindelverstellung;;1;16.10.2025;31.12.2099;;1;61.03.6015 | Baugruppe Spindelverstellung | KZW 20
+61.03.6016;90 - Freigegeben;Baugruppe Hebeblech;;1;16.10.2025;31.12.2099;;1;61.03.6016 | Baugruppe Hebeblech | KZW 20
+61.03.6029;90 - Freigegeben;Baugruppe Seilrolle;;1;10.10.2025;31.12.2099;;1;61.03.6029 | Baugruppe Seilrolle | KZW 20
+61.03.6057;90 - Freigegeben;Baugruppe Abdeckung;;1;13.10.2025;31.12.2099;;1;61.03.6057 | Baugruppe Abdeckung | KZW 20
+61.03.6083;90 - Freigegeben;Baugruppe Traverse;;1;07.10.2025;31.12.2099;;1;61.03.6083 | Baugruppe Traverse | KZW20
+61.03.6091;90 - Freigegeben;Baugruppe Bremsverstellung;;1;16.10.2025;31.12.2099;;1;61.03.6091 | Baugruppe Bremsverstellung |
+61.03.6107;90 - Freigegeben;Baugruppe Ölkühler;;1;08.10.2025;31.12.2099;;1;61.03.6107 | Baugruppe Ölkühler | KZW 20
+61.03.6108;90 - Freigegeben;Baugruppe Seilumlenkung horizontal;;1;21.10.2025;31.12.2099;;1;61.03.6108 | Baugruppe Seilumlenkung horizontal | KZW 20
+61.03.6184;90 - Freigegeben;Baugruppe Schutzgitter oben geschweisst;;1;20.10.2025;31.12.2099;;1;61.03.6184 | Baugruppe Schutzgitter oben geschweisst |
+61.03.6185;90 - Freigegeben;Baugruppe Schutzgitter unten geschweisst;;1;20.10.2025;31.12.2099;;1;61.03.6185 | Baugruppe Schutzgitter unten geschweisst |
+61.03.6209;90 - Freigegeben;Baugruppe Konsole Einlaufrolle;;1;08.10.2025;31.12.2099;;1;61.03.6209 | Baugruppe Konsole Einlaufrolle | KZW 20
+61.03.6211;90 - Freigegeben;Baugruppe Seilführungsarm geschweisst;;1;09.10.2025;31.12.2099;;1;61.03.6211 | Baugruppe Seilführungsarm geschweisst | KZW 20
+61.03.6213;90 - Freigegeben;Baugruppe Seileinlauf geschweisst;;1;14.10.2025;31.12.2099;;1;61.03.6213 | Baugruppe Seileinlauf geschweisst | KZW 20
+61.03.6214;90 - Freigegeben;Baugruppe Kettenschutz geschweisst;;1;14.10.2025;31.12.2099;;1;61.03.6214 | Baugruppe Kettenschutz geschweisst | KZW 20
+61.03.6215;90 - Freigegeben;Baugruppe Spindelverstellung Halter;;1;15.10.2025;31.12.2099;;1;61.03.6215 | Baugruppe Spindelverstellung Halter | KZW 20
+61.03.6216;90 - Freigegeben;Baugruppe Spindelrohr;;1;16.10.2025;31.12.2099;;1;61.03.6216 | Baugruppe Spindelrohr |
+61.03.6217;90 - Freigegeben;Baugruppe Hebeblech geschweisst;;1;16.10.2025;31.12.2099;;1;61.03.6217 | Baugruppe Hebeblech geschweisst |
+61.03.6218;90 - Freigegeben;Baugruppe Bremsband;;1;16.10.2025;31.12.2099;;1;61.03.6218 | Baugruppe Bremsband |
+61.03.6219;90 - Freigegeben;Baugruppe Seilumlenkung geschweisst;;1;21.10.2025;31.12.2099;;1;61.03.6219 | Baugruppe Seilumlenkung geschweisst | KZW 20
+61.03.7001;90 - Freigegeben;Baugruppe Chassis;;1;06.10.2025;31.12.2099;;1;61.03.7001 | Baugruppe Chassis | KZW 20 / RK 049
+61.03.7002;90 - Freigegeben;Baugruppe Steuerpult;;1;21.10.2025;31.12.2099;;1;61.03.7002 | Baugruppe Steuerpult | KZW20 / RK049
+61.03.7003;90 - Freigegeben;Baugruppe Partikelfilter zu Hatz 2G40;;1;19.11.2025;31.12.2099;;1;61.03.7003 | Baugruppe Partikelfilter zu Hatz 2G40 |
+61.03.7006;90 - Freigegeben;Baugruppe Schutzgitter komplett geschweisst;;1;20.10.2025;31.12.2099;;1;61.03.7006 | Baugruppe Schutzgitter komplett geschweisst |
+61.03.7007;90 - Freigegeben;Baugruppe Werkzeugfach geschweisst;;1;21.10.2025;31.12.2099;;1;61.03.7007 | Baugruppe Werkzeugfach geschweisst |
+61.03.7009;90 - Freigegeben;Baugruppe Unterfahrschutz;;1;19.11.2025;31.12.2099;;1;61.03.7009 | Baugruppe Unterfahrschutz |
+61.03.7022;90 - Freigegeben;Baugruppe Schutzgitter;;1;20.10.2025;31.12.2099;;1;61.03.7022 | Baugruppe Schutzgitter | KZW20 / RK049
+61.03.7053;90 - Freigegeben;Baugruppe Schutzgitterhalter rechts;;1;20.10.2025;31.12.2099;;1;61.03.7053 | Baugruppe Schutzgitterhalter rechts | KZW20 / RK049
+61.03.7054;90 - Freigegeben;Baugruppe Schutzgitterhalter links;;1;20.10.2025;31.12.2099;;1;61.03.7054 | Baugruppe Schutzgitterhalter links | KZW 20 / RK049
+61.03.7055;90 - Freigegeben;Baugruppe Additivtank;;1;19.11.2025;31.12.2099;;1;61.03.7055 | Baugruppe Additivtank | KZW 20 / RK049
+61.03.7056;90 - Freigegeben;Baugruppe Werkzeugfach;;1;21.10.2025;31.12.2099;;1;61.03.7056 | Baugruppe Werkzeugfach | KZW 20 / RK049
+61.03.7057;90 - Freigegeben;Baugruppe Anschlagpunkt KZW20 / RK049;;1;21.10.2025;31.12.2099;;1;61.03.7057 | Baugruppe Anschlagpunkt | KZW20 / RK049
+61.50 0730;90 - Freigegeben;Baugrp Konsole;;1;01.07.2025;31.12.2099;;1;61.50.0730 | Baugrp Konsole |
+61.50.0013;90 - Freigegeben;Baugrp HPU;;1;02.07.2025;31.12.2099;;1;61.50.0013 | Baugrp HPU |
+61.50.0014;90 - Freigegeben;Baugrp Power Unit;;1;01.07.2025;31.12.2099;;1;61.50.0014 | Baugrp Power Unit |
+61.50.0015;90 - Freigegeben;Baugrp Baseframe;;1;01.07.2025;31.12.2099;;1;61.50.0015 | Baugrp Baseframe |
+61.50.0027;90 - Freigegeben;Baugrp Topframe;;1;01.07.2025;31.12.2099;;1;61.50.0027 | Baugrp Topframe |
+61.50.0036;90 - Freigegeben;Baugrp Saugrohr;;1;01.07.2025;31.12.2099;;1;61.50.0036 | Baugrp Saugrohr |
+61.50.0039;90 - Freigegeben;Baugrp Halter;;1;01.07.2025;31.12.2099;;1;61.50.0039 | Baugrp Halter |
+61.50.0042;90 - Freigegeben;Baugrp Traverse;;1;01.07.2025;31.12.2099;;1;61.50.0042 | Baugrp Traverse |
+61.50.0045;90 - Freigegeben;Baugrp Power Unit Aradex;;1;01.07.2025;31.12.2099;;1;61.50.0045 | Baugrp Power Unit Aradex |
+61.50.0046;90 - Freigegeben;Baugrp Kupplungsträger Aradex;;1;01.07.2025;31.12.2099;;1;61.50.0046 | Baugrp Kupplungsträger Aradex |
+61.50.0067;90 - Freigegeben;Baugrp Abgasschlauch;;1;01.07.2025;31.12.2099;;1;61.50.0067 | Baugrp Abgasschlauch |
+61.50.0087;90 - Freigegeben;Baugrp Halter Modulator;;1;18.07.2025;31.12.2099;;1;61.50.0087 | Baugrp Halter Modulator |
+61.50.0092;90 - Freigegeben;Baugrp Klemmplatte;;1;18.07.2025;31.12.2099;;1;61.50.0092 | Baugrp Klemmplatte |
+61.50.0111;90 - Freigegeben;Traverse;;1;07.08.2025;31.12.2099;;1;61.50.0111 | Traverse |
+61.50.0116;90 - Freigegeben;Baugrp Konsole HPU;;1;01.07.2025;31.12.2099;;1;61.50.0116 | Baugrp Konsole HPU |
+61.50.0131;90 - Freigegeben;Baugrp Tragrahmen;;1;30.07.2025;31.12.2099;;1;61.50.0131 | Baugrp Tragrahmen |
+61.50.0136;90 - Freigegeben;Baugrp Ölbehälter;;1;30.07.2025;31.12.2099;;1;61.50.0136 | Baugrp Ölbehälter |
+61.50.0189;90 - Freigegeben;Baugrp Kasten;;1;07.08.2025;31.12.2099;;1;61.50.0189 | Baugrp Kasten |
+61.50.0207;90 - Freigegeben;Träger HMI;;1;07.08.2025;31.12.2099;;1;61.50.0207 | Träger HMI |
+61.50.0251;90 - Freigegeben;Baugrp Rahmen Air;;1;25.08.2025;31.12.2099;;1;61.50.0251 | Baugrp Rahmen Air |
+61.50.0338;90 - Freigegeben;Baugrp Staurahmen;;1;22.08.2025;31.12.2099;;1;61.50.0338 | Baugrp Staurahmen |
+61.50.0352;90 - Freigegeben;Dachrahmen;;1;02.06.2025;31.12.2099;;1;61.50.0352 | Dachrahmen |
+61.50.0380;90 - Freigegeben;Baugrp Dachdurchdringung;;1;25.08.2025;31.12.2099;;1;61.50.0380 | Baugrp Dachdurchdringung |
+61.50.0489;90 - Freigegeben;Baugrp Ablufthaube;;1;22.08.2025;31.12.2099;;1;61.50.0489 | Baugrp Ablufthaube |
+61.50.0497;90 - Freigegeben;Dach;;1;02.06.2025;31.12.2099;;1;61.50.0497 | Dach |
+61.50.0499;90 - Freigegeben;Baugrp Träger Trafo;;1;22.08.2025;31.12.2099;;1;61.50.0499 | Baugrp Träger Trafo |
+61.50.0553;90 - Freigegeben;Baugrp Kabelrollenhalter;;1;07.08.2025;31.12.2099;;1;61.50.0553 | Baugrp Kabelrollenhalter |
+61.50.0674;90 - Freigegeben;Baugruppe Kabelrolle Connect;;1;07.08.2025;31.12.2099;;1;61.50.0674 | Baugruppe Kabelrolle Connect |
+61.50.0694;90 - Freigegeben;Schlauchsattel;;1;22.08.2025;31.12.2099;;1;61.50.0694 | Schlauchsattel |
+61.50.0700;90 - Freigegeben;Baugrp Dachrinne;;1;02.06.2025;31.12.2099;;1;61.50.0700 | Baugrp Dachrinne |
+61.50.0701;90 - Freigegeben;Baugrp Klemmwinkel;;1;02.06.2025;31.12.2099;;1;61.50.0701 | Baugrp Klemmwinkel |
+61.50.0710;90 - Freigegeben;Baugrp Chassis 200kVA SIG;;1;09.06.2025;31.12.2099;;1;61.50.0710 | Baugrp Chassis 200kVA SIG |
+61.50.0711;90 - Freigegeben;Baugrp Stütze;;1;09.06.2025;31.12.2099;;1;61.50.0711 | Baugrp Stütze |
+61.50.0712;90 - Freigegeben;Baugrp Träger L 400kVA;;1;09.06.2025;31.12.2099;;1;61.50.0712 | Baugrp Träger L 400kVA |
+61.50.0713;90 - Freigegeben;Baugrp Träger R 400kVA;;1;09.06.2025;31.12.2099;;1;61.50.0713 | Baugrp Träger R 400kVA |
+61.50.0714;90 - Freigegeben;Baugrp Schnittstelle Erdung;;1;09.06.2025;31.12.2099;;1;61.50.0714 | Baugrp Schnittstelle Erdung |
+61.50.0719;90 - Freigegeben;Baugrp Träger 400kVA;;1;02.07.2025;31.12.2099;;1;61.50.0719 | Baugrp Träger 400kVA |
+61.50.0720;90 - Freigegeben;Rahmen;;1;18.07.2025;31.12.2099;;1;61.50.0720 | Rahmen |
+61.50.0721;90 - Freigegeben;Baugrp Deckel;;1;18.07.2025;31.12.2099;;1;61.50.0721 | Baugrp Deckel |
+61.50.0722;90 - Freigegeben;Rahmen;;1;18.07.2025;31.12.2099;;1;61.50.0722 | Rahmen |
+61.50.0725;90 - Freigegeben;Baugrp Heckauffahrschutz;;1;18.07.2025;31.12.2099;;1;61.50.0725 | Baugrp Heckauffahrschutz |
+61.50.0731;90 - Freigegeben;Baugrp Konsole;;1;01.07.2025;31.12.2099;;1;61.50.0731 | Baugrp Konsole |
+61.50.0732;90 - Freigegeben;Baugrp GEN-Aradex;;1;01.07.2025;31.12.2099;;1;61.50.0732 | Baugrp GEN-Aradex |
+61.50.0737;90 - Freigegeben;Baugrp Schelle;;1;01.07.2025;31.12.2099;;1;61.50.0737 | Baugrp Schelle |
+61.50.0739;90 - Freigegeben;Baugrp ECC;;1;01.07.2025;31.12.2099;;1;61.50.0739 | Baugrp ECC |
+61.50.0740;90 - Freigegeben;Baugrp Chassis 200kVA SIG-VM;;1;02.07.2025;31.12.2099;;1;61.50.0740 | Baugrp Chassis 200kVA SIG-VM |
+61.50.0742;90 - Freigegeben;Aufbau Intermediate 400kVA;;1;07.08.2025;31.12.2099;;1;61.50.0742 | Aufbau Intermediate 400kVA |
+61.50.0743;90 - Freigegeben;Träger Kühler 400kVA;;1;07.08.2025;31.12.2099;;1;61.50.0743 | Träger Kühler 400kVA |
+61.50.0744;90 - Freigegeben;Baugrp Eckverstärkung Träger HMI vo;;1;07.08.2025;31.12.2099;;1;61.50.0744 | Baugrp Eckverstärkung Träger HMI vo |
+61.50.0745;90 - Freigegeben;Baugrp Kasten Interface 400kVA;;1;07.08.2025;31.12.2099;;1;61.50.0745 | Baugrp Kasten Interface 400kVA |
+61.50.0746;90 - Freigegeben;Baugrp Abrollvorrichtung;;1;07.08.2025;31.12.2099;;1;61.50.0746 | Baugrp Abrollvorrichtung |
+61.50.0747;90 - Freigegeben;Baugrp Traverse;;1;12.11.2025;31.12.2099;;1;61.50.0747 | Baugrp Traverse |
+61.50.0751;90 - Freigegeben;Baugrp Steuereinheit;;1;07.08.2025;31.12.2099;;1;61.50.0751 | Baugrp Steuereinheit |
+61.50.0752;90 - Freigegeben;Baugrp Tank;;1;30.07.2025;31.12.2099;;1;61.50.0752 | Baugrp Tank |
+61.50.0753;90 - Freigegeben;Baugrp Tank;;1;30.07.2025;31.12.2099;;1;61.50.0753 | Baugrp Tank |
+61.50.0754;90 - Freigegeben;Baugrp Ölbehälter;;1;30.07.2025;31.12.2099;;1;61.50.0754 | Baugrp Ölbehälter |
+61.50.0755;90 - Freigegeben;Baugrp Tankstutzen komplett;;1;30.07.2025;31.12.2099;;1;61.50.0755 | Baugrp Tankstutzen komplett |
+61.50.0756;90 - Freigegeben;Baugrp Tankstutzen;;1;30.07.2025;31.12.2099;;1;61.50.0756 | Baugrp Tankstutzen |
+61.50.0758;90 - Freigegeben;Baugrp Versorgungseinheit;;1;30.07.2025;31.12.2099;;1;61.50.0758 | Baugrp Versorgungseinheit |
+61.50.0759;90 - Freigegeben;Konsole FC400;;1;22.08.2025;31.12.2099;;1;61.50.0759 | Konsole FC400 |
+61.50.0761;90 - Freigegeben;Hydraulikkomponenten hNEA200kVA;;1;22.08.2025;31.12.2099;;1;61.50.0761 | Hydraulikkomponenten hNEA200kVA |
+61.50.0762;90 - Freigegeben;Baugrp Kastenaufbau;;1;25.08.2025;31.12.2099;;1;61.50.0762 | Baugrp Kastenaufbau |
+61.50.0763;90 - Freigegeben;Baugrp Rahmen Heat Exchanger;;1;25.08.2025;31.12.2099;;1;61.50.0763 | Baugrp Rahmen Heat Exchanger |
+61.50.0764;90 - Freigegeben;Baugrp Rahmen Heat Exchanger;;1;25.08.2025;31.12.2099;;1;61.50.0764 | Baugrp Rahmen Heat Exchanger |
+61.50.0765;90 - Freigegeben;Baugrp Rahmen;;1;25.08.2025;31.12.2099;;1;61.50.0765 | Baugrp Rahmen |
+61.50.0768;90 - Freigegeben;Baugrp Krümmer;;1;25.08.2025;31.12.2099;;1;61.50.0768 | Baugrp Krümmer |
+61.50.0771;90 - Freigegeben;Baugrp Trennwand;;1;25.08.2025;31.12.2099;;1;61.50.0771 | Baugrp Trennwand |
+61.50.0772;90 - Freigegeben;Baugrp Zubehör;;1;22.08.2025;31.12.2099;;1;61.50.0772 | Baugrp Zubehör |
+61.50.0785;90 - Freigegeben;Baugrp Stäubli;;1;01.09.2025;31.12.2099;;1;61.50.0785 | Baugrp Stäubli hNEA 200 kVA |
+61.50.0787;90 - Freigegeben;Baugrp Fahrwerk 200 kVA;;1;15.09.2025;31.12.2099;;1;61.50.0787 | Baugrp Fahrwerk 200 kVA |
+61.50.0790;90 - Freigegeben;Baugrp Stützfuss;;1;15.09.2025;31.12.2099;;1;61.50.0790 | Baugrp Stützfuss |
+61.50.0792;90 - Freigegeben;Baugrp Deichsel hNEA 200 kVA;;1;15.09.2025;31.12.2099;;1;61.50.0792 | Baugrp Deichsel hNEA 200 kVA |
+61.50.0796;90 - Freigegeben;Baugrp Träger hNEA 200kVA;;1;16.09.2025;31.12.2099;;1;61.50.0796 | Baugrp Träger hNEA 200kVA |
+61.50.0800;90 - Freigegeben;Baugrp Plattenhalterung;;1;22.09.2025;31.12.2099;;1;61.50.0800 | Baugrp Plattenhalterung |
+61.50.0805;90 - Freigegeben;Baugrp Traverse;;1;24.09.2025;31.12.2099;;1;61.50.0805 | Baugrp Traverse |
+61.50.0811;90 - Freigegeben;Baugrp Saugrohr;;1;07.10.2025;31.12.2099;;1;61.50.0811 | Baugrp Saugrohr |
+61.50.0825;90 - Freigegeben;Leistungsanschluss SIG Ringkabelschuh + Stäubli Buchse grün-gelb;;1;28.11.2025;31.12.2099;;1;61.50.0825 | Leistungsanschluss PUR-Kabel 1x50mm2 L=10m, Ringkabelschuh, Stäubli Buchse grün-gelb |
+61.50.0826;90 - Freigegeben;Leistungsanschluss PUR-Kabel 1x50mm2, Ringkabelschuh, Stäubli Buchse braun;;1;28.11.2025;31.12.2099;;1;61.50.0826 | Leistungsanschluss PUR-Kabel 1x50mm2 L=10m, Ringkabelschuh, Stäubli Buchse braun |
+61.50.0827;90 - Freigegeben;Leistungsanschluss PUR-Kabel 1x50mm2, Ringkabelschuh, Stäubli Buchse schwarz;;1;28.11.2025;31.12.2099;;1;61.50.0827 | Leistungsanschluss PUR-Kabel 1x50mm2 L=10m, Ringkabelschuh, Stäubli Buchse schwarz |
+61.50.0828;90 - Freigegeben;Leistungsanschluss PUR-Kabel 1x50mm2 L=10m, Ringkabelschuh, Stäubli Buchse grau;;1;28.11.2025;31.12.2099;;1;61.50.0828 | Leistungsanschluss PUR-Kabel 1x50mm2 L=10m, Ringkabelschuh, Stäubli Buchse grau |
+61.50.0829;90 - Freigegeben;Leistungsanschluss PUR-Kabel 1x50mm2 L=10m, Ringkabelschuh, Stäubli Buchse blau;;1;28.11.2025;31.12.2099;;1;61.50.0829 | Leistungsanschluss PUR-Kabel 1x50mm2 L=10m, Ringkabelschuh, Stäubli Buchse blau |
+61.50.0830;90 - Freigegeben;Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse grün-gelb;;1;28.11.2025;31.12.2099;;1;61.50.0830 | Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse grün-gelb |
+61.50.0831;90 - Freigegeben;Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse braun;;1;28.11.2025;31.12.2099;;1;61.50.0831 | Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse braun |
+61.50.0832;90 - Freigegeben;Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse schwarz;;1;28.11.2025;31.12.2099;;1;61.50.0832 | Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse schwarz |
+61.50.0833;90 - Freigegeben;Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse grau;;1;28.11.2025;31.12.2099;;1;61.50.0833 | Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse grau |
+61.50.0834;90 - Freigegeben;Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse blau;;1;28.11.2025;31.12.2099;;1;61.50.0834 | Leistungsanschluss: PUR-Kabel 1x50mm2 L=10m, Stäubli Stecker und Buchse blau |
+K61036155-S;90 - Freigegeben;Set 2 Montageteile KZW20;;1;12.03.2026;31.12.2099;;1;61.03.6155-S | Set 2 Montageteile KZW20 |
