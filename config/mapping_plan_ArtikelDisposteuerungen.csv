@@ -1,9 +1,0 @@
-columnname;function;arguments;
-Artikelnummer;;artnr;
-Dispositionsbereich;defaultvalue;02;
-Wiederbeschaffungszeit;derive_WBZ;artnr;
-Sicherheitsbestand LE;defaultvalue;0;
-Meldebestand LE;defaultvalue;0;
-Maximalbestand LE;defaultvalue;0;
-Standard Lagerort/Platz;defaultvalue;Jost;
-Org.Einheit Identifier;defaultvalue;JOS;
