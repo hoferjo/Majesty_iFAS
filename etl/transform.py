@@ -101,6 +101,7 @@ bezeichnungsregeln_path = BASE_DIR / "config" / "templates" / "Bezeichnungsregel
 din_normteile_path = BASE_DIR / "config" / "templates" / "DIN-Normteile.yaml"
 steel_table_path = BASE_DIR / "config" / "materials" / "stahltabelle.csv"
 validation_overrides_path = BASE_DIR / settings["paths"]["sheets_dir"] / "Artikelbezeichnungen_validation_overrides.csv"
+article_sorting_schema_path = BASE_DIR / "config" / "article_sorting_schema.yaml"
 
 #output_paths
 output_dir = BASE_DIR / settings["paths"]["output_dir"]
@@ -555,6 +556,83 @@ def _get_bezeichnungsregel_context(artnr):
     }
     _GLOBAL_TABLE_CACHE[cache_key] = context
     return context
+
+
+def _build_sorting_schema_map():
+    """
+    Load and flatten the sorting schema into a searchable map.
+    Returns a dict mapping (hauptgruppe, untergruppe) -> spezifikation list.
+    Also returns the main schema dict for reference.
+    """
+    schema = _load_yaml_cached(article_sorting_schema_path)
+    search_map = {}  # Maps (hauptgruppe, untergruppe) -> [spezifikationen]
+    
+    for hauptgruppe, untergruppen in (schema or {}).items():
+        if not isinstance(untergruppen, dict):
+            continue
+        for untergruppe, spezifikationen in untergruppen.items():
+            if not isinstance(spezifikationen, dict):
+                continue
+            spec_list = []
+            for spezifikation in spezifikationen.keys():
+                if spezifikation.lower() not in {'beschreibung'}:
+                    spec_list.append(spezifikation)
+            key = (str(hauptgruppe).strip(), str(untergruppe).strip())
+            search_map[key] = spec_list
+    
+    return search_map, schema
+
+
+def getArticleGroup(artnr):
+    """
+    Return the three-level group for an article: (hauptgruppe, untergruppe, spezifikation).
+    Uses DIN/steel matching logic and the sorting schema to classify articles.
+    Examples:
+    - DIN norm screws: ('Normteile', 'Schrauben', '6-Kant-Schraube (DIN 933)')
+    - Custom laser parts: ('Zeichnungsteile', 'Lasergeteile', 'Laserschneiden')
+    - Purchased items: ('Kaufteile', 'Katalogteile', 'Standard')
+    """
+    try:
+        ctx = _get_bezeichnungsregel_context(artnr)
+        top_group = ctx.get('group') or 'Sonstige'
+        subgroup = ctx.get('subgroup') or ''
+        normalized_blob = ctx.get('normalized_blob') or ''
+        normteil_match = ctx.get('normteil_match') or {}
+        steel_match = ctx.get('steel_match') or {}
+        
+        if top_group == 'Normteile':
+            hauptgruppe = 'Normteile'
+            # Get primary name or display name from normteil_match
+            spezifikation = normteil_match.get('primary_name', normteil_match.get('display_name', ''))
+            # DIN number as additional detail
+            din_number = normteil_match.get('din_number', '')
+            if din_number and spezifikation:
+                spezifikation = f"{spezifikation} ({din_number})"
+            elif din_number:
+                spezifikation = din_number
+            # Map to Untergruppe based on path
+            path = normteil_match.get('path', [])
+            untergruppe = path[-2] if len(path) >= 2 else (path[-1] if path else '')
+            return (hauptgruppe, untergruppe, spezifikation)
+        
+        elif top_group == 'Rohmaterialien':
+            hauptgruppe = 'Zeichnungsteile'
+            spezifikation = steel_match.get('entry_name', steel_match.get('current_norm', ''))
+            return (hauptgruppe, 'Rohmaterialien', spezifikation)
+        
+        elif top_group == 'Laserteile':
+            return ('Zeichnungsteile', 'Lasergeteile', subgroup or 'Laserschneiden')
+        
+        elif top_group == 'Mechanisch bearbeitete Teile':
+            return ('Zeichnungsteile', 'Mechanisch_bearbeitete_Teile', subgroup or 'Bearbeitet')
+        
+        else:  # Sonstige
+            return ('Kaufteile', 'Katalogteile', subgroup or 'Standard')
+    
+    except Exception as e:
+        if DEBUG:
+            print(f"[DEBUG] Error in getArticleGroup({artnr}): {e}")
+        return ('Kaufteile', 'Katalogteile', '')
 
 
 def _resolve_steel_material(context):
@@ -1543,7 +1621,7 @@ def process_module_structure(
     # Overwrite article_list, partlist, and blocked_articles only if reset_files is True
     if reset_files:
         with open(article_list_path, 'w', encoding='utf-8') as f:
-            f.write('artnr;artbez1;zeichnr;artikelnummer\n')
+            f.write('artnr;artbez1;zeichnr;hauptgruppe;untergruppe;spezifikation;artikelnummer\n')
         with open(partlist_path, 'w', encoding='utf-8') as f:
             f.write('stulinr;posnr;menge;artnr;artbez1\n')
         blocked_articles_path = str(article_list_path).replace('article_list', 'blocked_articles')
@@ -1667,8 +1745,10 @@ def process_module_structure(
                     print(f"[DEBUG] Blocked article: {effective_artnr}; {effective_artbez1}; {effective_zeichnr}")
                 return
             artikelnummer_out = str(artikelnummer_overrides.get(artnr_key) or artikelnummer_overrides.get(effective_artnr) or '').strip()
+            # determine group for this article and write as fourth, fifth, sixth columns
+            hauptgruppe, untergruppe, spezifikation = getArticleGroup(effective_artnr)
             with open(article_list_path, 'a', encoding='utf-8') as f:
-                f.write(f"{effective_artnr};{effective_artbez1};{effective_zeichnr};{artikelnummer_out}\n")
+                f.write(f"{effective_artnr};{effective_artbez1};{effective_zeichnr};{hauptgruppe};{untergruppe};{spezifikation};{artikelnummer_out}\n")
             article_list_seen.add(effective_artnr)
             if DEBUG:
                 print(f"[DEBUG] Appended article: {effective_artnr}; {effective_artbez1}; {effective_zeichnr}")
@@ -1830,8 +1910,10 @@ def process_module_structure(
                     write_header = not article_list_creation_mode_path.exists() or article_list_creation_mode_path.stat().st_size == 0
                     with open(article_list_creation_mode_path, "a", encoding="utf-8") as f:
                         if write_header:
-                            f.write("artnr;artbez1;zeichnr;artikelnummer\n")
-                        f.write(f"{current_artnr};Auto {current_artnr};Auto {current_artnr};\n")
+                            f.write("artnr;artbez1;zeichnr;hauptgruppe;untergruppe;spezifikation;artikelnummer\n")
+                        # compute groups for auto-created entry
+                        hg, ug, spec = getArticleGroup(current_artnr)
+                        f.write(f"{current_artnr};Auto {current_artnr};Auto {current_artnr};{hg};{ug};{spec};\n")
                     artikel_map[current_artnr] = {'artnr': current_artnr, 'artbez1': f"Auto {current_artnr}", 'zeichnr': f"Auto {current_artnr}"}
                     artbez1 = f"Auto {current_artnr}"
                     zeichnr = f"Auto {current_artnr}"

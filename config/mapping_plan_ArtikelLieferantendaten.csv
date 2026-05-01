@@ -18,5 +18,6 @@ Kontaktnummer Kontakt Lieferant;;;
 Verpackungseinheit;;;
 Ursprungszeugnis;;;
 Zolltarifnummer;;;
+IstStandardLieferant;defaultvalue;1;
 Ursprungsland;getEntryFromCSV;artikelstamm_path,artnr,ursprland;
 Org.Einheit Identifier;default;JOS;

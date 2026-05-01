@@ -1,0 +1,50 @@
+# Three-level article sorting hierarchy
+# Hauptgruppe (Top level) -> Untergruppe (Category) -> Spezifikation (Specific type)
+
+Normteile:
+  Schrauben:
+    6-Kant-Schraube: DIN 933
+    Zylinderschraube: DIN 912
+    Senkkopfschraube: DIN 965
+    Linsenkopfschraube: DIN 7985
+    TorX-Schraube: DIN 7984
+  
+  Muttern:
+    Sechskantmutter: DIN 934
+    Flügelmutter: DIN 315
+    Rändelmutter: DIN 6923
+  
+  Unterlegscheiben:
+    Unterlegscheibe: DIN 125
+    Federring: DIN 127
+  
+  Niete:
+    Blindniete: DIN 7337
+    Blindnietmutter: DIN 7338
+  
+  Holzschrauben:
+    Spanplattenschraube: DIN 7505
+    Blechschraube: DIN 7504
+
+Kaufteile:
+  Katalogteile:
+    Beschreibung: Teile aus Katalogen
+  
+  Zugekaeufte:
+    Beschreibung: Zugekaeufte Komponenten von Lieferanten
+
+Zeichnungsteile:
+  Lasergeteile:
+    Beschreibung: Laserschneiden und Laserbearbeitung
+  
+  Mechanisch_bearbeitete_Teile:
+    Beschreibung: Drehen, Fräsen, Bohren
+  
+  Schweissteile:
+    Beschreibung: Geschweißte Baugruppen
+  
+  Rohmaterialien:
+    Beschreibung: Rohstoffe wie Stahl, Blech, Profile
+  
+  Sonstige:
+    Beschreibung: Weitere bearbeitete Teile
