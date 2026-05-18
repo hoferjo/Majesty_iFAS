@@ -1,0 +1,60 @@
+Normteile:
+  Schrauben Metrisch:
+    Bezeichnung 1: "{name} {Metrische Nenndurchmesser} x {Länge} - {Härte}, {Material}, {Gewindeart}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Metrische Nenndurchmesser} x {Länge} - {Härte}, {Material}, {Gewindeart}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Muttern:
+    Bezeichnung 1: "{name} {Metrischer Nenndurchmesser} x {Höhe}- {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Metrischer Nenndurchmesser} - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Unterlegscheiben:
+    Bezeichnung 1: "{name} {Metrischer Nenndurchmesser}, {Innendurchmesser} x {Aussendurchmesser} x {Dicke} - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Metrischer Nenndurchmesser}, {Innendurchmesser} x {Aussendurchmesser} x {Dicke} - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Blindnietmuttern:
+    Bezeichnung 1: "{name} {Kopfform} {Metrischer Nenndurchmesser} {Pressbereich} - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Kopfform} {Metrischer Nenndurchmesser} {Pressbereich} - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Blindnieten:
+    Bezeichnung 1: "{name} {Kopfform} {Durchmesser} x {Länge} - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Kopfform} {Durchmesser} x {Länge} - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Gewindestift:
+    Bezeichnung 1: "{name} {Metrischer Nenndurchmesser} x {Länge} - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Metrischer Nenndurchmesser} x {Länge} - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  
+Zeichnungsteile:
+  Laserteile:
+    Bezeichnung 1: artbez 1
+    Bezeichnung 2: 
+    Artikelbezeichnung Lieferant: artbez 1, {checked}
+    Artikel-Zusatz-Bezeichnung: 
+
+  Mechanische Teile:
+    Bezeichnung 1: artbez 1
+    Bezeichnung 2: 
+    Artikelbezeichnung Lieferant: artbez 1, {checked}
+    Artikel-Zusatz-Bezeichnung:
+
+  Listenteile:
+    Bezeichnung 1: artbez 1
+    Bezeichnung 2: 
+    Artikelbezeichnung Lieferant: "N/D"
+    Artikel-Zusatz-Bezeichnung:
+
+Produktionsteile:
+  Produktionsteil:
+    Bezeichnung 1: artbez 1
+    Bezeichnung 2: 
+    
+  Poduktoptionsartikel:
+    Bezeichnung 1: artbez 1
+    Bezeichnung 2:
+

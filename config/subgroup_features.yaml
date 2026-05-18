@@ -1,0 +1,9 @@
+Zeichnungsteile: zeichnr != None
+
+Normteile: artbez contains DIN or aliases of DIN_Normteile.yaml
+
+Rohmaterial: letzt_lief == 81001 and is not Normteil
+
+Listenteile: Rest
+
+#Verkaufsoptionsteile: Keine in transform workflow

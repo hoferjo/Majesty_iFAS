@@ -1,15 +1,93 @@
 from etl.transform import getDocPath
-def export_docs_xlsx(article_list, output_path=None):
+def export_docs_xlsx(article_list, output_path=None, template_xlsx_path=None, cache_csv_path=None):
     """
     For each article with a drawing number, find the doc file and write a row to XLSX.
     Columns: artnr, zeichnungsnummer, zeichnungsindex, bezeichnung, doc_path, doc_filename
     Returns the XLSX file path.
     """
-    # Instead of regenerating, read from the DMSDocuments cache CSV
+    # Instead of regenerating, read from the DMSDocuments cache CSV.
     import csv
+    from copy import copy
+
     if output_path is None:
         output_path = BASE_DIR / "data" / "processed" / "docs_export.xlsx"
-    # Find the DMSDocuments cache CSV
+
+    def _normalize_header(value):
+        import unicodedata
+
+        normalized = unicodedata.normalize("NFKD", str(value or ""))
+        return "".join(ch for ch in normalized if ch.isalnum()).lower()
+
+    if template_xlsx_path:
+        template_xlsx_path = Path(template_xlsx_path)
+        if not template_xlsx_path.exists():
+            raise FileNotFoundError(f"Template not found at {template_xlsx_path}")
+
+        dms_cache_path = Path(cache_csv_path) if cache_csv_path else BASE_DIR / "data" / "processed" / "cache" / "sheets" / "DMSDocuments.csv"
+        if not dms_cache_path.exists():
+            raise FileNotFoundError(f"DMSDocuments cache CSV not found at {dms_cache_path}")
+
+        wb = openpyxl.load_workbook(template_xlsx_path)
+        if "DMSDokumente" not in wb.sheetnames:
+            raise ValueError("DMSDokumente sheet not found in DMS template")
+
+        ws = wb["DMSDokumente"]
+        header_row = 7
+        data_start_row = header_row + 1
+        max_col = ws.max_column
+        template_styles = [copy(ws.cell(row=data_start_row, column=col_idx)._style) for col_idx in range(1, max_col + 1)]
+
+        # Remove the sample row(s) from the template before writing the new data.
+        for row_idx in range(data_start_row, ws.max_row + 1):
+            for col_idx in range(1, max_col + 1):
+                ws.cell(row=row_idx, column=col_idx).value = None
+
+        with open(dms_cache_path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f, delimiter=';')
+            rows = list(reader)
+            cache_headers = list(reader.fieldnames or [])
+
+        if not rows:
+            raise ValueError("No rows found in DMSDocuments cache CSV.")
+
+        cache_header_map = {_normalize_header(header): header for header in cache_headers if str(header or "").strip()}
+        column_map = {
+            2: "Artikelnummer",
+            3: "Artikelnummer",
+            4: "Identifikation",
+            5: "DMSDocId",
+            6: "Bezeichnung",
+            7: "Kategorie",
+            8: "Dokumenten Speicherort",
+            9: "Gleiches Dokument ersetzen",
+            10: "Als Verknüpfung importieren",
+            11: "Organisationseinheit",
+        }
+
+        def _resolve_cache_key(template_label):
+            normalized_label = _normalize_header(template_label)
+            if normalized_label == _normalize_header("Als Verknüpfung importieren"):
+                return cache_header_map.get(normalized_label) or cache_header_map.get(_normalize_header("ImportAsShortcutLink"))
+            return cache_header_map.get(normalized_label)
+
+        for row_offset, row in enumerate(rows, start=data_start_row):
+            for col_idx in range(1, max_col + 1):
+                cell = ws.cell(row=row_offset, column=col_idx)
+                if col_idx <= len(template_styles):
+                    cell._style = copy(template_styles[col_idx - 1])
+                template_label = column_map.get(col_idx)
+                value = ""
+                if template_label:
+                    cache_key = _resolve_cache_key(template_label)
+                    if cache_key:
+                        value = row.get(cache_key, "")
+                cell.value = "" if value is None else str(value)
+                cell.number_format = "@"
+
+        wb.save(output_path)
+        return str(output_path)
+
+    # Legacy fallback: export the cache CSV directly into a simple workbook.
     dms_cache_path = BASE_DIR / "data" / "processed" / "cache" / "sheets" / "DMSDocuments.csv"
     if not dms_cache_path.exists():
         raise FileNotFoundError(f"DMSDocuments cache CSV not found at {dms_cache_path}")
@@ -64,6 +142,11 @@ def resolve_existing_articles_file(base_dir, target):
 """
 
 def _read_existing_article_keys(path: Path):
+    """
+    Read existing article keys (artnr values) from existing articles CSV.
+    Handles both old format (single column 'artnr') and new format (columns: 'artnr,zeichnr').
+    Returns set of artnr keys.
+    """
     keys = set()
     if not path.exists():
         return keys
@@ -154,6 +237,57 @@ def _extract_artnr_from_excel(file_path: Path):
     finally:
         wb.close()
 
+
+def _extract_artnr_zeichnr_from_excel(file_path: Path):
+    """
+    Extract (artnr, zeichnr) tuples from the first worksheet of an Excel file.
+    Supports files with or without a header row.
+    Returns list of tuples: [(artnr, zeichnr), ...]
+    """
+    wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
+    try:
+        if not wb.worksheets:
+            return []
+
+        ws = wb.worksheets[0]
+        rows = []
+        for row in ws.iter_rows(values_only=True):
+            normalized = [str(c or "").strip() for c in row]
+            if any(normalized):
+                rows.append(normalized)
+
+        if not rows:
+            return []
+
+        candidate_headers_artnr = {"artnr", "artikelnummer", "artikel_nr", "artikel-nr", "article", "article_no"}
+        candidate_headers_zeichnr = {"zeichnr", "zeichnung", "zeichnungsnummer", "drawing", "drawing_no"}
+        first_row_lower = [c.lower() for c in rows[0]]
+
+        has_header = any(h in candidate_headers_artnr for h in first_row_lower)
+        artnr_idx = 0
+        zeichnr_idx = -1
+
+        if has_header:
+            for i, h in enumerate(first_row_lower):
+                if h in candidate_headers_artnr:
+                    artnr_idx = i
+                elif h in candidate_headers_zeichnr:
+                    zeichnr_idx = i
+
+        data_rows = rows[1:] if has_header else rows
+        result = []
+        for row in data_rows:
+            if artnr_idx < len(row):
+                artnr = str(row[artnr_idx] or "").strip()
+                if artnr:
+                    zeichnr = ""
+                    if zeichnr_idx >= 0 and zeichnr_idx < len(row):
+                        zeichnr = str(row[zeichnr_idx] or "").strip()
+                    result.append((artnr, zeichnr))
+        return result
+    finally:
+        wb.close()
+
 def _extract_artnr_from_file(file_path: Path):
     """
     Extract article numbers from uploaded iFAS artikelstamm files.
@@ -204,9 +338,68 @@ def _extract_artnr_from_file(file_path: Path):
     return result
 
 
+def _extract_artnr_zeichnr_from_file(file_path: Path):
+    """
+    Extract (artnr, zeichnr) tuples from uploaded iFAS artikelstamm files.
+    - Text/CSV: supports ; , tab and pipe delimiters, with or without headers.
+    - Excel: supports .xlsx/.xlsm/.xltx/.xltm (first worksheet).
+    Returns list of tuples: [(artnr, zeichnr), ...]
+    """
+    if str(file_path.suffix or "").lower() in {".xlsx", ".xlsm", ".xltx", ".xltm"}:
+        return _extract_artnr_zeichnr_from_excel(file_path)
+
+    encoding = _detect_encoding(file_path)
+    with file_path.open("r", encoding=encoding, newline="") as f:
+        sample = f.read(4096)
+        f.seek(0)
+
+        delimiter = ";"
+        scores = {
+            ";": sample.count(";"),
+            ",": sample.count(","),
+            "\t": sample.count("\t"),
+            "|": sample.count("|"),
+        }
+        delimiter = max(scores, key=scores.get) if sample else ";"
+
+        reader = csv.reader(f, delimiter=delimiter)
+        rows = [row for row in reader if any(str(c or "").strip() for c in row)]
+
+    if not rows:
+        return []
+
+    header = [str(c or "").strip().lower() for c in rows[0]]
+    candidate_headers_artnr = {"artnr", "artikelnummer", "artikel_nr", "artikel-nr", "article", "article_no"}
+    candidate_headers_zeichnr = {"zeichnr", "zeichnung", "zeichnungsnummer", "drawing", "drawing_no"}
+    
+    has_header = any(h in candidate_headers_artnr for h in header)
+    artnr_idx = 0
+    zeichnr_idx = -1
+
+    if has_header:
+        for i, h in enumerate(header):
+            if h in candidate_headers_artnr:
+                artnr_idx = i
+            elif h in candidate_headers_zeichnr:
+                zeichnr_idx = i
+
+    data_rows = rows[1:] if has_header else rows
+    result = []
+    for row in data_rows:
+        if artnr_idx < len(row):
+            artnr = str(row[artnr_idx] or "").strip()
+            if artnr:
+                zeichnr = ""
+                if zeichnr_idx >= 0 and zeichnr_idx < len(row):
+                    zeichnr = str(row[zeichnr_idx] or "").strip()
+                result.append((artnr, zeichnr))
+    return result
+
+
 def append_article_list_to_existing(article_list_path, existing_articles_path):
     """
-    Add article_list.csv artnr values to existing articles csv (comma-separated, header: artnr).
+    Add articles from article_list.csv to existing articles csv (comma-separated, columns: artnr,zeichnr).
+    Reads artnr and zeichnr from article_list.csv (semicolon-delimited).
     Returns number of new rows appended.
     """
     article_list_path = Path(article_list_path)
@@ -215,52 +408,55 @@ def append_article_list_to_existing(article_list_path, existing_articles_path):
 
     existing_keys = _read_existing_article_keys(existing_articles_path)
 
-    article_keys = []
+    article_data = []
     if article_list_path.exists():
         with article_list_path.open("r", encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f, delimiter=";")
             for row in reader:
-                key = str((row or {}).get("artnr", "") or "").strip()
-                if key:
-                    article_keys.append(key)
+                artnr = str((row or {}).get("artnr", "") or "").strip()
+                zeichnr = str((row or {}).get("zeichnr", "") or "").strip()
+                if artnr:
+                    article_data.append((artnr, zeichnr))
 
-    to_add = [k for k in article_keys if k not in existing_keys]
+    to_add = [(artnr, zeichnr) for artnr, zeichnr in article_data if artnr not in existing_keys]
 
     if not existing_articles_path.exists() or existing_articles_path.stat().st_size == 0:
         with existing_articles_path.open("w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f, delimiter=",")
-            writer.writerow(["artnr"])
+            writer.writerow(["artnr", "zeichnr"])
 
     if to_add:
         with existing_articles_path.open("a", encoding="utf-8", newline="") as f:
             writer = csv.writer(f, delimiter=",")
-            for key in to_add:
-                writer.writerow([key])
+            for artnr, zeichnr in to_add:
+                writer.writerow([artnr, zeichnr])
 
     return len(to_add)
 
 
 def update_existing_articles_from_ifas_upload(upload_path, existing_articles_path, article_list_path=None):
     """
-    Overwrite existing_articles_{PROD|TEST}.csv with only the artnrs from the uploaded file.
+    Overwrite existing_articles_{PROD|TEST}.csv with artnr and zeichnr from the uploaded file.
+    Format: comma-separated with columns: artnr,zeichnr
     Returns summary dict.
     """
     upload_path = Path(upload_path)
     existing_articles_path = Path(existing_articles_path)
 
-    uploaded_keys = sorted(_extract_artnr_from_file(upload_path))
+    uploaded_data = _extract_artnr_zeichnr_from_file(upload_path)
+    uploaded_data = sorted(uploaded_data, key=lambda x: x[0])  # Sort by artnr
 
     existing_articles_path.parent.mkdir(parents=True, exist_ok=True)
     with existing_articles_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, delimiter=",")
-        writer.writerow(["artnr"])
-        for key in uploaded_keys:
-            writer.writerow([key])
+        writer.writerow(["artnr", "zeichnr"])
+        for artnr, zeichnr in uploaded_data:
+            writer.writerow([artnr, zeichnr])
 
     return {
-        "uploaded_count": len(uploaded_keys),
-        "added_count": len(uploaded_keys),
-        "existing_total": len(uploaded_keys),
+        "uploaded_count": len(uploaded_data),
+        "added_count": len(uploaded_data),
+        "existing_total": len(uploaded_data),
         "target_file": str(existing_articles_path),
     }
 

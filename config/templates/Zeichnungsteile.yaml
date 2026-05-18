@@ -1,0 +1,13 @@
+Laserteile:
+  Bezeichnungselemente:
+    checkbox "laserschneiden"
+    checkbox ", abkanten"
+    checkbox ", inklusive Material"
+    checkbox ", Gewindeschneiden"
+Mechanische Teile:
+  Bezeichnungselemente:
+    checkbox "komplett fertigen"
+    checkbox "fräsen"
+    checkbox "drehen"
+    checkbox "schweißen"
+    checkbox "inklusive Material"

@@ -1,0 +1,128 @@
+Arbeitsplan: null
+Artikelgruppe 1: ''
+Artikelgruppe 10: null
+Artikelgruppe 2: null
+Artikelgruppe 3: null
+Artikelgruppe 4: null
+Artikelgruppe 5: null
+Artikelgruppe 6: null
+Artikelgruppe 7: null
+Artikelgruppe 8: null
+Artikelgruppe 9: null
+Artikelnummer: ''
+Artikelstatus: 9
+Aufwandkonto: null
+Ausblenden in Planung?: null
+Auslaufartikel: '0'
+Beschaffungsart: '6'
+Beschaffungstyp: '11'
+Bezeichnung 1 [de]: ''
+Bezeichnung 1 [en]: null
+Bezeichnung 1 [fr]: null
+Bezeichnung 1 [it]: null
+Bezeichnung 2 [de]: null
+Bezeichnung 2 [en]: null
+Bezeichnung 2 [fr]: null
+Bezeichnung 2 [it]: null
+Breite (Dimension): null
+DIN: ''
+Dienstleistungsartikel: '0'
+Disponentencode: null
+EAN-13 Nummer: null
+Einbaumengen Code: null
+Einkaufsartikel: '1'
+Erlöskonto: null
+Erlöskonto Service: null
+Fläche: null
+Freier Text 10: null
+Freigabe Baugruppe: '1'
+Freigabe Einkauf: '1'
+Freigabe Produktion: '1'
+Freigabe Service: '0'
+Freigabe Stückliste: '1'
+Freigabe Verkauf: '0'
+Höhe (Dimension): null
+Initvariante Identifikation: null
+Inventur Periodizität (Tage): null
+Inventurart: '1'
+Inventurdifferenzkonto: null
+Ist MW Aktiv: '1'
+Ist Vorlage Artikel?: null
+Kontierungsgruppe: Material
+Kostenstelle Aufwand: null
+Kostenstelle Erlös: null
+Kostenstelle Erlös Service: null
+Kostenstelle Inventur: null
+Kostenstelle Ware in Arbeit: null
+Lagerbewertungsverfahren: '1'
+Lieferantennummer: null
+Länge (Dimension): null
+MW-Artikel: null
+MW-Preis (für aktuelle Org.einheit): ''
+Masseinheit: null
+Mindestbestellmenge Einkauf: null
+Mit Chargen: null
+Nummernkreis Chargen: null
+Nummernkreis Serien: null
+Optimale Losgroesse PE: null
+Optimale Losgrösse Einkauf: null
+Org.Einheit Identifier: JOS
+Preis auf Stücklistenpositionen: null
+Preisdifferenz Konto Produktion: null
+Preisdifferenz Kostenstelle Produktion: null
+Preiseinheit Einkauf: null
+Preiseinheit Verkauf: null
+Produktionsartikel: '1'
+Seriennummern: null
+Serviceartikel: '0'
+Sind Zusatztexte RTF Text?: null
+Spezifisches Gewicht: null
+Steuermass: '0'
+Streckengeschäftsart: null
+Stückliste: null
+Stückliste auflösen in Belegen: null
+Stückliste auflösen in Produktionsauftrag: null
+Stücklistenpositionen MW-Aktiv: null
+Stücklistenpositionen fakturieren: null
+Suchbegriff 1 [de]: ''
+Textpositionsartikel: '0'
+Tiefe (Dimension): null
+Topfartikel: '0'
+Umrechnungsfaktor Preis Verkauf: null
+Umrechnungsfaktor Preise Einkauf: null
+Ursprungsland: null
+Ursprungszeugnis: null
+Verfalltage [Tage]: null
+Vergabeart Chargen: null
+Vergabeart Serien: null
+Verkaufsartikel: '0'
+Verpackungseinheit Code: null
+Verschnitt %: null
+Verschnitt Zuschnitt %: null
+Verschnitt fix: null
+Verschrottungskonto: null
+Vorsteuerunterteilung Einkauf: '1'
+Ware in Arbeit Konto Produktion: null
+Warenaufwandkonto: null
+Warenaufwandkonto Produktion: null
+Warenaufwandkonto Service: null
+Warenbestand Änderung Konto Produktion: null
+Warenbestandkonto: null
+Wareneingangkonto: null
+Warengruppe: ''
+Zeichnungsindex: ''
+Zeichnungsnummer: ''
+Zolltarifnummer: null
+Zusatztext 1 [de]: null
+Zusatztext 1 [en]: null
+Zusatztext 1 [fr]: null
+Zusatztext 1 [it]: null
+Zusatztext 2 [de]: null
+Zusatztext 2 [en]: null
+Zusatztext 2 [fr]: null
+Zusatztext 2 [it]: null
+Zusatztextart 1: null
+Zusatztextart 2: null
+masse: ''
+material: ''
+root: null

@@ -1,64 +1,50 @@
 paths:
-  etl_dir: "etl"
-  raw_dir: "data/raw"
-  processed_dir: "data/processed"
-  export_dir: "data/export"
-  waren_artikelgruppe_dir: "config"
-  lieferanten_mapping_dir: "config"
-  templates_dir: "data/raw/templates"
-  artikelstamm_dir: "data/raw/artikelstamm"
-  stuecklistenstamm_dir: "data/raw/stücklistenstamm"
-  ###database dirs
-  dbf_dir: "DBFS.003"
-  #dbf_dir: "M:\\DBFS003"
-  database_copy_dir: "data/raw/databases"
-  ### cache dirs
-  cache_dir: "data/processed/cache"
-  article_list_dir: "data/processed/cache/articlelists"
-  partlist_dir: "data/processed/cache/partlists"
-  partlist_tree_dir: "data/processed/cache/partlist_trees"
-  existing_articles_dir: "data/processed/cache/existing"
-  existing_partlists_dir: "data/processed/cache/existing_partlists"
-  sheets_dir: "data/processed/cache/sheets"
-  #template dir
-  template_dir: "data/raw/templates"
-  #output_dir
-  output_dir: "data/output"
-
-
-files: 
-  artikelstamm: "artikelstamm_majesty_2026_03_30.csv"
-  waren_artikelgruppe: "Waren-_Artikelgruppen.csv"
-  lieferanten_mapping: "lieferanten_mapping.csv"
-  stuecklistenstamm: "20410917_stuelipo.csv"
-  ###existing articles
-  existing_articles_prod: "existingArticlesPROD.csv"
-  existing_articles_test: "existingArticlesTEST.csv"
-  existing_partlists_prod: "existingPartlistsPROD.csv"
-  existing_partlists_test: "existingPartlistsTEST.csv"
-  ###articlelists
-  article_list_article_mode: "article_list_article_mode.csv"
-  article_list_module_mode: "article_list_module_mode.csv"
-  article_list_creation_mode: "article_list_creation_mode.csv"
-  ###partlists
-  partlist_article_mode: "partlist_article_mode.csv"
-  partlist_module_mode: "partlist_module_mode.csv"
-  partlist_creation_mode: "partlist_creation_mode.csv"
-  ###partlist trees
-  partlist_article_mode_tree: "partlist_article_mode_tree.txt" 
-  partlist_module_mode_tree: "partlist_module_mode_tree.txt"
-  partlist_creation_mode_tree: "partlist_creation_mode_tree.txt"
-  ###blocked articles
-  blocked_articles_article_mode: "blocked_articles_article_mode.csv"
-  blocked_articles_module_mode: "blocked_articles_module_mode.csv"  
-  blocked_articles_creation_mode: "blocked_articles_creation_mode.csv"
-  ###templates
-  partlist_import_template: "VorlageStücklisteV1.xlsx"
-  artikelstamm_import_template: "VorlageArtikelstammV1.xlsx"
-  ###exports
-  artikelstamm_output: "artikelstamm_iFAS_import.xlsx"
-  partlist_output: "partlist_iFAS_import.xlsx"
-  #mappingplans
-  mapping_plan_artikelstamm: "mapping_plan_Artikelstamm.csv"
-  mapping_plan_stueckliste: "mapping_plan_Stückliste.csv"
-  
+  etl_dir: etl
+  raw_dir: data/raw
+  processed_dir: data/processed
+  export_dir: data/export
+  waren_artikelgruppe_dir: config
+  lieferanten_mapping_dir: config
+  templates_dir: data/raw/templates
+  artikelstamm_dir: data/raw/artikelstamm
+  stuecklistenstamm_dir: data/raw/stücklistenstamm
+  dbf_dir: DBFS.003
+  database_copy_dir: data/raw/databases
+  cache_dir: data/processed/cache
+  article_list_dir: data/processed/cache/articlelists
+  partlist_dir: data/processed/cache/partlists
+  partlist_tree_dir: data/processed/cache/partlist_trees
+  existing_articles_dir: data/processed/cache/existing
+  existing_partlists_dir: data/processed/cache/existing_partlists
+  sheets_dir: data/processed/cache/sheets
+  template_dir: data/raw/templates
+  output_dir: data/output
+files:
+  artikelstamm: artikelstamm_majesty_2026_03_30.csv
+  waren_artikelgruppe: Waren-_Artikelgruppen.csv
+  lieferanten_mapping: lieferanten_mapping.csv
+  stuecklistenstamm: 20410917_stuelipo.csv
+  existing_articles_prod: existingArticlesPROD.csv
+  existing_articles_test: existingArticlesTEST.csv
+  existing_partlists_prod: existingPartlistsPROD.csv
+  existing_partlists_test: existingPartlistsTEST.csv
+  article_list_article_mode: article_list_article_mode.csv
+  article_list_module_mode: article_list_module_mode.csv
+  article_list_creation_mode: article_list_creation_mode.csv
+  partlist_article_mode: partlist_article_mode.csv
+  partlist_module_mode: partlist_module_mode.csv
+  partlist_creation_mode: partlist_creation_mode.csv
+  partlist_article_mode_tree: partlist_article_mode_tree.txt
+  partlist_module_mode_tree: partlist_module_mode_tree.txt
+  partlist_creation_mode_tree: partlist_creation_mode_tree.txt
+  blocked_articles_article_mode: blocked_articles_article_mode.csv
+  blocked_articles_module_mode: blocked_articles_module_mode.csv
+  blocked_articles_creation_mode: blocked_articles_creation_mode.csv
+  partlist_import_template: VorlageStücklisteV1.xlsx
+  artikelstamm_import_template: VorlageArtikelstammV1.xlsx
+  artikelstamm_output: artikelstamm_iFAS_import.xlsx
+  partlist_output: partlist_iFAS_import.xlsx
+  mapping_plan_artikelstamm: mapping_plan_Artikelstamm.csv
+  mapping_plan_stueckliste: mapping_plan_Stückliste.csv
+features:
+  bezeichnungen_anpassen: false

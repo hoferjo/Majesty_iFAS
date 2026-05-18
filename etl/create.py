@@ -9,7 +9,7 @@ class FieldGroup:
 	"""
 	Represents a field and its group: input, derivative, default, or empty.
 	"""
-	def __init__(self, name: str, group: str, value: Any = None, editable: bool = True, options: Optional[List[str]] = None, search_query: Optional[str] = None) -> None:
+	def __init__(self, name: str, group: str, value: Any = None, editable: bool = True, options: Optional[List[Any]] = None, search_query: Optional[str] = None) -> None:
 		self.name: str = name
 		self.group: str = group  # 'input', 'derivative', 'default', 'empty'
 		self.value: Any = value
@@ -338,7 +338,309 @@ class ArticleCreator:
 		except Exception as e:
 			self.logger.error(f"Error saving templates: {e}")
 
+def create_from_drawingtree(tree_file_path: Union[str, Path], output_csv_path: Union[str, Path], folder_filter: Optional[str] = None) -> None:
+	"""
+	Parse a drawing tree file and extract a list of drawings to CSV.
+	
+	Args:
+		tree_file_path (Union[str, Path]): Path to the tree file to read.
+		output_csv_path (Union[str, Path]): Path to save the generated CSV file.
+		folder_filter (Optional[str]): If provided, only include drawings from this folder (matches category or subcategory).
+	
+	The CSV will contain columns:
+		- drawing_number: Extracted drawing number (e.g., "002 006 13a")
+		- description: Description from filename (e.g., "Baugrp Gestell (Spontis)")
+		- file_extension: File extension (e.g., "pdf", "stp")
+		- file_name: Full filename
+		- category: Top-level folder (e.g., "001 Normteile Jost AG")
+		- subcategory: Second-level folder
+		- folder_path: Full hierarchical path
+	"""
+	tree_file_path = Path(tree_file_path)
+	output_csv_path = Path(output_csv_path)
+
+	if not tree_file_path.exists():
+		logging.error(f"Tree file not found: {tree_file_path}")
+		raise FileNotFoundError(f"Tree file not found: {tree_file_path}")
+
+	def _strip_tree_prefix(value: str) -> str:
+		# Remove leading tree drawing characters copied from DOS tree output.
+		import re
+		return re.sub(r"^[\s│├└─+¦]+", "", value)
+
+	def _index_weight(index_token: str) -> int:
+		if not index_token or index_token == "-":
+			return 0
+		ch = index_token.lower()
+		if len(ch) == 1 and "a" <= ch <= "z":
+			return ord(ch) - ord("a") + 1
+		return 0
+
+	def _parse_drawing_stem(stem: str) -> Optional[Dict[str, str]]:
+		# Parse: <digits and spaces><optional index letter or '-'><optional separator><description>
+		if not stem:
+			return None
+		i = 0
+		while i < len(stem) and (stem[i].isdigit() or stem[i] == " "):
+			i += 1
+		base_number = stem[:i].strip()
+		if not base_number:
+			return None
+
+		index_token = "-"
+		if i < len(stem) and (stem[i].isalpha() or stem[i] == "-"):
+			index_token = stem[i].lower() if stem[i].isalpha() else "-"
+			i += 1
+
+		remainder = stem[i:].lstrip(" -")
+		return {
+			"base_number": base_number,
+			"index": index_token,
+			"description": remainder.strip(),
+		}
+
+	best_by_base: Dict[str, Any] = {}
+	folder_stack: List[str] = []
+
+	try:
+		with open(tree_file_path, "r", encoding="utf-8", errors="ignore") as f:
+			lines = f.readlines()
+
+		for line in lines:
+			if not line.strip():
+				continue
+
+			raw = line.rstrip("\n")
+
+			# Folder lines are denoted by +--- in tree output.
+			if "+---" in raw:
+				prefix, tail = raw.split("+---", 1)
+				folder_name = _strip_tree_prefix(tail).strip()
+				if not folder_name:
+					continue
+
+				depth = prefix.count("│") + prefix.count("¦")
+				if len(folder_stack) <= depth:
+					folder_stack.extend([""] * (depth - len(folder_stack) + 1))
+				folder_stack[depth] = folder_name
+				folder_stack = folder_stack[: depth + 1]
+				continue
+
+			file_text = _strip_tree_prefix(raw).strip()
+			if not file_text:
+				continue
+
+			low = file_text.lower()
+			if "acad.err" in low or "t:." in low:
+				continue
+
+			# Only PDFs are relevant for the article list from tree.
+			if not low.endswith(".pdf"):
+				continue
+
+			stem = file_text[:-4].strip()
+			parsed = _parse_drawing_stem(stem)
+			if not parsed:
+				continue
+
+			category = folder_stack[0] if len(folder_stack) > 0 else ""
+			subcategory = folder_stack[1] if len(folder_stack) > 1 else ""
+			folder_path = "/".join([p for p in folder_stack if p])
+
+			if folder_filter:
+				folder_filter_lower = folder_filter.lower()
+				if not (
+					folder_filter_lower in category.lower()
+					or folder_filter_lower in subcategory.lower()
+					or folder_filter_lower in folder_path.lower()
+				):
+					continue
+
+			record = {
+				"drawing_number": parsed["base_number"],
+				"index": parsed["index"],
+				"description": parsed["description"],
+				"file_extension": "pdf",
+				"file_name": file_text,
+				"category": category,
+				"subcategory": subcategory,
+				"folder_path": folder_path,
+			}
+
+			key = parsed["base_number"]
+			weight = _index_weight(parsed["index"])
+			if key not in best_by_base or weight > best_by_base[key][0]:
+				best_by_base[key] = (weight, record)
+
+		final_drawings = [item[1] for item in best_by_base.values()]
+		output_csv_path.parent.mkdir(parents=True, exist_ok=True)
+
+		if final_drawings:
+			fieldnames = ["drawing_number", "index", "description", "file_extension", "file_name", "category", "subcategory", "folder_path"]
+			with open(output_csv_path, "w", encoding="utf-8", newline="") as csvfile:
+				writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=';')
+				writer.writeheader()
+				writer.writerows(final_drawings)
+			logging.info(f"Extracted {len(final_drawings)} drawings from tree and saved to {output_csv_path}.")
+		else:
+			logging.warning(f"No drawings found in tree file {tree_file_path}.")
+
+	except Exception as e:
+		logging.error(f"Error processing drawing tree: {e}")
+		raise
+
+
 # Example usage (to be called from FastAPI endpoints):
 # creator = ArticleCreator(Path("config"))
 # article = creator.create_article("Verkaufsartikel", {"artnr": "1001"}, {"artbez1": "Derived Name"})
 # creator.save_article_cache(article, Path("data/processed/cache/article.yaml"))
+#
+def add_unique_artnr(tree_csv_path: Union[str, Path], out_unique_csv: Union[str, Path], existing_mode: str = "PROD") -> int:
+	"""
+	For each drawing in `tree_csv_path` that is not already present in existing articles,
+	determine an `artnr` from the artikelstamm `zeichnr` mapping; if not available,
+	use generate_article_number() from Nummer_vergeben.py to find the next free number.
+
+	Writes `drawing_number;index;artnr` rows to `out_unique_csv` and returns number written.
+	"""
+	from etl.Nummer_vergeben import generate_article_number
+	
+	tree_csv_path = Path(tree_csv_path)
+	out_unique_csv = Path(out_unique_csv)
+	base = Path(__file__).resolve().parent.parent
+	
+	# load tree rows (auto-detect delimiter)
+	if not tree_csv_path.exists():
+		raise FileNotFoundError(f"Tree CSV not found: {tree_csv_path}")
+
+	def _detect_delim(path: Path) -> str:
+		with open(path, "r", encoding="utf-8-sig") as f:
+			first = f.readline()
+			if ";" in first:
+				return ";"
+			if "," in first:
+				return ","
+			return ";"
+
+	delim = _detect_delim(tree_csv_path)
+	rows = []
+	with open(tree_csv_path, "r", encoding="utf-8-sig") as f:
+		reader = csv.DictReader(f, delimiter=delim)
+		for r in reader:
+			rows.append(r)
+
+	# load existing zeichnr from PROD and TEST (to skip already-present drawings)
+	existing_zeich = set()
+	for mode in ["PROD", "TEST"]:
+		existing_path = base / "data" / "processed" / "cache" / "existing" / f"existingArticles{mode}.csv"
+		if existing_path.exists():
+			# try comma first (existing articles use comma), then semicolon
+			for d in (",", ";"):
+				try:
+					with open(existing_path, "r", encoding="utf-8-sig") as f:
+						reader = csv.DictReader(f, delimiter=d)
+						for r in reader:
+							zn = (r.get("zeichnr") or r.get("zeichnungsnummer") or "").strip()
+							if zn:
+								existing_zeich.add(zn)
+					break
+				except Exception:
+					continue
+
+	# find and load artikelstamm file (latest majesty file)
+	artikelstamm_dir = base / "data" / "raw" / "artikelstamm"
+	artikelstamm_file = None
+	if artikelstamm_dir.exists():
+		cand = sorted(artikelstamm_dir.glob("artikelstamm_majesty_*.csv"), reverse=True)
+		if cand:
+			artikelstamm_file = cand[0]
+
+	# load artikelstamm mapping zeichnr -> artnr
+	zeich_to_art = {}
+	if artikelstamm_file and artikelstamm_file.exists():
+		with open(artikelstamm_file, "r", encoding="utf-8-sig") as f:
+			reader = csv.DictReader(f, delimiter=';')
+			for r in reader:
+				artnr = (r.get("artnr") or "").strip()
+				zn = (r.get("zeichnr") or "").strip()
+				if zn and artnr:
+					zeich_to_art[zn] = artnr
+
+	# load nummernvergabe mapping for prefix -> XX.YY prefix conversion
+	nr_map = {}
+	nr_path = base / "config" / "nummernvergabe.csv"
+	if nr_path.exists():
+		with open(nr_path, "r", encoding="utf-8-sig") as f:
+			reader = csv.reader(f, delimiter=';')
+			for r in reader:
+				if not r:
+					continue
+				key = str(r[0]).strip()
+				val = str(r[1]).strip() if len(r) > 1 else ""
+				if key:
+					nr_map[key] = val
+
+	# helper to extract 3-digit prefix from drawing number
+	import re
+	def _drawing_prefix(drawing: str) -> str:
+		m = re.search(r"(\d{3})", drawing)
+		return m.group(1) if m else ""
+
+	def _choose_mapping(prefix: str) -> Optional[str]:
+		if not prefix:
+			return None
+		# exact match first
+		if prefix in nr_map:
+			return nr_map[prefix]
+		# try keys that start with prefix or vice versa
+		for k, v in nr_map.items():
+			if k.startswith(prefix) or prefix.startswith(k):
+				return v
+		return None
+
+	# process rows
+	out_unique_csv.parent.mkdir(parents=True, exist_ok=True)
+	written = 0
+	with open(out_unique_csv, "w", encoding="utf-8", newline="") as outf:
+		writer = csv.DictWriter(outf, fieldnames=["artnr", "zeichnr", "zeichindex", "description"], delimiter=';')
+		writer.writeheader()
+		for r in rows:
+			drawing = (r.get("drawing_number") or r.get("drawing") or "").strip()
+			index = (r.get("index") or "-").strip()
+			description = (r.get("description") or "").strip()
+			if not drawing:
+				continue
+			
+			# skip if already present in PROD or TEST
+			if drawing in existing_zeich:
+				continue
+
+			# try artikelstamm lookup first
+			art = zeich_to_art.get(drawing)
+			if art:
+				writer.writerow({"artnr": art, "zeichnr": drawing, "zeichindex": index, "description": description})
+				written += 1
+				continue
+
+			# generate new number using Nummer_vergeben logic
+			prefix = _drawing_prefix(drawing)
+			map_pref = _choose_mapping(prefix)
+			if map_pref:
+				try:
+					new_art = generate_article_number(base, map_pref)
+					writer.writerow({"artnr": new_art, "zeichnr": drawing, "zeichindex": index, "description": description})
+					written += 1
+					continue
+				except Exception:
+					pass
+
+			# fallback: write empty artnr (user can review)
+			writer.writerow({"artnr": "", "zeichnr": drawing, "zeichindex": index, "description": description})
+			written += 1
+
+	return written
+
+# create_from_drawingtree(
+#     Path("data/raw/drawings_tree/tree_Eigenprodukte_Jost_Artikel.txt"),
+#     Path("data/processed/article_list_creation_mode.csv")
+# )

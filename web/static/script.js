@@ -167,11 +167,39 @@ document.addEventListener("DOMContentLoaded", function() {
         fields.forEach(field => {
             const defVal = (field.value !== null && field.value !== undefined) ? String(field.value) : '';
             if (field.group === 'dropdown' && Array.isArray(field.options)) {
-                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <select name='${escHtml(field.name)}' style='width:92%;padding:4px;' ${field.editable === false ? 'disabled' : ''}>`;
-                field.options.forEach(opt => {
-                    html += `<option value='${escHtml(opt)}'${defVal === opt ? ' selected' : ''}>${escHtml(opt)}</option>`;
+                const normalizedOptions = field.options.map(opt => {
+                    if (opt === null || opt === undefined) {
+                        return null;
+                    }
+                    if (typeof opt === 'string' || typeof opt === 'number' || typeof opt === 'boolean') {
+                        const value = String(opt);
+                        return value.trim() ? { value: value, label: value, customInput: false } : null;
+                    }
+                    if (typeof opt === 'object') {
+                        const hasCustomInput = opt.custom_input === true || opt.customInput === true || opt.input === true;
+                        const rawValue = opt.value !== undefined ? String(opt.value) : (hasCustomInput ? '__custom__' : (opt.label !== undefined ? String(opt.label) : (opt.name !== undefined ? String(opt.name) : '')));
+                        const rawLabel = opt.label !== undefined ? String(opt.label) : rawValue;
+                        const placeholder = opt.placeholder !== undefined ? String(opt.placeholder) : '';
+                        return rawValue.trim() || rawLabel.trim() ? { value: rawValue || rawLabel, label: rawLabel || rawValue, customInput: hasCustomInput, placeholder: placeholder } : null;
+                    }
+                    return null;
+                }).filter(Boolean);
+                const customOption = normalizedOptions.find(opt => opt.customInput);
+                const customInputId = customOption ? `dropdown-custom-${String(field.name || 'field').replace(/[^a-zA-Z0-9_-]+/g, '_')}` : '';
+                const hasMatchingOption = normalizedOptions.some(opt => opt.value === defVal && !opt.customInput);
+                const initialSelectValue = hasMatchingOption ? defVal : (defVal && customOption ? customOption.value : (normalizedOptions[0] ? normalizedOptions[0].value : (customOption ? customOption.value : '')));
+                const initialCustomValue = customOption && !hasMatchingOption && defVal ? defVal : '';
+                html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}:`;
+                html += `<div style='display:flex;flex-direction:column;gap:0.35em;'>`;
+                html += `<select name='${escHtml(field.name)}' data-custom-input-id='${escHtml(customInputId)}' data-custom-option-value='${escHtml(customOption ? customOption.value : '')}' style='width:92%;padding:4px;' ${field.editable === false ? 'disabled' : ''}>`;
+                normalizedOptions.forEach(opt => {
+                    html += `<option value='${escHtml(opt.value)}'${initialSelectValue === opt.value ? ' selected' : ''}>${escHtml(opt.label)}</option>`;
                 });
-                html += `</select></label>`;
+                html += `</select>`;
+                if (customOption) {
+                    html += `<input id='${escHtml(customInputId)}' type='text' value='${escHtml(initialCustomValue)}' placeholder='${escHtml(customOption.placeholder || customOption.label || 'Custom value')}' style='width:92%;padding:4px;display:${initialSelectValue === customOption.value ? 'block' : 'none'};' ${field.editable === false ? 'readonly' : ''}>`;
+                }
+                html += `</div></label>`;
             } else if (field.group === 'search' && field.search_query === 'lieferant') {
                 html += `<label style='display:block;margin:6px 0;'>${escHtml(field.name)}: <input type='text' name='${escHtml(field.name)}' value='${escHtml(defVal)}' style='width:80%;padding:4px;display:inline-block;' ${field.editable === false ? 'readonly' : ''}><button type='button' class='lieferant-search-btn' data-field='${escHtml(field.name)}' style='margin-left:0.5em;'>🔍</button></label>`;
             } else if (field.group === 'default' && !field.editable) {
@@ -183,6 +211,43 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
         return html;
+    }
+
+    function serializeCreationForm(form) {
+        const payload = {};
+        form.querySelectorAll('input,select').forEach(el => {
+            if (el.name) {
+                payload[el.name] = el.value;
+            }
+        });
+        form.querySelectorAll('select[data-custom-input-id]').forEach(select => {
+            const customInputId = select.getAttribute('data-custom-input-id');
+            const customOptionValue = select.getAttribute('data-custom-option-value') || '';
+            if (!customInputId || select.value !== customOptionValue) {
+                return;
+            }
+            const customInput = form.querySelector(`#${customInputId}`);
+            if (customInput && select.name) {
+                payload[select.name] = customInput.value;
+            }
+        });
+        return payload;
+    }
+
+    function syncCustomDropdownInputs(container) {
+        if (!container) return;
+        container.querySelectorAll('select[data-custom-input-id]').forEach(select => {
+            const customInputId = select.getAttribute('data-custom-input-id');
+            if (!customInputId) return;
+            const customInput = container.querySelector(`#${customInputId}`);
+            if (!customInput) return;
+            const update = function () {
+                const isCustom = select.value === (select.getAttribute('data-custom-option-value') || '');
+                customInput.style.display = isCustom ? 'block' : 'none';
+            };
+            select.addEventListener('change', update);
+            update();
+        });
     }
 
     function attachLieferantSearch(container) {
@@ -429,11 +494,12 @@ document.addEventListener("DOMContentLoaded", function() {
             if (cancelBtn) cancelBtn.onclick = () => fetchCreationState().then(renderSessionPanel);
 
             const form = document.getElementById("cs-child-form");
+            syncCustomDropdownInputs(area);
             if (form) form.addEventListener("submit", function (e) {
                 e.preventDefault();
                 const payload = { type, is_module: isModule };
                 if (currentGroup) payload.group = currentGroup;
-                form.querySelectorAll("input,select").forEach(el => { if (el.name) payload[el.name] = el.value; });
+                Object.assign(payload, serializeCreationForm(form));
                 const msgDiv = document.getElementById("cs-child-form-msg");
                 if (msgDiv) msgDiv.innerHTML = '<span style="color:#888;">Saving...</span>';
                 fetch("/api/creation/add-child", {
@@ -553,10 +619,11 @@ document.addEventListener("DOMContentLoaded", function() {
             attachExistenceCheck(area, "#cs-root-form");
 
             const form = document.getElementById("cs-root-form");
+            syncCustomDropdownInputs(area);
             if (form) form.addEventListener("submit", function (e) {
                 e.preventDefault();
                 const payload = { type, class: className, group: groupName };
-                form.querySelectorAll("input,select").forEach(el => { if (el.name) payload[el.name] = el.value; });
+                Object.assign(payload, serializeCreationForm(form));
                 const msgDiv = document.getElementById("cs-root-form-msg");
                 if (msgDiv) msgDiv.innerHTML = '<span style="color:#888;">Creating...</span>';
                 fetch("/api/creation/start", {
@@ -589,6 +656,265 @@ document.addEventListener("DOMContentLoaded", function() {
                     }
                 })
                 .catch(() => showRootClassSelection());
+        });
+    }
+
+    // Create from tree button (one-off): request server to parse drawing tree
+    var createFromTreeBtn = document.getElementById("createFromTreeBtn");
+    if (createFromTreeBtn) {
+        createFromTreeBtn.addEventListener("click", function () {
+            var folderInput = document.getElementById("treeFilterInput");
+            var folderFilter = folderInput ? folderInput.value.trim() : "";
+            
+            var confirmMsg = folderFilter 
+                ? `Run "Create from tree" to extract drawings from folder "${folderFilter}"?`
+                : 'Run "Create from tree" to extract all drawings?';
+            
+            if (!confirm(confirmMsg)) return;
+            
+            var feedbackLog = document.getElementById("createTabFeedbackLog");
+            var timestamp = new Date().toLocaleTimeString();
+            var entry = `<div><b>[${timestamp}] Create From Tree:</b> <span style='color:#666;'>Processing${folderFilter ? " folder '" + escHtml(folderFilter) + "'" : ""}...</span></div>`;
+            if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+            
+            fetch('/api/create-from-tree', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ folder: folderFilter || null }) 
+            })
+                .then(r => r.json())
+                .then(result => {
+                    const timestamp = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${timestamp}] Create From Tree:</b> <span style='color:${result && result.status === 'success' ? '#27ae60' : '#c00'};'>${result && result.message ? escHtml(result.message) : 'Completed'}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert(result && result.message ? result.message : 'Done');
+                })
+                .catch(err => {
+                    const timestamp = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${timestamp}] Create From Tree:</b> <span style='color:#c00;'>Error: ${escHtml(String(err))}</span></div>`;
+                    const feedbackLog = document.getElementById("createTabFeedbackLog");
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert('Create from tree failed.');
+                });
+        });
+    }
+
+    // Update tree from disk button: write fresh tree file from server-side folder
+    var updateTreeBtn = document.getElementById("updateTreeBtn");
+    if (updateTreeBtn) {
+        updateTreeBtn.addEventListener("click", function () {
+            var rootInput = document.getElementById("treeRootInput");
+            var rootFolder = rootInput ? rootInput.value.trim() : "";
+            var confirmMsg = rootFolder
+                ? `Write tree from folder ${escHtml(rootFolder)}?`
+                : 'Write tree from default folder on server (T:...)?';
+            if (!confirm(confirmMsg)) return;
+
+            var feedbackLog = document.getElementById("createTabFeedbackLog") || document.getElementById("feedbackLog");
+            var ts = new Date().toLocaleTimeString();
+            var entry = `<div><b>[${ts}] Update Tree:</b> <span style='color:#666;'>Starting...</span></div>`;
+            if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+
+            var payload = {};
+            if (rootFolder) payload.root_folder = rootFolder;
+
+            fetch('/api/save-tree', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+                .then(r => r.json())
+                .then(result => {
+                    const ts2 = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${ts2}] Update Tree:</b> <span style='color:${result && result.status === 'success' ? '#27ae60' : '#c00'};'>${result && result.message ? escHtml(result.message) : 'Completed'}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert(result && result.message ? result.message : 'Done');
+                })
+                .catch(err => {
+                    const ts2 = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${ts2}] Update Tree:</b> <span style='color:#c00;'>Error: ${escHtml(String(err))}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert('Update tree failed.');
+                });
+        });
+    }
+
+    // Add unique artnr button: call server to create article_list_from_tree_unique.csv
+    var addUniqueArtnrBtn = document.getElementById("addUniqueArtnrBtn");
+    if (addUniqueArtnrBtn) {
+        addUniqueArtnrBtn.addEventListener("click", function () {
+            var modeSelect = document.getElementById("existingModeSelect");
+            var outInput = document.getElementById("uniqueOutInput");
+            var mode = modeSelect ? modeSelect.value : 'PROD';
+            var outPath = outInput ? outInput.value.trim() : '';
+            var confirmMsg = `Create unique artnr list for ${escHtml(mode)}?`;
+            if (!confirm(confirmMsg)) return;
+
+            var feedbackLog = document.getElementById("createTabFeedbackLog") || document.getElementById("feedbackLog");
+            var ts = new Date().toLocaleTimeString();
+            var entry = `<div><b>[${ts}] Add Unique artnr:</b> <span style='color:#666;'>Starting...</span></div>`;
+            if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+
+            var payload = { existing_mode: mode };
+            if (outPath) payload.out_csv = outPath;
+
+            fetch('/api/add-unique-artnr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+                .then(r => r.json())
+                .then(result => {
+                    const ts2 = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${ts2}] Add Unique artnr:</b> <span style='color:${result && result.status === 'success' ? '#27ae60' : '#c00'};'>${result && result.message ? escHtml(result.message) : 'Completed'}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert(result && result.message ? result.message : 'Done');
+                })
+                .catch(err => {
+                    const ts2 = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${ts2}] Add Unique artnr:</b> <span style='color:#c00;'>Error: ${escHtml(String(err))}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert('Add unique artnr failed.');
+                });
+        });
+    }
+
+    // Build sheet cache button
+    var buildSheetCacheBtn = document.getElementById("buildSheetCacheBtn");
+    if (buildSheetCacheBtn) {
+        buildSheetCacheBtn.addEventListener("click", function () {
+            var confirmMsg = "Build sheet cache for created articles?";
+            if (!confirm(confirmMsg)) return;
+
+            buildSheetCacheBtn.disabled = true;
+            buildSheetCacheBtn.textContent = "Building...";
+
+            var feedbackLog = document.getElementById("createTabFeedbackLog") || document.getElementById("feedbackLog");
+            var ts = new Date().toLocaleTimeString();
+            var entry = `<div><b>[${ts}] Build Sheet Cache:</b> <span style='color:#666;'>Starting...</span></div>`;
+            if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+
+            fetch('/api/build-sheet-cache-creation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+                .then(r => r.json())
+                .then(result => {
+                    const ts2 = new Date().toLocaleTimeString();
+                    let sheetInfo = "";
+                    if (result && result.sheets && Array.isArray(result.sheets)) {
+                        sheetInfo = result.sheets.map(s => `${s.sheet}: ${s.rows} rows`).join(", ");
+                    }
+                    const msg = result && result.message ? result.message + (sheetInfo ? " [" + sheetInfo + "]" : "") : "Completed";
+                    const entry = `<div><b>[${ts2}] Build Sheet Cache:</b> <span style='color:${result && result.status === 'success' ? '#27ae60' : '#c00'};'>${escHtml(msg)}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert(result && result.message ? result.message : "Done");
+                })
+                .catch(err => {
+                    const ts2 = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${ts2}] Build Sheet Cache:</b> <span style='color:#c00;'>Error: ${escHtml(String(err))}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert("Build sheet cache failed.");
+                })
+                .finally(() => {
+                    buildSheetCacheBtn.disabled = false;
+                    buildSheetCacheBtn.textContent = "Build Sheet Cache";
+                });
+        });
+    }
+
+    // Download article data button
+    var downloadArticleDataBtn = document.getElementById("downloadArticleDataBtn");
+    if (downloadArticleDataBtn) {
+        downloadArticleDataBtn.addEventListener("click", function () {
+            if (!confirm("Download created article data as xlsx?")) return;
+
+            var folderInput = document.getElementById("treeFilterInput");
+            var folderFilter = folderInput ? folderInput.value.trim() : "";
+            var url = '/download-article-data-xlsx';
+            if (folderFilter) {
+                url += `?folder_name=${encodeURIComponent(folderFilter)}`;
+            }
+
+            downloadArticleDataBtn.disabled = true;
+            downloadArticleDataBtn.textContent = "Downloading...";
+
+            var feedbackLog = document.getElementById("createTabFeedbackLog") || document.getElementById("feedbackLog");
+            var ts = new Date().toLocaleTimeString();
+            var entry = `<div><b>[${ts}] Download Article Data:</b> <span style='color:#666;'>Starting...</span></div>`;
+            if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+
+            fetch(url)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.blob().then(blob => ({ blob, disposition: r.headers.get('content-disposition') }));
+                })
+                .then(({ blob, disposition }) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = disposition ? disposition.replace(/attachment; filename="?([^"]*)"?/i, '$1') : 'article_data.xlsx';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    const ts2 = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${ts2}] Download Article Data:</b> <span style='color:#27ae60;'>Complete.</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                })
+                .catch(err => {
+                    const ts2 = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${ts2}] Download Article Data:</b> <span style='color:#c00;'>Error: ${escHtml(String(err))}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert("Download failed: " + err.message);
+                })
+                .finally(() => {
+                    downloadArticleDataBtn.disabled = false;
+                    downloadArticleDataBtn.textContent = "Download Article Data (xlsx)";
+                });
+        });
+    }
+
+    // Download document data button
+    var downloadDocumentDataBtn = document.getElementById("downloadDocumentDataBtn");
+    if (downloadDocumentDataBtn) {
+        downloadDocumentDataBtn.addEventListener("click", function () {
+            if (!confirm("Download document data as xlsx?")) return;
+
+            var folderInput = document.getElementById("treeFilterInput");
+            var folderFilter = folderInput ? folderInput.value.trim() : "";
+            var url = '/download-document-data-xlsx';
+            if (folderFilter) {
+                url += `?folder_name=${encodeURIComponent(folderFilter)}`;
+            }
+
+            downloadDocumentDataBtn.disabled = true;
+            downloadDocumentDataBtn.textContent = "Downloading...";
+
+            var feedbackLog = document.getElementById("createTabFeedbackLog") || document.getElementById("feedbackLog");
+            var ts = new Date().toLocaleTimeString();
+            var entry = `<div><b>[${ts}] Download Document Data:</b> <span style='color:#666;'>Starting...</span></div>`;
+            if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+
+            fetch(url)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    return r.blob().then(blob => ({ blob, disposition: r.headers.get('content-disposition') }));
+                })
+                .then(({ blob, disposition }) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = disposition ? disposition.replace(/attachment; filename="?([^"]*)"?/i, '$1') : 'document_data.xlsx';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    const ts2 = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${ts2}] Download Document Data:</b> <span style='color:#27ae60;'>Complete.</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                })
+                .catch(err => {
+                    const ts2 = new Date().toLocaleTimeString();
+                    const entry = `<div><b>[${ts2}] Download Document Data:</b> <span style='color:#c00;'>Error: ${escHtml(String(err))}</span></div>`;
+                    if (feedbackLog) feedbackLog.innerHTML = entry + feedbackLog.innerHTML;
+                    else alert("Download failed: " + err.message);
+                })
+                .finally(() => {
+                    downloadDocumentDataBtn.disabled = false;
+                    downloadDocumentDataBtn.textContent = "Download Document Data (xlsx)";
+                });
         });
     }
 
@@ -865,6 +1191,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 downloadPartlistImport: "Download Partlist Import",
                 downloadPartlistTree: "Download Partlist Tree",
                 validateArtikelBezeichnungen: "Validate Artikelbezeichnungen",
+                overwriteBezeichnungen: "Overwrite Bezeichnungen Cache",
                 modeArticle: "Article",
                 changeMode: "Change Mode",
                 currentSelection: "Current Selection",
@@ -889,6 +1216,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 modalNeedReplacement: "Please enter a replacement artnr or click Ignore.",
                 showBlockedArticles: "Show Blocked Articles",
                 validationModalTitle: "Validate Artikelbezeichnungen",
+                validateArticleGroups: "Validate Groups",
                 validationProgress: "Progress",
                 validationConfirm: "Confirm",
                 validationClose: "Close",
@@ -918,6 +1246,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 downloadPartlistImport: "Stücklisten-Import herunterladen",
                 downloadPartlistTree: "Stücklistenbaum herunterladen",
                 validateArtikelBezeichnungen: "Artikelbezeichnungen prüfen",
+                overwriteBezeichnungen: "Bezeichnungen im Cache ueberschreiben",
                 modeArticle: "Artikel",
                 changeMode: "Modus wechseln",
                 currentSelection: "Aktuelle Auswahl",
@@ -942,6 +1271,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 modalNeedReplacement: "Bitte Ersatz-Artikelnr eingeben oder Ignorieren klicken.",
                 showBlockedArticles: "Gesperrte Artikel anzeigen",
                 validationModalTitle: "Artikelbezeichnungen prüfen",
+                validateArticleGroups: "Gruppen prüfen",
                 validationProgress: "Fortschritt",
                 validationConfirm: "Bestätigen",
                 validationClose: "Schließen",
@@ -1097,6 +1427,12 @@ document.addEventListener("DOMContentLoaded", function() {
         var blockedIgnoreBtn = document.getElementById("blockedIgnoreBtn");
         var blockedTextBtn = document.getElementById("blockedTextBtn");
         var validateArtikelBezeichnungenBtn = document.getElementById("validateArtikelBezeichnungenBtn");
+        var overwriteBezeichnungenBtn = document.getElementById("overwriteBezeichnungenBtn");
+        var validateArticleGroupsBtn = document.getElementById("validateArticleGroupsBtn");
+        var createValidateGroupsBtn = document.getElementById("createValidateGroupsBtn");
+        var buildSheetCacheBtn = document.getElementById("buildSheetCacheBtn");
+        var downloadCreationExcelUIBtn = document.getElementById("downloadCreationExcelUIBtn");
+        var downloadCreationExcelBtn = document.getElementById("downloadCreationExcelBtn");
         var validationModal = document.getElementById("validationModal");
         var validationModalMeta = document.getElementById("validationModalMeta");
         var validationArtnr = document.getElementById("validationArtnr");
@@ -1108,6 +1444,12 @@ document.addEventListener("DOMContentLoaded", function() {
         var validationArtbez2 = document.getElementById("validationArtbez2");
         var validationArtbez3 = document.getElementById("validationArtbez3");
         var validationArtbezMem = document.getElementById("validationArtbezMem");
+        var validationHauptgruppe = document.getElementById("validationHauptgruppe");
+        var validationHauptgruppeCustom = document.getElementById("validationHauptgruppeCustom");
+        var validationUntergruppe = document.getElementById("validationUntergruppe");
+        var validationUntergruppeCustom = document.getElementById("validationUntergruppeCustom");
+        var validationSpezifikation = document.getElementById("validationSpezifikation");
+        var validationSpezifikationCustom = document.getElementById("validationSpezifikationCustom");
         var validationStatus = document.getElementById("validationStatus");
         var validationConfirmBtn = document.getElementById("validationConfirmBtn");
         var validationCloseBtn = document.getElementById("validationCloseBtn");
@@ -1115,6 +1457,130 @@ document.addEventListener("DOMContentLoaded", function() {
         var validationIndex = 0;
         var validationCurrentItem = null;
         var validationSaving = false;
+        var validationGroupsTree = {};
+
+        var groupValidationModal = document.getElementById("groupValidationModal");
+        var groupValidationModalMeta = document.getElementById("groupValidationModalMeta");
+        var groupValidationArtbez1 = document.getElementById("groupValidationArtbez1");
+        var groupValidationArtbez2 = document.getElementById("groupValidationArtbez2");
+        var groupValidationArtbez3 = document.getElementById("groupValidationArtbez3");
+        var groupValidationArtbezMem = document.getElementById("groupValidationArtbezMem");
+        var groupValidationHauptgruppe = document.getElementById("groupValidationHauptgruppe");
+        var groupValidationHauptgruppeCustom = document.getElementById("groupValidationHauptgruppeCustom");
+        var groupValidationUntergruppe = document.getElementById("groupValidationUntergruppe");
+        var groupValidationUntergruppeCustom = document.getElementById("groupValidationUntergruppeCustom");
+        var groupValidationSpezifikation = document.getElementById("groupValidationSpezifikation");
+        var groupValidationSpezifikationCustom = document.getElementById("groupValidationSpezifikationCustom");
+        var groupValidationStatus = document.getElementById("groupValidationStatus");
+        var groupValidationBezeichnungsContainer = document.getElementById("groupValidationBezeichnungsContainer");
+        var groupValidationConfirmBtn = document.getElementById("groupValidationConfirmBtn");
+        var groupValidationCloseBtn = document.getElementById("groupValidationCloseBtn");
+        var groupValidationNewHauptgruppe = document.getElementById("groupValidationNewHauptgruppe");
+        var groupValidationNewUntergruppe = document.getElementById("groupValidationNewUntergruppe");
+        var groupValidationNewSpezifikation = document.getElementById("groupValidationNewSpezifikation");
+        var groupValidationAddBtn = document.getElementById("groupValidationAddBtn");
+        var groupValidationNewBezeichnungName = document.getElementById("groupValidationNewBezeichnungName");
+        var groupValidationNewBezeichnungValue = document.getElementById("groupValidationNewBezeichnungValue");
+        var groupValidationAddBezeichnungBtn = document.getElementById("groupValidationAddBezeichnungBtn");
+        var groupValidationQueue = [];
+        var groupValidationIndex = 0;
+        var groupValidationCurrentItem = null;
+        var groupValidationSaving = false;
+        var groupValidationGroupsTree = {};
+        var groupValidationUseFileQueue = false;
+        var groupValidationCustomBezeichnungselemente = [];
+        var groupValidationAutoRefreshHandler = null;
+
+        function hasSelectOption(selectEl, value) {
+            if (!selectEl || !value) return false;
+            return Array.from(selectEl.options || []).some(function(opt) { return (opt && opt.value) === value; });
+        }
+
+        function getInputOrSelectValue(inputEl, selectEl) {
+            var inputValue = inputEl ? String(inputEl.value || '').trim() : '';
+            if (inputValue) return inputValue;
+            return selectEl ? String(selectEl.value || '') : '';
+        }
+
+        function setCustomInputFromValue(inputEl, selectEl, value) {
+            if (!inputEl || !selectEl) return;
+            var normalized = String(value || '').trim();
+            if (!normalized || hasSelectOption(selectEl, normalized)) {
+                inputEl.value = '';
+                return;
+            }
+            inputEl.value = normalized;
+        }
+
+        function ensureSelectHasValue(selectEl, value) {
+            if (!selectEl) return;
+            var normalized = String(value || '').trim();
+            if (!normalized || hasSelectOption(selectEl, normalized)) return;
+            var opt = document.createElement('option');
+            opt.value = normalized;
+            opt.textContent = normalized;
+            selectEl.appendChild(opt);
+        }
+        function _refreshUntergruppenForSelectedHg() {
+            if (!validationHauptgruppe || !validationUntergruppe) return;
+            const hg = getInputOrSelectValue(validationHauptgruppeCustom, validationHauptgruppe);
+            validationUntergruppe.innerHTML = '';
+            let ugList = [];
+            if (validationGroupsTree && validationGroupsTree[hg] && typeof validationGroupsTree[hg] === 'object') {
+                ugList = Object.keys(validationGroupsTree[hg]);
+            }
+            ugList.forEach(function(o){ var opt = document.createElement('option'); opt.value = o; opt.textContent = o; validationUntergruppe.appendChild(opt); });
+            if (validationCurrentItem && validationCurrentItem.untergruppe) {
+                try { validationUntergruppe.value = validationCurrentItem.untergruppe; } catch(e){}
+            }
+            // if no value selected, pick first
+            if (!validationUntergruppe.value && ugList.length) validationUntergruppe.value = ugList[0];
+            if (validationUntergruppeCustom && validationUntergruppeCustom.value && hasSelectOption(validationUntergruppe, validationUntergruppeCustom.value)) {
+                validationUntergruppeCustom.value = '';
+            }
+            _refreshSpezifikationForSelected();
+        }
+
+        function _refreshSpezifikationForSelected() {
+            if (!validationHauptgruppe || !validationUntergruppe || !validationSpezifikation) return;
+            const hg = getInputOrSelectValue(validationHauptgruppeCustom, validationHauptgruppe);
+            const ug = getInputOrSelectValue(validationUntergruppeCustom, validationUntergruppe);
+            validationSpezifikation.innerHTML = '';
+            let specs = [];
+            if (validationGroupsTree && validationGroupsTree[hg] && validationGroupsTree[hg][ug]) {
+                const node = validationGroupsTree[hg][ug];
+                if (Array.isArray(node)) specs = node;
+                else if (typeof node === 'object') specs = Object.keys(node);
+            }
+            specs.forEach(function(o){ var opt = document.createElement('option'); opt.value = o; opt.textContent = o; validationSpezifikation.appendChild(opt); });
+            if (validationCurrentItem && validationCurrentItem.spezifikation) {
+                try { validationSpezifikation.value = validationCurrentItem.spezifikation; } catch(e){}
+            }
+            if (validationSpezifikationCustom && validationSpezifikationCustom.value && hasSelectOption(validationSpezifikation, validationSpezifikationCustom.value)) {
+                validationSpezifikationCustom.value = '';
+            }
+        }
+
+        if (validationHauptgruppe) {
+            validationHauptgruppe.addEventListener('change', function() {
+                _refreshUntergruppenForSelectedHg();
+            });
+        }
+        if (validationUntergruppe) {
+            validationUntergruppe.addEventListener('change', function() {
+                _refreshSpezifikationForSelected();
+            });
+        }
+        if (validationHauptgruppeCustom) {
+            validationHauptgruppeCustom.addEventListener('input', function() {
+                _refreshUntergruppenForSelectedHg();
+            });
+        }
+        if (validationUntergruppeCustom) {
+            validationUntergruppeCustom.addEventListener('input', function() {
+                _refreshSpezifikationForSelected();
+            });
+        }
         if (blockedArticlesContainer && showBlockedArticlesBtn && blockedArticlesArea) {
             showBlockedArticlesBtn.addEventListener("click", function() {
                 if (blockedArticlesArea.style.display === "none") {
@@ -1326,6 +1792,38 @@ document.addEventListener("DOMContentLoaded", function() {
             if (validationArtbez2) validationArtbez2.value = item.artbez2 || "";
             if (validationArtbez3) validationArtbez3.value = item.artbez3 || "";
             if (validationArtbezMem) validationArtbezMem.value = item.artbezmem || "";
+            // populate group selects
+            if (validationHauptgruppe) {
+                validationHauptgruppe.innerHTML = '';
+                var hg_opts = item.hauptgruppen_options && item.hauptgruppen_options.length ? item.hauptgruppen_options : Object.keys(validationGroupsTree || {});
+                hg_opts.forEach(function(o){ var opt = document.createElement('option'); opt.value = o; opt.textContent = o; validationHauptgruppe.appendChild(opt); });
+                if (item.hauptgruppe) validationHauptgruppe.value = item.hauptgruppe;
+            }
+            if (validationHauptgruppeCustom) {
+                setCustomInputFromValue(validationHauptgruppeCustom, validationHauptgruppe, item.hauptgruppe || '');
+            }
+            if (validationUntergruppe) {
+                validationUntergruppe.innerHTML = '';
+                var ug_opts = item.untergruppen_options || [];
+                ug_opts.forEach(function(o){ var opt = document.createElement('option'); opt.value = o; opt.textContent = o; validationUntergruppe.appendChild(opt); });
+                if (item.untergruppe) validationUntergruppe.value = item.untergruppe;
+            }
+            if (validationUntergruppeCustom) {
+                setCustomInputFromValue(validationUntergruppeCustom, validationUntergruppe, item.untergruppe || '');
+            }
+            if (validationSpezifikation) {
+                validationSpezifikation.innerHTML = '';
+                var sp_opts = item.spezifikation_options || [];
+                sp_opts.forEach(function(o){ var opt = document.createElement('option'); opt.value = o; opt.textContent = o; validationSpezifikation.appendChild(opt); });
+                if (item.spezifikation) validationSpezifikation.value = item.spezifikation;
+            }
+            if (validationSpezifikationCustom) {
+                setCustomInputFromValue(validationSpezifikationCustom, validationSpezifikation, item.spezifikation || '');
+            }
+            // If we have a groups tree from backend, prefer it to populate dependent selects
+            if (validationGroupsTree && validationHauptgruppe && validationGroupsTree[validationHauptgruppe.value]) {
+                _refreshUntergruppenForSelectedHg();
+            }
             if (validationModalMeta) {
                 validationModalMeta.textContent = `${t("validationProgress") || "Progress"}: ${validationIndex + 1} / ${validationQueue.length}`;
             }
@@ -1349,7 +1847,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 artbez1: validationArtbez1 ? validationArtbez1.value : "",
                 artbez2: validationArtbez2 ? validationArtbez2.value : "",
                 artbez3: validationArtbez3 ? validationArtbez3.value : "",
-                artbezmem: validationArtbezMem ? validationArtbezMem.value : ""
+                artbezmem: validationArtbezMem ? validationArtbezMem.value : "",
+                hauptgruppe: getInputOrSelectValue(validationHauptgruppeCustom, validationHauptgruppe),
+                untergruppe: getInputOrSelectValue(validationUntergruppeCustom, validationUntergruppe),
+                spezifikation: getInputOrSelectValue(validationSpezifikationCustom, validationSpezifikation)
             };
         }
 
@@ -1380,6 +1881,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         throw new Error((data && data.message) || "Failed to load validation queue.");
                     }
                     validationQueue = Array.isArray(data.items) ? data.items : [];
+                    validationGroupsTree = data.groups_tree || {};
                     validationIndex = 0;
                     if (!validationQueue.length) {
                         alert(t("validationNoItems") || "No cache entries found.");
@@ -1400,6 +1902,41 @@ document.addEventListener("DOMContentLoaded", function() {
             validateArtikelBezeichnungenBtn.addEventListener("click", startValidationFlow);
         }
 
+        function overwriteBezeichnungenCache() {
+            if (!overwriteBezeichnungenBtn) {
+                return;
+            }
+            overwriteBezeichnungenBtn.disabled = true;
+            overwriteBezeichnungenBtn.textContent = "Overwriting...";
+            fetch("/api/validate-artikelbezeichnungen/overwrite", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (!data || data.status !== "ok") {
+                        throw new Error((data && data.message) || "Failed to overwrite Bezeichnungen cache.");
+                    }
+                    var feedbackLog = document.getElementById("feedbackLog");
+                    if (feedbackLog) {
+                        feedbackLog.innerHTML = "<div><b>Overwrite Bezeichnungen:</b> <span style='color:#27ae60;'>Updated Artikelstamm rows: " +
+                            (data.artikelstamm_rows_updated || 0) + ", Lieferant rows: " +
+                            (data.lieferant_rows_updated || 0) + ".</span></div>" + feedbackLog.innerHTML;
+                    }
+                })
+                .catch(function(err) {
+                    alert(err.message || String(err));
+                })
+                .finally(function() {
+                    overwriteBezeichnungenBtn.disabled = false;
+                    overwriteBezeichnungenBtn.textContent = t("overwriteBezeichnungen") || "Overwrite Bezeichnungen Cache";
+                });
+        }
+
+        if (overwriteBezeichnungenBtn) {
+            overwriteBezeichnungenBtn.addEventListener("click", overwriteBezeichnungenCache);
+        }
+
         if (validationConfirmBtn) {
             validationConfirmBtn.addEventListener("click", function() {
                 if (validationSaving || !validationCurrentItem) {
@@ -1410,10 +1947,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 fetch("/api/validate-artikelbezeichnungen/save", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        artnr: validationCurrentItem.artnr,
-                        updates: getValidationUpdates()
-                    })
+                    body: JSON.stringify({ artnr: validationCurrentItem.artnr, updates: getValidationUpdates() })
                 })
                 .then(function(response) {
                     return response.json();
@@ -1441,6 +1975,770 @@ document.addEventListener("DOMContentLoaded", function() {
         if (validationCloseBtn) {
             validationCloseBtn.addEventListener("click", function() {
                 hideValidationModal();
+            });
+        }
+
+        function setGroupValidationStatus(message, isError) {
+            if (groupValidationStatus) {
+                groupValidationStatus.textContent = message || "";
+                groupValidationStatus.style.color = isError ? "#c00" : "#2c3e50";
+            }
+        }
+
+        function hideGroupValidationModal() {
+            if (groupValidationModal) {
+                groupValidationModal.style.display = "none";
+            }
+            groupValidationCurrentItem = null;
+            groupValidationQueue = [];
+            groupValidationIndex = 0;
+            groupValidationSaving = false;
+            setGroupValidationStatus("");
+        }
+
+        function populateGroupValidationUntergruppen() {
+            if (!groupValidationHauptgruppe || !groupValidationUntergruppe) return;
+            var hg = getInputOrSelectValue(groupValidationHauptgruppeCustom, groupValidationHauptgruppe);
+            var options = [];
+            if (groupValidationGroupsTree && groupValidationGroupsTree[hg] && typeof groupValidationGroupsTree[hg] === "object") {
+                options = Object.keys(groupValidationGroupsTree[hg]);
+            }
+            if (groupValidationCurrentItem && groupValidationCurrentItem.preset_untergruppe && options.indexOf(groupValidationCurrentItem.preset_untergruppe) === -1) {
+                options = [groupValidationCurrentItem.preset_untergruppe].concat(options);
+            }
+            groupValidationUntergruppe.innerHTML = "";
+            options.forEach(function(value) {
+                var opt = document.createElement("option");
+                opt.value = value;
+                opt.textContent = value;
+                groupValidationUntergruppe.appendChild(opt);
+            });
+            if (groupValidationCurrentItem && groupValidationCurrentItem.preset_untergruppe) {
+                groupValidationUntergruppe.value = groupValidationCurrentItem.preset_untergruppe;
+            }
+            if (!groupValidationUntergruppe.value && options.length) {
+                groupValidationUntergruppe.value = options[0];
+            }
+            if (groupValidationUntergruppeCustom && groupValidationUntergruppeCustom.value && hasSelectOption(groupValidationUntergruppe, groupValidationUntergruppeCustom.value)) {
+                groupValidationUntergruppeCustom.value = '';
+            }
+            populateGroupValidationSpezifikationen();
+        }
+
+        function populateGroupValidationSpezifikationen() {
+            if (!groupValidationHauptgruppe || !groupValidationUntergruppe || !groupValidationSpezifikation) return;
+            var hg = getInputOrSelectValue(groupValidationHauptgruppeCustom, groupValidationHauptgruppe);
+            var ug = getInputOrSelectValue(groupValidationUntergruppeCustom, groupValidationUntergruppe);
+            var node = groupValidationGroupsTree && groupValidationGroupsTree[hg] ? groupValidationGroupsTree[hg][ug] : null;
+            var options = [];
+            if (Array.isArray(node)) {
+                options = node;
+            } else if (node && typeof node === "object") {
+                options = Object.keys(node);
+            }
+            if (groupValidationCurrentItem && groupValidationCurrentItem.preset_spezifikation && options.indexOf(groupValidationCurrentItem.preset_spezifikation) === -1) {
+                options = [groupValidationCurrentItem.preset_spezifikation].concat(options);
+            }
+            groupValidationSpezifikation.innerHTML = "";
+            options.forEach(function(value) {
+                var opt = document.createElement("option");
+                opt.value = value;
+                opt.textContent = value;
+                groupValidationSpezifikation.appendChild(opt);
+            });
+            if (groupValidationCurrentItem && groupValidationCurrentItem.preset_spezifikation) {
+                groupValidationSpezifikation.value = groupValidationCurrentItem.preset_spezifikation;
+            }
+            if (groupValidationSpezifikationCustom && groupValidationSpezifikationCustom.value && hasSelectOption(groupValidationSpezifikation, groupValidationSpezifikationCustom.value)) {
+                groupValidationSpezifikationCustom.value = '';
+            }
+        }
+
+        function renderCustomBezeichnungRow(elem, index) {
+            var row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.gap = '0.6em';
+            row.style.marginBottom = '0.4em';
+            row.style.alignItems = 'flex-start';
+            row.dataset.customIndex = index;
+            row.dataset.customElement = 'true';
+            
+            var lbl = document.createElement('label');
+            lbl.style.minWidth = '160px';
+            lbl.style.fontWeight = '600';
+            lbl.style.marginTop = '0.35em';
+            lbl.textContent = elem.name || ('Custom ' + (index+1));
+            
+            var valInput = document.createElement('input');
+            valInput.type = 'text';
+            valInput.style.flex = '1';
+            valInput.value = elem.value || '';
+            valInput.dataset.customValue = 'true';
+            valInput.dataset.customName = elem.name || '';
+            
+            var delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'modern-btn secondary';
+            delBtn.style.padding = '0.4em 0.8em';
+            delBtn.style.minWidth = 'auto';
+            delBtn.textContent = '✕';
+            delBtn.title = 'Remove this element';
+            delBtn.addEventListener('click', function(e){
+                e.preventDefault();
+                row.remove();
+                groupValidationCustomBezeichnungselemente = groupValidationCustomBezeichnungselemente.filter(function(_, i){ return i !== index; });
+            });
+            
+            row.appendChild(lbl);
+            row.appendChild(valInput);
+            row.appendChild(delBtn);
+            return row;
+        }
+
+        function refreshGroupValidationBezeichnungselemente() {
+            if (!groupValidationCurrentItem) return;
+            var hg = getInputOrSelectValue(groupValidationHauptgruppeCustom, groupValidationHauptgruppe);
+            var ug = getInputOrSelectValue(groupValidationUntergruppeCustom, groupValidationUntergruppe);
+            var spec = getInputOrSelectValue(groupValidationSpezifikationCustom, groupValidationSpezifikation);
+            
+            fetch('/api/validate/groups/resolve-bezeichnungselemente', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    artnr: groupValidationCurrentItem.artnr,
+                    hauptgruppe: hg,
+                    untergruppe: ug,
+                    spezifikation: spec,
+                })
+            })
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                if (data && data.status === 'ok') {
+                    var elements = data.bezeichnungselemente || [];
+                    if (groupValidationBezeichnungsContainer) {
+                        Array.from(groupValidationBezeichnungsContainer.querySelectorAll('[data-predefined="true"]')).forEach(function(row){
+                            row.remove();
+                        });
+                        var firstCustomRow = groupValidationBezeichnungsContainer.querySelector('[data-custom-element="true"]');
+                        
+                        elements.forEach(function(e, idx){
+                            try {
+                                var row = document.createElement('div');
+                                row.style.display = 'flex';
+                                row.style.gap = '0.6em';
+                                row.style.marginBottom = '0.4em';
+                                row.dataset.predefined = 'true';
+                                var lbl = document.createElement('label');
+                                lbl.style.minWidth = '160px';
+                                lbl.style.fontWeight = '600';
+                                lbl.textContent = e.name || ('Elem ' + (idx+1));
+                                var rawOptions = Array.isArray(e.options) ? e.options : [];
+                                var normalizedOptions = rawOptions.map(function(opt){
+                                    if (opt && typeof opt === 'object') {
+                                        return opt;
+                                    }
+                                    var s = String(opt || '').trim();
+                                    return s ? s : null;
+                                }).filter(function(x){ return x !== null; });
+                                
+                                var control;
+                                if (normalizedOptions.length) {
+                                    if ((e.name || '').toString().trim().toLowerCase() === 'checked') {
+                                        var cbContainer = document.createElement('div');
+                                        cbContainer.style.display = 'flex';
+                                        cbContainer.style.flexDirection = 'column';
+                                        cbContainer.style.flex = '1';
+                                        cbContainer.dataset.key = e.name || '';
+                                        normalizedOptions.forEach(function(opt){
+                                            var optionLabel = (typeof opt === 'object') ? (opt.label !== undefined ? String(opt.label) : String(opt.value)) : String(opt);
+                                            var optionVal = (typeof opt === 'object') ? (opt.value !== undefined ? String(opt.value) : optionLabel) : optionLabel;
+                                            var cbRow = document.createElement('label');
+                                            cbRow.style.display = 'flex';
+                                            cbRow.style.alignItems = 'center';
+                                            cbRow.style.gap = '0.6em';
+                                            var cb = document.createElement('input');
+                                            cb.type = 'checkbox';
+                                            cb.dataset.key = e.name || '';
+                                            cb.dataset.option = optionVal;
+                                            cb.value = optionVal;
+                                            var span = document.createElement('span');
+                                            span.textContent = optionLabel;
+                                            cbRow.appendChild(cb);
+                                            cbRow.appendChild(span);
+                                            cbContainer.appendChild(cbRow);
+                                        });
+                                        row.appendChild(lbl);
+                                        row.appendChild(cbContainer);
+                                        groupValidationBezeichnungsContainer.insertBefore(row, firstCustomRow || null);
+                                        return;
+                                    }
+                                    var select = document.createElement('select');
+                                    select.style.flex = '1';
+                                    select.name = e.name || '';
+                                    normalizedOptions.forEach(function(opt){
+                                        var optionEl = document.createElement('option');
+                                        if (typeof opt === 'object') {
+                                            var val = opt.value !== undefined ? String(opt.value) : (opt.label !== undefined ? String(opt.label) : '');
+                                            var lbl = opt.label !== undefined ? String(opt.label) : val;
+                                            optionEl.value = val;
+                                            optionEl.textContent = lbl;
+                                        } else {
+                                            optionEl.value = String(opt);
+                                            optionEl.textContent = String(opt);
+                                        }
+                                        select.appendChild(optionEl);
+                                    });
+                                    try {
+                                        if (e.value) select.value = e.value;
+                                    } catch (ex) {}
+                                    row.appendChild(lbl);
+                                    row.appendChild(select);
+                                } else {
+                                    control = document.createElement('input');
+                                    control.type = 'text';
+                                    control.style.flex = '1';
+                                    control.value = e.value || '';
+                                    control.placeholder = '';
+                                    control.title = '';
+                                    row.appendChild(lbl);
+                                    row.appendChild(control);
+                                }
+                                if (control) {
+                                    control.dataset.key = e.name || '';
+                                    control.dataset.options = JSON.stringify(normalizedOptions);
+                                } else if (row) {
+                                    var sel = row.querySelector('select');
+                                    if (sel) sel.dataset.key = e.name || '';
+                                }
+                                groupValidationBezeichnungsContainer.insertBefore(row, firstCustomRow || null);
+                            } catch (ex) {}
+                        });
+                            // Show manual add section only if no predefined elements found
+                            var addElementSection = document.querySelector('[data-group-validation-add-element-section]');
+                            if (addElementSection) {
+                                addElementSection.style.display = (elements.length === 0) ? 'block' : 'none';
+                            }
+                    }
+                }
+            })
+            .catch(function(err){ if (DEBUG) console.log('Error refreshing elements:', err); });
+        }
+
+        function fillGroupValidationForm(item) {
+            if (!item) return;
+            var preserveCustomBezeichnungen = groupValidationCurrentItem && groupValidationCurrentItem.artnr === item.artnr;
+            groupValidationCurrentItem = item;
+            if (!preserveCustomBezeichnungen) {
+                groupValidationCustomBezeichnungselemente = [];
+            }
+            if (groupValidationArtbez1) groupValidationArtbez1.value = item.artbez1 || "";
+            if (groupValidationArtbez2) groupValidationArtbez2.value = item.artbez2 || "";
+            if (groupValidationArtbez3) groupValidationArtbez3.value = item.artbez3 || "";
+            if (groupValidationArtbezMem) groupValidationArtbezMem.value = item.artbezmem || "";
+
+            if (groupValidationHauptgruppe) {
+                groupValidationHauptgruppe.innerHTML = "";
+                var hgOptions = item.hauptgruppen_options && item.hauptgruppen_options.length ? item.hauptgruppen_options : Object.keys(groupValidationGroupsTree || {});
+                hgOptions.forEach(function(value) {
+                    var opt = document.createElement("option");
+                    opt.value = value;
+                    opt.textContent = value;
+                    groupValidationHauptgruppe.appendChild(opt);
+                });
+                if (item.preset_hauptgruppe) {
+                    if (hgOptions.indexOf(item.preset_hauptgruppe) === -1) {
+                        var presetOpt = document.createElement("option");
+                        presetOpt.value = item.preset_hauptgruppe;
+                        presetOpt.textContent = item.preset_hauptgruppe;
+                        groupValidationHauptgruppe.appendChild(presetOpt);
+                    }
+                    groupValidationHauptgruppe.value = item.preset_hauptgruppe;
+                }
+            }
+            if (groupValidationHauptgruppeCustom) {
+                setCustomInputFromValue(groupValidationHauptgruppeCustom, groupValidationHauptgruppe, item.preset_hauptgruppe || item.hauptgruppe || '');
+            }
+
+            populateGroupValidationUntergruppen();
+            if (groupValidationUntergruppeCustom) {
+                setCustomInputFromValue(groupValidationUntergruppeCustom, groupValidationUntergruppe, item.preset_untergruppe || item.untergruppe || '');
+            }
+            if (groupValidationSpezifikationCustom) {
+                setCustomInputFromValue(groupValidationSpezifikationCustom, groupValidationSpezifikation, item.preset_spezifikation || item.spezifikation || '');
+            }
+            // populate bezeichnungselemente (list of {name, value})
+            if (groupValidationBezeichnungsContainer) {
+                groupValidationBezeichnungsContainer.innerHTML = '';
+                var elems = item.bezeichnungselemente || [];
+                elems.forEach(function(e, idx) {
+                    try {
+                        var row = document.createElement('div');
+                        row.style.display = 'flex';
+                        row.style.gap = '0.6em';
+                        row.style.marginBottom = '0.4em';
+                        row.dataset.predefined = 'true';
+                        var lbl = document.createElement('label');
+                        lbl.style.minWidth = '160px';
+                        lbl.style.fontWeight = '600';
+                        lbl.textContent = e.name || ('Elem ' + (idx+1));
+                                var rawOptions = Array.isArray(e.options) ? e.options : [];
+                                var normalizedOptions = rawOptions.map(function(opt){
+                                    if (opt && typeof opt === 'object') {
+                                        // keep object as-is (expecting {value,label,custom_input,placeholder})
+                                        return opt;
+                                    }
+                                    var s = String(opt || '').trim();
+                                    return s ? s : null;
+                                }).filter(function(x){ return x !== null; });
+
+                                var control;
+                                if (normalizedOptions.length) {
+                                    // detect custom option
+                                    var customOpt = normalizedOptions.find(function(o){ return (typeof o === 'object' && (o.custom_input === true || o.customInput === true)) || (typeof o === 'string' && o === '__custom__'); });
+                                    // Special-case: render checkbox list when element name is 'checked'
+                                    if ((e.name || '').toString().trim().toLowerCase() === 'checked') {
+                                        var cbContainer = document.createElement('div');
+                                        cbContainer.style.display = 'flex';
+                                        cbContainer.style.flexDirection = 'column';
+                                        cbContainer.style.flex = '1';
+                                        cbContainer.dataset.key = e.name || '';
+                                        normalizedOptions.forEach(function(opt, oidx){
+                                            var optionLabel = (typeof opt === 'object') ? (opt.label !== undefined ? String(opt.label) : String(opt.value)) : String(opt);
+                                            var optionVal = (typeof opt === 'object') ? (opt.value !== undefined ? String(opt.value) : optionLabel) : optionLabel;
+                                            var cbRow = document.createElement('label');
+                                            cbRow.style.display = 'flex';
+                                            cbRow.style.alignItems = 'center';
+                                            cbRow.style.gap = '0.6em';
+                                            var cb = document.createElement('input');
+                                            cb.type = 'checkbox';
+                                            cb.dataset.key = e.name || '';
+                                            cb.dataset.option = optionVal;
+                                            cb.value = optionVal;
+                                            var span = document.createElement('span');
+                                            span.textContent = optionLabel;
+                                            cbRow.appendChild(cb);
+                                            cbRow.appendChild(span);
+                                            cbContainer.appendChild(cbRow);
+                                        });
+                                        row.appendChild(lbl);
+                                        row.appendChild(cbContainer);
+                                        groupValidationBezeichnungsContainer.appendChild(row);
+                                        return;
+                                    }
+                                    var select = document.createElement('select');
+                                    select.style.flex = '1';
+                                    select.name = e.name || '';
+                                    normalizedOptions.forEach(function(opt){
+                                        var optionEl = document.createElement('option');
+                                        if (typeof opt === 'object') {
+                                            var val = opt.value !== undefined ? String(opt.value) : (opt.label !== undefined ? String(opt.label) : '');
+                                            var lbl = opt.label !== undefined ? String(opt.label) : val;
+                                            optionEl.value = val;
+                                            optionEl.textContent = lbl;
+                                        } else {
+                                            optionEl.value = String(opt);
+                                            optionEl.textContent = String(opt);
+                                        }
+                                        select.appendChild(optionEl);
+                                    });
+                                    // determine initial selection
+                                    try {
+                                        if (e.value) select.value = e.value;
+                                    } catch (ex) {}
+                                    row.appendChild(lbl);
+                                    row.appendChild(select);
+                                    // if custom option exists, add a text input hidden/shown when selected
+                                    if (customOpt) {
+                                        var customId = 'gv_custom_' + (e.name || '').replace(/[^a-zA-Z0-9_\-]/g, '_');
+                                        var customInput = document.createElement('input');
+                                        customInput.type = 'text';
+                                        customInput.id = customId;
+                                        customInput.name = '__gv_custom_' + (e.name || '');
+                                        customInput.dataset.customFor = e.name || '';
+                                        customInput.style.flex = '1';
+                                        customInput.style.marginTop = '0.35em';
+                                        customInput.value = '';
+                                        if (typeof customOpt === 'object') {
+                                            customInput.placeholder = customOpt.placeholder || customOpt.label || 'Custom value';
+                                        } else {
+                                            customInput.placeholder = 'Custom value';
+                                        }
+                                        // show if selected value equals custom option value
+                                        var customValue = typeof customOpt === 'object' ? (customOpt.value !== undefined ? String(customOpt.value) : '') : '__custom__';
+                                        var updateVisibility = function(){
+                                            customInput.style.display = (select.value === customValue) ? 'block' : 'none';
+                                        };
+                                        select.addEventListener('change', updateVisibility);
+                                        updateVisibility();
+                                        row.appendChild(customInput);
+                                    }
+                                } else {
+                                    control = document.createElement('input');
+                                    control.type = 'text';
+                                    control.style.flex = '1';
+                                    control.value = e.value || '';
+                                    control.placeholder = '';
+                                    control.title = '';
+                                    row.appendChild(lbl);
+                                    row.appendChild(control);
+                                }
+                                // attach dataset on the control(s)
+                                if (control) {
+                                    control.dataset.key = e.name || '';
+                                    control.dataset.options = JSON.stringify(normalizedOptions);
+                                } else if (row) {
+                                    // set dataset for select and custom input handled above
+                                    var sel = row.querySelector('select');
+                                    if (sel) sel.dataset.key = e.name || '';
+                                }
+                                groupValidationBezeichnungsContainer.appendChild(row);
+                    } catch (ex) {}
+                });
+                // Render custom Bezeichnungselemente that have been added
+                if (groupValidationCustomBezeichnungselemente && groupValidationCustomBezeichnungselemente.length) {
+                    groupValidationCustomBezeichnungselemente.forEach(function(elem, idx){
+                        var row = renderCustomBezeichnungRow(elem, idx);
+                        groupValidationBezeichnungsContainer.appendChild(row);
+                    });
+                }
+            }
+            if (groupValidationModalMeta) {
+                groupValidationModalMeta.textContent = `${t("validationProgress") || "Progress"}: ${groupValidationIndex + 1} / ${groupValidationQueue.length}`;
+            }
+            // Clear input fields for adding new elements
+            if (groupValidationNewBezeichnungName) groupValidationNewBezeichnungName.value = '';
+            if (groupValidationNewBezeichnungValue) groupValidationNewBezeichnungValue.value = '';
+            setGroupValidationStatus("");
+            if (groupValidationModal) {
+                groupValidationModal.style.display = "flex";
+            }
+            // Always align predefined fields with currently selected group path.
+            refreshGroupValidationBezeichnungselemente();
+        }
+
+        function getGroupValidationUpdates() {
+            var updates = {
+                hauptgruppe: getInputOrSelectValue(groupValidationHauptgruppeCustom, groupValidationHauptgruppe),
+                untergruppe: getInputOrSelectValue(groupValidationUntergruppeCustom, groupValidationUntergruppe),
+                spezifikation: getInputOrSelectValue(groupValidationSpezifikationCustom, groupValidationSpezifikation)
+            };
+            // collect bezeichnungselemente inputs
+            if (groupValidationBezeichnungsContainer) {
+                var elems = [];
+                var customInputsByField = {};
+                var selects = [];
+                Array.from(groupValidationBezeichnungsContainer.querySelectorAll('input, select')).forEach(function(inp){
+                    if (inp.tagName === 'SELECT') {
+                        selects.push(inp);
+                    } else if (inp.dataset.customFor) {
+                        if (!customInputsByField[inp.dataset.customFor]) customInputsByField[inp.dataset.customFor] = inp;
+                    }
+                });
+                // collect select values and substitute with custom input if custom is selected
+                selects.forEach(function(sel){
+                    var key = sel.dataset.key || sel.name || '';
+                    var val = sel.value || '';
+                    var customInput = customInputsByField[key];
+                    if (customInput && customInput.value && customInput.style.display !== 'none') {
+                        val = customInput.value;
+                    }
+                    if (key) elems.push({ name: key, value: val });
+                });
+                // also collect any plain text inputs (non-custom)
+                Array.from(groupValidationBezeichnungsContainer.querySelectorAll('input[type="text"]:not([data-custom-for])')).forEach(function(inp){
+                    if (inp.dataset.key) {
+                        var val = inp.value || '';
+                        elems.push({ name: inp.dataset.key, value: val });
+                    }
+                });
+                // collect custom value inputs (editable custom elements added via "Add Element")
+                Array.from(groupValidationBezeichnungsContainer.querySelectorAll('input[data-customValue="true"]')).forEach(function(inp){
+                    var name = inp.dataset.customName || '';
+                    var val = inp.value || '';
+                    if (name && !elems.some(function(e){ return e.name === name; })) {
+                        elems.push({ name: name, value: val });
+                    }
+                });
+                // collect checkbox groups: group by data-key and join checked option labels
+                var checkboxMap = {};
+                Array.from(groupValidationBezeichnungsContainer.querySelectorAll('input[type="checkbox"][data-key]')).forEach(function(cb){
+                    var key = cb.dataset.key || '';
+                    var opt = cb.dataset.option || cb.value || '';
+                    if (!checkboxMap[key]) checkboxMap[key] = [];
+                    if (cb.checked) checkboxMap[key].push(opt);
+                });
+                Object.keys(checkboxMap).forEach(function(k){
+                    var joined = (checkboxMap[k] || []).filter(function(x){ return String(x||'').trim(); }).join(', ');
+                    elems.push({ name: k, value: joined });
+                });
+                updates.bezeichnungselemente = elems;
+            }
+            return updates;
+        }
+
+        function showNextGroupValidationItem() {
+            if (groupValidationIndex >= groupValidationQueue.length) {
+                hideGroupValidationModal();
+                var feedbackLogDone = document.getElementById("feedbackLog");
+                if (feedbackLogDone) {
+                    feedbackLogDone.innerHTML = `<div><b>Validate Groups:</b> <span style='color:#27ae60;'>Completed ${groupValidationQueue.length} entries.</span></div>` + feedbackLogDone.innerHTML;
+                }
+                return;
+            }
+            fillGroupValidationForm(groupValidationQueue[groupValidationIndex]);
+        }
+
+        function startGroupValidationFlow() {
+            if (!validateArticleGroupsBtn) {
+                return;
+            }
+            validateArticleGroupsBtn.disabled = true;
+            validateArticleGroupsBtn.textContent = "Loading...";
+            fetch("/api/validate/groups")
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (!data || data.status !== "ok") {
+                        throw new Error((data && data.message) || "Failed to load group validation queue.");
+                    }
+                    groupValidationQueue = Array.isArray(data.items) ? data.items : [];
+                    groupValidationGroupsTree = data.groups_tree || {};
+                    groupValidationIndex = 0;
+                    if (!groupValidationQueue.length) {
+                        alert(t("validationNoItems") || "No cache entries found.");
+                        return;
+                    }
+                    groupValidationUseFileQueue = false;
+                    showNextGroupValidationItem();
+                })
+                .catch(function(err) {
+                    alert(err.message || String(err));
+                })
+                .finally(function() {
+                    validateArticleGroupsBtn.disabled = false;
+                    validateArticleGroupsBtn.textContent = t("validateArticleGroups") || "Validate Groups";
+                });
+        }
+
+        if (validateArticleGroupsBtn) {
+            validateArticleGroupsBtn.addEventListener("click", startGroupValidationFlow);
+        }
+
+        // Also allow starting group validation from the Create tab button
+        if (createValidateGroupsBtn) {
+            createValidateGroupsBtn.addEventListener("click", startGroupValidationFromFileFlow);
+            // keep label in sync
+            createValidateGroupsBtn.textContent = t("validateArticleGroups") || "Validate Groups";
+        }
+
+        function startGroupValidationFromFileFlow() {
+            if (!createValidateGroupsBtn) return;
+            createValidateGroupsBtn.disabled = true;
+            createValidateGroupsBtn.textContent = "Loading...";
+            fetch("/api/validate/groups/from-file", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (!data || data.status !== "ok") {
+                        throw new Error((data && data.message) || "Failed to load group validation queue from file.");
+                    }
+                    groupValidationQueue = Array.isArray(data.items) ? data.items : [];
+                    groupValidationGroupsTree = data.groups_tree || {};
+                    groupValidationIndex = 0;
+                    groupValidationUseFileQueue = true;
+                    if (!groupValidationQueue.length) {
+                        alert(t("validationNoItems") || "No cache entries found.");
+                        return;
+                    }
+                    showNextGroupValidationItem();
+                })
+                .catch(function(err) { alert(err.message || String(err)); })
+                .finally(function() {
+                    createValidateGroupsBtn.disabled = false;
+                    createValidateGroupsBtn.textContent = t("validateArticleGroups") || "Validate Groups";
+                });
+        }
+
+        if (groupValidationHauptgruppe) {
+            groupValidationHauptgruppe.addEventListener("change", populateGroupValidationUntergruppen);
+        }
+        if (groupValidationUntergruppe) {
+            groupValidationUntergruppe.addEventListener("change", populateGroupValidationSpezifikationen);
+        }
+        if (groupValidationHauptgruppeCustom) {
+            groupValidationHauptgruppeCustom.addEventListener('input', function() {
+                populateGroupValidationUntergruppen();
+            });
+        }
+        if (groupValidationUntergruppeCustom) {
+            groupValidationUntergruppeCustom.addEventListener('input', function() {
+                populateGroupValidationSpezifikationen();
+            });
+        }
+
+        if (!groupValidationAutoRefreshHandler) {
+            groupValidationAutoRefreshHandler = function() {
+                refreshGroupValidationBezeichnungselemente();
+            };
+        }
+        if (groupValidationHauptgruppe) {
+            groupValidationHauptgruppe.addEventListener('change', groupValidationAutoRefreshHandler);
+        }
+        if (groupValidationHauptgruppeCustom) {
+            groupValidationHauptgruppeCustom.addEventListener('input', groupValidationAutoRefreshHandler);
+            groupValidationHauptgruppeCustom.addEventListener('change', groupValidationAutoRefreshHandler);
+        }
+        if (groupValidationUntergruppe) {
+            groupValidationUntergruppe.addEventListener('change', groupValidationAutoRefreshHandler);
+        }
+        if (groupValidationUntergruppeCustom) {
+            groupValidationUntergruppeCustom.addEventListener('input', groupValidationAutoRefreshHandler);
+            groupValidationUntergruppeCustom.addEventListener('change', groupValidationAutoRefreshHandler);
+        }
+        if (groupValidationSpezifikation) {
+            groupValidationSpezifikation.addEventListener('change', groupValidationAutoRefreshHandler);
+        }
+        if (groupValidationSpezifikationCustom) {
+            groupValidationSpezifikationCustom.addEventListener('input', groupValidationAutoRefreshHandler);
+            groupValidationSpezifikationCustom.addEventListener('change', groupValidationAutoRefreshHandler);
+        }
+
+        function ensureGroupPathExists(hauptgruppe, untergruppe, spezifikation) {
+            var hg = String(hauptgruppe || '').trim();
+            var ug = String(untergruppe || '').trim();
+            var spec = String(spezifikation || '').trim();
+            if (!hg) {
+                return Promise.resolve();
+            }
+            return fetch('/api/validate/groups/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    hauptgruppe: hg,
+                    untergruppe: ug,
+                    spezifikation: (ug ? spec : '')
+                })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data || data.status !== 'ok') {
+                    throw new Error((data && data.message) || 'Failed to add group entry');
+                }
+            });
+        }
+
+        if (groupValidationConfirmBtn) {
+            groupValidationConfirmBtn.addEventListener("click", function() {
+                if (groupValidationSaving || !groupValidationCurrentItem) {
+                    return;
+                }
+                var updates = getGroupValidationUpdates();
+                groupValidationSaving = true;
+                setGroupValidationStatus("Saving...");
+                ensureGroupPathExists(updates.hauptgruppe, updates.untergruppe, updates.spezifikation)
+                .then(function() {
+                    ensureSelectHasValue(groupValidationHauptgruppe, updates.hauptgruppe);
+                    ensureSelectHasValue(groupValidationUntergruppe, updates.untergruppe);
+                    ensureSelectHasValue(groupValidationSpezifikation, updates.spezifikation);
+                    var saveUrl = groupValidationUseFileQueue ? "/api/validate/groups/from-file/save" : "/api/validate/groups/save";
+                    return fetch(saveUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(Object.assign({ artnr: groupValidationCurrentItem.artnr }, updates))
+                });
+                })
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (!data || data.status !== "ok") {
+                        throw new Error((data && data.message) || "Failed to save group validation item.");
+                    }
+                    var feedbackLog = document.getElementById("feedbackLog");
+                    if (feedbackLog) {
+                        feedbackLog.innerHTML = `<div><b>Validate Groups:</b> <span style='color:#27ae60;'>Saved ${groupValidationCurrentItem.artnr || ""}.</span></div>` + feedbackLog.innerHTML;
+                    }
+                    groupValidationIndex += 1;
+                    showNextGroupValidationItem();
+                })
+                .catch(function(err) {
+                    setGroupValidationStatus(err.message || String(err), true);
+                })
+                .finally(function() {
+                    groupValidationSaving = false;
+                });
+            });
+        }
+
+        if (groupValidationAddBtn) {
+            groupValidationAddBtn.addEventListener('click', function() {
+                // collect values: explicit "new" fields have priority, then custom inputs, then selected options
+                var newHg = groupValidationNewHauptgruppe ? groupValidationNewHauptgruppe.value.trim() : '';
+                var newUg = groupValidationNewUntergruppe ? groupValidationNewUntergruppe.value.trim() : '';
+                var newSpec = groupValidationNewSpezifikation ? groupValidationNewSpezifikation.value.trim() : '';
+                var hgToSend = newHg || getInputOrSelectValue(groupValidationHauptgruppeCustom, groupValidationHauptgruppe);
+                var ugToSend = newUg || getInputOrSelectValue(groupValidationUntergruppeCustom, groupValidationUntergruppe);
+                var specToSend = newSpec || getInputOrSelectValue(groupValidationSpezifikationCustom, groupValidationSpezifikation);
+                if (!hgToSend) {
+                    alert('Please provide at least a Hauptgruppe name');
+                    return;
+                }
+                groupValidationAddBtn.disabled = true;
+                groupValidationAddBtn.textContent = 'Adding...';
+                fetch('/api/validate/groups/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hauptgruppe: hgToSend, untergruppe: ugToSend || '', spezifikation: (ugToSend ? specToSend : '') })
+                })
+                .then(function(r){ return r.json(); })
+                .then(function(data){
+                    if (!data || data.status !== 'ok') {
+                        throw new Error((data && data.message) || 'Failed to add group entry');
+                    }
+                    // update local groups tree and UI
+                    // reload groups tree from server by re-fetching queue
+                    return fetch('/api/validate/groups').then(function(r){ return r.json(); });
+                })
+                .then(function(data){
+                    if (data && data.status === 'ok') {
+                        groupValidationGroupsTree = data.groups_tree || {};
+                        // refill current form options
+                        fillGroupValidationForm(groupValidationCurrentItem);
+                        // clear add inputs
+                        if (groupValidationNewHauptgruppe) groupValidationNewHauptgruppe.value = '';
+                        if (groupValidationNewUntergruppe) groupValidationNewUntergruppe.value = '';
+                        if (groupValidationNewSpezifikation) groupValidationNewSpezifikation.value = '';
+                    }
+                })
+                .catch(function(err){ alert(err.message || String(err)); })
+                .finally(function(){ groupValidationAddBtn.disabled = false; groupValidationAddBtn.textContent = 'Add'; });
+            });
+        }
+
+        if (groupValidationAddBezeichnungBtn) {
+            groupValidationAddBezeichnungBtn.addEventListener('click', function() {
+                var name = groupValidationNewBezeichnungName ? groupValidationNewBezeichnungName.value.trim() : '';
+                var value = groupValidationNewBezeichnungValue ? groupValidationNewBezeichnungValue.value.trim() : '';
+                if (!name) {
+                    alert('Please provide an element name');
+                    return;
+                }
+                // Add to custom list
+                groupValidationCustomBezeichnungselemente.push({ name: name, value: value });
+                // Render it in the container
+                if (groupValidationBezeichnungsContainer) {
+                    var row = renderCustomBezeichnungRow({ name: name, value: value }, groupValidationCustomBezeichnungselemente.length - 1);
+                    groupValidationBezeichnungsContainer.appendChild(row);
+                }
+                // Clear inputs
+                if (groupValidationNewBezeichnungName) groupValidationNewBezeichnungName.value = '';
+                if (groupValidationNewBezeichnungValue) groupValidationNewBezeichnungValue.value = '';
+            });
+        }
+
+        if (groupValidationCloseBtn) {
+            groupValidationCloseBtn.addEventListener("click", function() {
+                hideGroupValidationModal();
             });
         }
     // Set Search & Transform as default tab

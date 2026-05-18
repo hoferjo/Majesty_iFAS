@@ -127,3 +127,54 @@ def extract_all_dbf_files(raw_data_dir, extracted_data_dir):
     for dbf_file in raw_data_path.glob("*.dbf"):
         csv_file = extracted_data_path / (dbf_file.stem + ".csv")
         extract_dbf_to_csv(dbf_file, csv_file)
+
+
+def save_folder_tree(root_folder, out_file):
+    """
+    Walk the given folder and write a DOS-style tree to out_file.
+
+    Args:
+        root_folder (str|Path): Root folder to walk (e.g. r"T:\\01 Jost AG\\05 Produktion\\11 Eigenprodukte Jost").
+        out_file (str|Path): Path to write the tree file (e.g. data/raw/drawings_tree/tree_Eigenprodukte_Jost_Artikel.txt).
+
+    The generated format uses lines like:
+        +---FolderName
+        ¦   ¦   file.pdf
+        ¦   +---Subfolder
+    which matches the parser expectations in `etl.create`.
+    """
+    root = Path(root_folder)
+    out_path = Path(out_file)
+    if not root.exists():
+        raise FileNotFoundError(f"Root folder not found: {root}")
+
+    lines = []
+
+    def _recurse(path: Path, depth: int):
+        # folder line
+        if depth == 0:
+            lines.append(f"+---{path.name}")
+        else:
+            lines.append(f"{ '¦   ' * depth }+---{path.name}")
+
+        try:
+            entries = sorted([p for p in path.iterdir()], key=lambda p: (p.is_file(), p.name.lower()))
+        except Exception:
+            return
+
+        # write files first
+        for p in entries:
+            if p.is_file():
+                lines.append(f"{ '¦   ' * (depth + 1) }{p.name}")
+
+        # then recurse into directories
+        for p in entries:
+            if p.is_dir():
+                _recurse(p, depth + 1)
+
+    _recurse(root, 0)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8", errors="ignore") as f:
+        for ln in lines:
+            f.write(ln + "\n")

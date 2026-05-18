@@ -1,0 +1,7 @@
+Einkaufsteile: maximum 1 child article
+
+Produktionsteile: more than one child article
+
+#Verkaufsteile: more than one child article, plus Verkauf, but not active in transform at the moment
+
+#Serviceteile: 

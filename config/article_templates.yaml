@@ -158,6 +158,10 @@ fallback:mapping:
       - m
       - m²
       - m³
+      - label: Andere
+        value: __custom__
+        custom_input: true
+        placeholder: Freie Masseinheit
     value: Stück
     editable: true
   - name: Inventurart

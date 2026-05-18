@@ -1,0 +1,34 @@
+Einkaufsteile:
+  Zeichnungsteile:
+    Laserteil:
+      Bezeichnungselemente: checkbox "laserschneiden" checkbox ", abkanten" checkbox
+        ", inklusive Material" checkbox ", Gewindeschneiden"
+    Mechanisches Teil:
+      Bezeichnungselemente: checkbox "komplett fertigen" checkbox "Fräsen" checkbox
+        "Drehen" checkbox "Schweißen" checkbox "inklusive Material"
+  Normteile:
+    Normteile: null
+    Schrauben Metrisch / Sechskantschraube: null
+    Schrauben Metrisch / Zylinderschraube: null
+    Schrauben Metrisch / Senkschraube: null
+    Unterlegscheiben / Federring: null
+    Unterlegscheiben / Passscheibe: null
+    Unterlegscheiben / Unterlegscheibe: null
+    Unterlegscheiben / Unterlegscheibe mit Fase: null
+    Muttern / Sechskantmutter: null
+    Muttern / Flügelmutter: null
+    Muttern / Sechskant-Sicherungsmutter: null
+    Blindnietmuttern: null
+    Blindnieten: null
+    Gewindestift: null
+  Listenteile:
+    Standard: null
+Produktionsteile:
+  Produktionsteil:
+    Standard: null
+Verkaufsteile:
+  Verkaufsoptionsteile:
+    standard: null
+  Verkaufsprodukt:
+    Standard: null
+Serviceteile: null

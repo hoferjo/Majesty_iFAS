@@ -27,9 +27,30 @@
         <div id="createTab" class="tabcontent" style="display:none;">
             <div style="margin:2em 0; display:flex; flex-direction:column; align-items:center; gap:1.5em;">
                 <button id="createRootArticleBtn" type="button" class="modern-btn" style="min-width:200px;">Create root article</button>
+                <div style="display:flex; gap:1em; align-items:center; flex-wrap:wrap; justify-content:center; max-width:600px;">
+                    <button id="createFromTreeBtn" type="button" class="modern-btn" style="min-width:200px;">Create from tree</button>
+                    <input id="treeFilterInput" type="text" placeholder="Filter by folder (optional)" style="padding:8px 12px; border:1px solid #b6c6d6; border-radius:6px; min-width:180px;">
+                    <button id="updateTreeBtn" type="button" class="modern-btn" style="min-width:200px;">Update tree from disk</button>
+                    <input id="treeRootInput" type="text" placeholder="Root folder (optional)" style="padding:8px 12px; border:1px solid #b6c6d6; border-radius:6px; min-width:240px;" title="Path to root folder on server (optional)">
+                </div>
+                <div style="display:flex; gap:1em; align-items:center; flex-wrap:wrap; justify-content:center; max-width:600px; margin-top:0.8em;">
+                    <button id="addUniqueArtnrBtn" type="button" class="modern-btn" style="min-width:220px;">Add unique artnr</button>
+                    <select id="existingModeSelect" style="padding:8px 12px; border:1px solid #b6c6d6; border-radius:6px; min-width:140px;">
+                        <option value="PROD">PROD</option>
+                        <option value="TEST">TEST</option>
+                    </select>
+                    <input id="uniqueOutInput" type="text" placeholder="Output CSV (optional)" style="padding:8px 12px; border:1px solid #b6c6d6; border-radius:6px; min-width:240px;" title="Path to write article_list_from_tree_unique.csv (optional)">
+                    <button id="createValidateGroupsBtn" type="button" class="modern-btn" style="min-width:220px;">Validate Groups</button>
+                </div>
+                <div style="display:flex; gap:1em; align-items:center; flex-wrap:wrap; justify-content:center; max-width:600px; margin-top:0.8em;">
+                    <button id="buildSheetCacheBtn" type="button" class="modern-btn" style="min-width:240px;">Build Sheet Cache</button>
+                    <button id="downloadArticleDataBtn" type="button" class="modern-btn" style="min-width:260px;">Download Article Data (xlsx)</button>
+                    <button id="downloadDocumentDataBtn" type="button" class="modern-btn" style="min-width:260px;">Download Document Data (xlsx)</button>
+                </div>
                 <div id="rootArticleFormContainer" style="width:100%; max-width:600px; display:none;"></div>
                 <div id="moduleWorkflowContainer" style="width:100%; max-width:600px; display:none;"></div>
             </div>
+            <div id="createTabFeedbackLog" style="margin-top:1em; background:#f1f1f1; padding:1em; border-radius:5px; min-height:2em; max-height:200px; overflow-y:auto; margin-left:auto; margin-right:auto; width:100%; max-width:600px;"></div>
         </div>
     </div>
     <div id="searchTab" class="tabcontent" style="display:none;">
@@ -92,7 +113,9 @@
         <!-- Feedback log area moved here -->
         <div id="feedbackLog" style="margin-top:1em; background:#f1f1f1; padding:1em; border-radius:5px; min-height:2em; max-height:200px; overflow-y:auto;"></div>
         <div style="margin-top:1.2em; margin-bottom:1em;">
-            <button id="validateArtikelBezeichnungenBtn" type="button" class="modern-btn" style="min-width:240px;" data-i18n="validateArtikelBezeichnungen">Validate Artikelbezeichnungen</button>
+            <button id="validateArtikelBezeichnungenBtn" type="button" class="modern-btn" style="min-width:240px; margin-right:0.6em;" data-i18n="validateArtikelBezeichnungen">Validate Artikelbezeichnungen</button>
+            <button id="validateArticleGroupsBtn" type="button" class="modern-btn" style="min-width:220px;" data-i18n="validateArticleGroups">Validate Groups</button>
+            <button id="overwriteBezeichnungenBtn" type="button" class="modern-btn" style="min-width:260px; margin-left:0.6em;" data-i18n="overwriteBezeichnungen">Overwrite Bezeichnungen Cache</button>
         </div>
         <div id="blockedArticlesContainer" style="display:none; margin-top:1em;">
             <button id="showBlockedArticlesBtn" type="button" class="modern-btn" style="margin-bottom:0.5em;" data-i18n="showBlockedArticles">Show Blocked Articles</button>
@@ -227,6 +250,30 @@
                     <input id="validationArtbez1" type="text" />
                 </div>
                 <div class="validation-modal-field">
+                    <label for="validationHauptgruppe">Hauptgruppe</label>
+                    <select id="validationHauptgruppe"></select>
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationHauptgruppeCustom">Hauptgruppe (custom)</label>
+                    <input id="validationHauptgruppeCustom" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationUntergruppe">Untergruppe</label>
+                    <select id="validationUntergruppe"></select>
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationUntergruppeCustom">Untergruppe (custom)</label>
+                    <input id="validationUntergruppeCustom" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationSpezifikation">Spezifikation</label>
+                    <select id="validationSpezifikation"></select>
+                </div>
+                <div class="validation-modal-field">
+                    <label for="validationSpezifikationCustom">Spezifikation (custom)</label>
+                    <input id="validationSpezifikationCustom" type="text" />
+                </div>
+                <div class="validation-modal-field">
                     <label for="validationArtbez2">artbez2</label>
                     <input id="validationArtbez2" type="text" />
                 </div>
@@ -243,6 +290,110 @@
             <div style="display:flex; gap:0.6em; justify-content:flex-end; margin-top:1em; flex-wrap:wrap;">
                 <button id="validationCloseBtn" type="button" class="modern-btn secondary" style="min-width:130px; margin:0;" data-i18n="validationClose">Close</button>
                 <button id="validationConfirmBtn" type="button" class="modern-btn" style="min-width:130px; margin:0;" data-i18n="validationConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="groupValidationModal" class="validation-modal-overlay" style="display:none;">
+        <div class="validation-modal-dialog">
+            <h3 id="groupValidationModalTitle" style="margin-top:0;" data-i18n="validateArticleGroups">Validate Groups</h3>
+            <div id="groupValidationModalMeta" class="validation-modal-meta"></div>
+            <div class="validation-modal-grid">
+                <div class="validation-modal-field" style="grid-column:1 / -1;">
+                    <label for="groupValidationArtbez1">artbez1</label>
+                    <input id="groupValidationArtbez1" type="text" readonly />
+                </div>
+                <div class="validation-modal-field" style="grid-column:1 / -1;">
+                    <label for="groupValidationArtbez2">artbez2</label>
+                    <input id="groupValidationArtbez2" type="text" readonly />
+                </div>
+                <div class="validation-modal-field" style="grid-column:1 / -1;">
+                    <label for="groupValidationArtbez3">artbez3</label>
+                    <input id="groupValidationArtbez3" type="text" readonly />
+                </div>
+                <div class="validation-modal-field" style="grid-column:1 / -1;">
+                    <label for="groupValidationArtbezMem">artbezmem</label>
+                    <input id="groupValidationArtbezMem" type="text" readonly />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="groupValidationHauptgruppe">Hauptgruppe</label>
+                    <select id="groupValidationHauptgruppe"></select>
+                </div>
+                <div class="validation-modal-field">
+                    <label for="groupValidationHauptgruppeCustom">Hauptgruppe (custom)</label>
+                    <input id="groupValidationHauptgruppeCustom" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="groupValidationUntergruppe">Untergruppe</label>
+                    <select id="groupValidationUntergruppe"></select>
+                </div>
+                <div class="validation-modal-field">
+                    <label for="groupValidationUntergruppeCustom">Untergruppe (custom)</label>
+                    <input id="groupValidationUntergruppeCustom" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="groupValidationSpezifikation">Spezifikation</label>
+                    <select id="groupValidationSpezifikation"></select>
+                </div>
+                <div class="validation-modal-field">
+                    <label for="groupValidationSpezifikationCustom">Spezifikation (custom)</label>
+                    <input id="groupValidationSpezifikationCustom" type="text" />
+                </div>
+                <div class="validation-modal-field" style="grid-column:1 / -1;">
+                    <label for="groupValidationBezeichnungsContainer">Bezeichnungselemente</label>
+                    <div id="groupValidationBezeichnungsContainer" style="padding:6px 0; border:1px dashed #e0e0e0; border-radius:4px; background:#fafafa; min-height:40px;"></div>
+                </div>
+                <div class="validation-modal-field" style="grid-column:1 / -1; margin-top:0.6em; display:none;">
+                    <label style="font-weight:600;">Add or edit Bezeichnungselemente</label>
+                </div>
+                <div class="validation-modal-field" style="display:none;">
+                    <label for="groupValidationNewBezeichnungName">Element Name</label>
+                    <input id="groupValidationNewBezeichnungName" type="text" />
+                </div>
+                <div class="validation-modal-field" style="display:none;">
+                    <label for="groupValidationNewBezeichnungValue">Element Value</label>
+                    <input id="groupValidationNewBezeichnungValue" type="text" />
+                </div>
+                <div class="validation-modal-field" style="display:none; align-items:flex-end; grid-column:1 / -1;">
+                    <button id="groupValidationAddBezeichnungBtn" type="button" class="modern-btn" style="min-width:130px;">Add Element</button>
+                </div>
+                    <div class="validation-modal-field" style="grid-column:1 / -1; margin-top:0.6em; display:none;" data-group-validation-add-element-section>
+                        <label style="font-weight:600;">Add or edit Bezeichnungselemente</label>
+                    </div>
+                    <div class="validation-modal-field" style="display:none;" data-group-validation-add-element-section>
+                        <label for="groupValidationNewBezeichnungName">Element Name</label>
+                        <input id="groupValidationNewBezeichnungName" type="text" />
+                    </div>
+                    <div class="validation-modal-field" style="display:none;" data-group-validation-add-element-section>
+                        <label for="groupValidationNewBezeichnungValue">Element Value</label>
+                        <input id="groupValidationNewBezeichnungValue" type="text" />
+                    </div>
+                    <div class="validation-modal-field" style="display:none; align-items:flex-end; grid-column:1 / -1;" data-group-validation-add-element-section>
+                        <button id="groupValidationAddBezeichnungBtn" type="button" class="modern-btn" style="min-width:130px;">Add Element</button>
+                    </div>
+                <div class="validation-modal-field" style="grid-column:1 / -1; margin-top:0.4em;">
+                    <label style="font-weight:600;">Add new groups</label>
+                </div>
+                <div class="validation-modal-field">
+                    <label for="groupValidationNewHauptgruppe">New Hauptgruppe</label>
+                    <input id="groupValidationNewHauptgruppe" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="groupValidationNewUntergruppe">New Untergruppe</label>
+                    <input id="groupValidationNewUntergruppe" type="text" />
+                </div>
+                <div class="validation-modal-field">
+                    <label for="groupValidationNewSpezifikation">New Spezifikation</label>
+                    <input id="groupValidationNewSpezifikation" type="text" />
+                </div>
+                <div class="validation-modal-field" style="display:flex; align-items:flex-end;">
+                    <button id="groupValidationAddBtn" type="button" class="modern-btn" style="min-width:130px;">Add</button>
+                </div>
+            </div>
+            <div id="groupValidationStatus" class="validation-modal-status"></div>
+            <div style="display:flex; gap:0.6em; justify-content:flex-end; margin-top:1em; flex-wrap:wrap;">
+                <button id="groupValidationCloseBtn" type="button" class="modern-btn secondary" style="min-width:130px; margin:0;" data-i18n="validationClose">Close</button>
+                <button id="groupValidationConfirmBtn" type="button" class="modern-btn" style="min-width:130px; margin:0;" data-i18n="validationConfirm">Confirm</button>
             </div>
         </div>
     </div>

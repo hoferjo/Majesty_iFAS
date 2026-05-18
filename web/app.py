@@ -3,7 +3,15 @@ from statistics import mode
 import yaml
 from etl.create import ArticleCreator
 from etl.extract import auto_update_dbf_csv
-from etl.extract import extract_dbf_headers_and_rows
+from etl.extract import extract_dbf_headers_and_rows, save_folder_tree
+from etl.validate import (
+    load_article_group_validation_queue,
+    save_article_group_item,
+    add_group_entry,
+    overwrite_bezeichnungen_from_config,
+    load_article_group_validation_queue_from_csv,
+    save_article_group_item_to_csv,
+)
 import threading
 from pathlib import Path
 from fastapi import Body
@@ -189,6 +197,7 @@ from etl.load import (
     create_partlist_import_excel_from_cache,
 )
 from etl.validate import load_article_validation_queue, save_article_validation_item
+from etl.create import create_from_drawingtree, add_unique_artnr
 
 
 
@@ -245,6 +254,490 @@ def api_create_root_article():
             "defaults": defaults,
         })
     return {"status": "ok", "sheets": active_sheets}
+
+
+@app.post("/api/create-from-tree")
+def api_create_from_tree(data: dict = Body({})):
+    """Parse a drawing tree and export a CSV of drawings.
+    Optional JSON body: { 
+        "tree_file": "path/to/tree.txt", 
+        "output_csv": "path/to/out.csv",
+        "folder": "folder_name_filter" (optional, to filter by category/subcategory)
+    }
+    If omitted, uses default tree and output locations under the project.
+    """
+    base = Path(__file__).parent.parent
+    tree_file = data.get("tree_file")
+    output_csv = data.get("output_csv")
+    folder_filter = data.get("folder")  # Optional folder filter
+
+    default_tree = base / "data" / "raw" / "drawings_tree" / "tree_Eigenprodukte_Jost_Artikel.txt"
+    default_out = base / "data" / "processed" / "cache" / "created_articles" / "article_list_from_tree.csv"
+
+    tree_path = Path(tree_file) if tree_file else default_tree
+    out_path = Path(output_csv) if output_csv else default_out
+
+    try:
+        create_from_drawingtree(tree_path, out_path, folder_filter=folder_filter)
+        # Count rows written
+        written = 0
+        if out_path.exists():
+            with out_path.open("r", encoding="utf-8-sig") as f:
+                # subtract header
+                written = sum(1 for _ in f) - 1
+                if written < 0:
+                    written = 0
+        filter_msg = f" from folder '{folder_filter}'" if folder_filter else ""
+        return {"status": "success", "message": f"Created {written} drawing rows{filter_msg}.", "output": str(out_path)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/add-unique-artnr")
+def api_add_unique_artnr(data: dict = Body({})):
+    """Create `article_list_from_tree_unique.csv` by adding artnr where possible.
+
+    JSON body options:
+      - existing_mode: 'PROD' or 'TEST' (default PROD)
+      - tree_csv: optional path to input tree CSV
+      - out_csv: optional path for unique output CSV
+    """
+    base = Path(__file__).parent.parent
+    existing_mode = (data.get("existing_mode") or "PROD").strip().upper()
+    tree_csv = data.get("tree_csv")
+    out_csv = data.get("out_csv")
+
+    default_tree = base / "data" / "processed" / "cache" / "created_articles" / "article_list_from_tree.csv"
+    default_out = base / "data" / "processed" / "cache" / "created_articles" / "article_list_from_tree_unique.csv"
+
+    tree_path = Path(tree_csv) if tree_csv else default_tree
+    out_path = Path(out_csv) if out_csv else default_out
+
+    try:
+        count = add_unique_artnr(tree_path, out_path, existing_mode=existing_mode)
+        return {"status": "success", "message": f"Wrote {count} unique drawings to {out_path}", "output": str(out_path)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/save-tree")
+def api_save_tree(data: dict = Body({})):
+    """Save a fresh tree from a filesystem folder to the project's raw/drawings_tree file.
+
+    Optional JSON body keys:
+        - root_folder: path to walk (defaults to T:\\01 Jost AG\\05 Produktion\\11 Eigenprodukte Jost)
+        - out_file: target file path (defaults to data/raw/drawings_tree/tree_Eigenprodukte_Jost_Artikel.txt)
+    """
+    base = Path(__file__).parent.parent
+    root_folder = data.get("root_folder")
+    out_file = data.get("out_file")
+
+    default_root = r"T:\\01 Jost AG\\05 Produktion\\11 Eigenprodukte Jost"
+    default_out = base / "data" / "raw" / "drawings_tree" / "tree_Eigenprodukte_Jost_Artikel.txt"
+
+    root = Path(root_folder) if root_folder else Path(default_root)
+    outp = Path(out_file) if out_file else default_out
+
+    try:
+        save_folder_tree(root, outp)
+        return {"status": "success", "message": f"Wrote tree for {root} to {outp}", "output": str(outp)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/validate/groups/from-file")
+def api_validate_groups_from_file(data: dict = Body({})):
+    """Load group validation queue from an input CSV (created articles).
+
+    JSON body options:
+      - input_file: path to input CSV (optional)
+    If omitted, uses default `data/processed/cache/created_articles/article_list_from_tree_unique.csv`.
+    """
+    base = Path(__file__).parent.parent
+    input_file = data.get("input_file")
+    default_in = base / "data" / "processed" / "cache" / "created_articles" / "article_list_from_tree_unique.csv"
+    csv_path = Path(input_file) if input_file else default_in
+
+    try:
+        result = load_article_group_validation_queue_from_csv(base, csv_path)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/validate/groups/from-file/save")
+def api_validate_groups_from_file_save(data: dict = Body({})):
+    """Save group validation updates into a file specific for created-articles validation.
+
+    JSON body:
+      - artnr: article number
+      - updates: dict with hauptgruppe/untergruppe/spezifikation/bezeichnungselemente
+      - out_file: optional path to overrides CSV to write (defaults to created_articles dir)
+    """
+    base = Path(__file__).parent.parent
+    artnr = data.get("artnr")
+    updates = data.get("updates") or {
+        "hauptgruppe": data.get("hauptgruppe", ""),
+        "untergruppe": data.get("untergruppe", ""),
+        "spezifikation": data.get("spezifikation", ""),
+        "bezeichnungselemente": data.get("bezeichnungselemente", []),
+    }
+    # write directly into the input CSV by default (or into provided input_file)
+    input_file = data.get("input_file")
+    default_in = base / "data" / "processed" / "cache" / "created_articles" / "article_list_from_tree_unique.csv"
+    out_path = Path(input_file) if input_file else default_in
+
+    try:
+        result = save_article_group_item_to_csv(base, artnr, updates, out_path)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.post("/api/build-sheet-cache-creation")
+def api_build_sheet_cache_creation(data: dict = Body({})):
+    """Build sheet cache for created articles (creation mode).
+
+    Reads article_list_from_tree_unique.csv and builds cache CSVs for all active sheets.
+    JSON body options:
+      - input_file: path to article list CSV (optional, defaults to created_articles unique CSV)
+    """
+    base = Path(__file__).parent.parent
+    input_file = data.get("input_file")
+    active_sheets_file = data.get("active_sheets_file")
+
+    default_in = base / "data" / "processed" / "cache" / "created_articles" / "article_list_from_tree_unique.csv"
+    default_active_sheets = base / "config" / "active_sheets.csv"
+
+    csv_path = Path(input_file) if input_file else default_in
+    active_sheets_path = Path(active_sheets_file) if active_sheets_file else default_active_sheets
+
+    try:
+        # Load active sheets
+        if not active_sheets_path.exists():
+            return JSONResponse(status_code=400, content={"status": "error", "message": f"Active sheets file not found: {active_sheets_path}"})
+
+        with open(active_sheets_path, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.reader(f, delimiter=";")
+            active_sheets_list = next(reader, []) or []
+
+        if not active_sheets_list:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "No active sheets configured"})
+
+        # Check article CSV exists
+        if not csv_path.exists():
+            return JSONResponse(status_code=400, content={"status": "error", "message": f"Article list not found: {csv_path}"})
+
+        # Build sheet cache
+        build_sheet_cache_CSV(str(csv_path), active_sheets_list)
+
+        # Count rows in each sheet cache
+        sheets_dir = base / "data" / "processed" / "cache" / "sheets"
+        sheet_counts = []
+        for sheet in active_sheets_list:
+            cache_path = sheets_dir / f"{sheet}_cache.csv"
+            count = 0
+            if cache_path.exists():
+                with open(cache_path, "r", encoding="utf-8-sig", newline="") as f:
+                    reader = csv.DictReader(f, delimiter=";")
+                    count = sum(1 for _ in reader)
+            sheet_counts.append({"sheet": sheet, "rows": count})
+
+        return {
+            "status": "success",
+            "message": f"Built cache for {len(active_sheets_list)} sheets from {csv_path.name}",
+            "sheets": sheet_counts,
+            "cache_dir": str(sheets_dir),
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/download-creation-excel")
+def download_creation_excel():
+    """Download import Excel for created articles (creation mode).
+    
+    Uses article_list_from_tree_unique.csv and active sheets to build the import workbook.
+    """
+    base = Path(__file__).parent.parent
+    template_path = base / "data" / "raw" / "templates" / "Vorlage_edit_jhofer.xlsx"
+    cache_dir = base / "data" / "processed" / "cache" / "sheets"
+    temp_export_dir = base / "data" / "processed" / "cache" / "export"
+    temp_export_dir.mkdir(parents=True, exist_ok=True)
+    creation_list_path = base / "data" / "processed" / "cache" / "created_articles" / "article_list_from_tree_unique.csv"
+
+    if not template_path.exists():
+        return JSONResponse(status_code=404, content={"status": "error", "message": f"Template not found: {template_path}"})
+
+    if not cache_dir.exists():
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Sheet cache not found. Build sheet cache first."})
+
+    try:
+        active_sheets_list = _resolved_active_sheet_names(base)
+
+        if not active_sheets_list:
+            return JSONResponse(status_code=400, content={"status": "error", "message": "No active sheets configured"})
+
+        if creation_list_path.exists():
+            build_sheet_cache_CSV(str(creation_list_path), active_sheets_list)
+
+        tag = "created_articles"
+        output_xlsx = temp_export_dir / f"{tag}_iFAS_import.xlsx"
+        
+        create_import_excel_from_templates(
+            template_path=template_path,
+            cache_dir=cache_dir,
+            active_sheet_names=active_sheets_list,
+            output_path=output_xlsx,
+            default_column_width=14,
+        )
+
+        return FileResponse(
+            str(output_xlsx),
+            filename=f"{tag}_iFAS_import.xlsx",
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/download-article-data-xlsx")
+def download_article_data_xlsx(folder_name: str = Query("")):
+    """Download article data from cache as xlsx. Exports all Article-category cache sheets and
+    injects Zeichnungsnummer, Zeichnungsindex and Bezeichnung 1 from the created-articles list
+    when those columns are missing.
+    """
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    import re
+
+    base = Path(__file__).parent.parent
+    cache_dir = base / "data" / "processed" / "cache" / "sheets"
+    export_dir = base / "data" / "processed" / "cache" / "export"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    template_path = base / "data" / "raw" / "templates" / "Vorlage_edit_jhofer.xlsx"
+
+    safe_suffix = str(folder_name or "").strip().replace("\\", "/").strip("/")
+    safe_suffix = Path(safe_suffix).name if safe_suffix else ""
+    safe_suffix = re.sub(r"[^0-9A-Za-zÄÖÜäöüß._-]+", "_", safe_suffix).strip("_")
+    filename = f"Import_Artikelstamm_{safe_suffix}.xlsx" if safe_suffix else "Import_Artikelstamm.xlsx"
+
+    # Load creation article list to enrich sheet rows
+    creation_list_path = base / "data" / "processed" / "cache" / "created_articles" / "article_list_from_tree_unique.csv"
+    article_map = {}
+    if creation_list_path.exists():
+        with open(creation_list_path, encoding="utf-8-sig") as f:
+            rdr = csv.DictReader(f, delimiter=';')
+            for r in rdr:
+                artnr = (r.get('artnr') or r.get('Artikelnummer') or '').strip()
+                if artnr:
+                    article_map[artnr] = r
+
+    try:
+        if creation_list_path.exists() and template_path.exists():
+            active_sheets_list = _resolved_active_sheet_names(base)
+            if active_sheets_list:
+                build_sheet_cache_CSV(str(creation_list_path), active_sheets_list)
+                output_xlsx = export_dir / filename
+                create_import_excel_from_templates(
+                    template_path=template_path,
+                    cache_dir=cache_dir,
+                    active_sheet_names=active_sheets_list,
+                    output_path=output_xlsx,
+                    default_column_width=14,
+                )
+
+                return FileResponse(
+                    str(output_xlsx),
+                    filename=filename,
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={
+                        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                        "Pragma": "no-cache",
+                        "Expires": "0",
+                    },
+                )
+
+        wb = openpyxl.Workbook()
+        first = True
+
+        # Determine article sheet names from config mappings
+        article_mappings_dir = base / 'config' / 'sheet_mappings' / 'Article'
+        article_sheet_names = []
+        if article_mappings_dir.exists():
+            for p in article_mappings_dir.glob('mapping_plan_*.csv'):
+                name = p.stem.replace('mapping_plan_', '')
+                article_sheet_names.append(name)
+
+        # Fallback: include common article sheets if no mapping files found
+        if not article_sheet_names:
+            article_sheet_names = ['Artikelstamm', 'ArtikelDisposteuerung', 'ArtikelLieferantendaten']
+
+        for sheet_name in article_sheet_names:
+            cache_file = cache_dir / f"{sheet_name}_cache.csv"
+            if not cache_file.exists():
+                continue
+
+            with open(cache_file, encoding='utf-8-sig', newline='') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                headers = reader.fieldnames or []
+
+                # Ensure Zeichnungsnummer / Zeichnungsindex / Bezeichnung 1 [de] are present
+                extra_map = {
+                    'Zeichnungsnummer': 'zeichnr',
+                    'Zeichnungsindex': 'zeichindex',
+                    'Bezeichnung 1 [de]': 'artbez1',
+                }
+                for ex in extra_map:
+                    if ex not in headers:
+                        headers.append(ex)
+
+                # Create or select worksheet
+                if first:
+                    ws = wb.active
+                    ws.title = sheet_name
+                    first = False
+                else:
+                    ws = wb.create_sheet(title=sheet_name)
+
+                # Write headers
+                for col_idx, header in enumerate(headers, 1):
+                    cell = ws.cell(row=1, column=col_idx, value=header)
+                    cell.font = Font(bold=True)
+                    cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+                    cell.font = Font(bold=True, color="FFFFFF")
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+
+                # Write rows
+                for row_idx, row in enumerate(reader, 2):
+                    artnr_val = (row.get('Artikelnummer') or row.get('artnr') or '').strip()
+                    for col_idx, header in enumerate(headers, 1):
+                        if header in extra_map:
+                            mapped_key = extra_map[header]
+                            value = ''
+                            if artnr_val and artnr_val in article_map:
+                                value = article_map[artnr_val].get(mapped_key, '')
+                            ws.cell(row=row_idx, column=col_idx, value=value)
+                        else:
+                            ws.cell(row=row_idx, column=col_idx, value=row.get(header, ''))
+
+                # Adjust column widths for this sheet
+                for col_idx, header in enumerate(headers, 1):
+                    ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = 16
+
+        output_xlsx = export_dir / filename
+        wb.save(output_xlsx)
+
+        return FileResponse(
+            str(output_xlsx),
+            filename=filename,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+
+@app.get("/download-document-data-xlsx")
+def download_document_data_xlsx(folder_name: str = Query("")):
+    """Download document data from cache as xlsx."""
+    import re
+    
+    base = Path(__file__).parent.parent
+    cache_dir = base / "data" / "processed" / "cache" / "sheets"
+    export_dir = base / "data" / "processed" / "cache" / "export"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    creation_list_path = base / "data" / "processed" / "cache" / "created_articles" / "article_list_from_tree_unique.csv"
+    template_xlsx_path = base / "data" / "raw" / "templates" / "Template_DMS_Dokumentenverknüpfung_V1.xlsx"
+
+    safe_suffix = str(folder_name or "").strip().replace("\\", "/").strip("/")
+    safe_suffix = Path(safe_suffix).name if safe_suffix else ""
+    safe_suffix = re.sub(r"[^0-9A-Za-zÄÖÜäöüß._-]+", "_", safe_suffix).strip("_")
+    filename = f"Import_Document_{safe_suffix}.xlsx" if safe_suffix else "Import_Document.xlsx"
+    
+    try:
+        if creation_list_path.exists() and template_xlsx_path.exists():
+            docs_cache_path = cache_dir / "DMSDocuments_cache.csv"
+            docs_cache_result = build_docs_download_cache_csv(
+                article_list_path=creation_list_path,
+                output_csv_path=docs_cache_path,
+            )
+            if docs_cache_result.get("rows_written", 0) > 0:
+                output_xlsx = export_dir / filename
+                export_docs_xlsx(
+                    [],
+                    output_path=output_xlsx,
+                    template_xlsx_path=template_xlsx_path,
+                    cache_csv_path=docs_cache_path,
+                )
+                return FileResponse(
+                    str(output_xlsx),
+                    filename=filename,
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={
+                        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                        "Pragma": "no-cache",
+                        "Expires": "0",
+                    },
+                )
+
+        cache_file = cache_dir / "DMSDocuments_cache.csv"
+        if not cache_file.exists():
+            cache_file = cache_dir / "DMSDocuments.csv"
+
+        if not cache_file.exists():
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Document cache not found"})
+
+        # Legacy flat workbook fallback.
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Documents"
+
+        with open(cache_file, "r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            headers = reader.fieldnames or []
+
+            for col_idx, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_idx, value=header)
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+                cell.font = Font(bold=True, color="FFFFFF")
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+            for row_idx, row in enumerate(reader, 2):
+                for col_idx, header in enumerate(headers, 1):
+                    ws.cell(row=row_idx, column=col_idx, value=row.get(header, ""))
+
+        for col_idx, header in enumerate(headers, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = 16
+
+        output_xlsx = export_dir / "document_data.xlsx"
+        wb.save(output_xlsx)
+        
+        return FileResponse(
+            str(output_xlsx),
+            filename=filename,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 # Global flag to clear article cache files after import
 ARTICLE_CACHE_CLEAR = 0
@@ -928,6 +1421,16 @@ def generate_module_data(data: dict = Body(...)):
 
         cached_articles = _MODULE_ARTICLES_CACHE.get(str(artnr))
         build_sheet_cache_CSV(str(article_list_path), build_sheet_names, articles=cached_articles)
+
+        # DMS documents are generated from the creation article list separately so that
+        # Bezeichnung and Dokumenten Speicherort are always populated from the drawing tree.
+        if "DMSDocuments" in build_sheet_names:
+            docs_cache_path = sheets_output_dir / "DMSDocuments_cache.csv"
+            build_docs_download_cache_csv(
+                article_list_path=article_list_path,
+                output_csv_path=docs_cache_path,
+                articles=cached_articles or _read_article_list_rows(article_list_path),
+            )
         # Also generate for blocked articles
         if blocked_articles_path.exists():
             with blocked_articles_path.open("r", encoding="utf-8-sig") as f:
@@ -1949,6 +2452,82 @@ def api_validate_artikelbezeichnungen_save(data: dict = Body(...)):
     updates = data.get("updates") or {}
     try:
         return save_article_validation_item(base, artnr, updates)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+
+
+@app.post("/api/validate-artikelbezeichnungen/overwrite")
+def api_validate_artikelbezeichnungen_overwrite():
+    base = Path(__file__).parent.parent
+    try:
+        return overwrite_bezeichnungen_from_config(base)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+
+
+@app.get('/api/validate/groups')
+def api_validate_groups():
+    try:
+        base = Path(__file__).parent.parent
+        return load_article_group_validation_queue(base)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+
+
+@app.post('/api/validate/groups/save')
+def api_validate_groups_save(data: dict = Body(...)):
+    artnr = str((data or {}).get('artnr', '')).strip()
+    if not artnr:
+        return {"status": "error", "message": "artnr required"}
+    updates = {
+        'hauptgruppe': (data or {}).get('hauptgruppe', ''),
+        'untergruppe': (data or {}).get('untergruppe', ''),
+        'spezifikation': (data or {}).get('spezifikation', ''),
+        'bezeichnungselemente': (data or {}).get('bezeichnungselemente', []),
+    }
+    try:
+        base = Path(__file__).parent.parent
+        return save_article_group_item(base, artnr, updates)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+
+
+@app.post('/api/validate/groups/add')
+def api_validate_groups_add(data: dict = Body(...)):
+    """Add a new hauptgruppe / untergruppe / spezifikation into config/groups.yaml."""
+    try:
+        base = Path(__file__).parent.parent
+        hg = str((data or {}).get('hauptgruppe', '') or '').strip()
+        ug = str((data or {}).get('untergruppe', '') or '').strip()
+        spec = str((data or {}).get('spezifikation', '') or '').strip()
+        if not hg:
+            return {"status": "error", "message": "hauptgruppe is required"}
+        return add_group_entry(base, hg, ug, spec)
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+
+@app.post('/api/validate/groups/resolve-bezeichnungselemente')
+def api_validate_groups_resolve_bezeichnungselemente(data: dict = Body(...)):
+    """Resolve Bezeichnungselemente for an article given a custom group path."""
+    try:
+        from etl.transform import getBezeichnungselemente
+        artnr = str((data or {}).get('artnr', '')).strip()
+        hg = str((data or {}).get('hauptgruppe', '')).strip()
+        ug = str((data or {}).get('untergruppe', '')).strip()
+        spec = str((data or {}).get('spezifikation', '')).strip()
+        
+        if not artnr:
+            return {"status": "error", "message": "artnr is required"}
+        
+        elements = getBezeichnungselemente(
+            artnr,
+            group_path={
+                'hauptgruppe': hg,
+                'untergruppe': ug,
+                'spezifikation': spec,
+            },
+        ) or []
+        return {"status": "ok", "bezeichnungselemente": elements}
     except Exception as exc:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
 

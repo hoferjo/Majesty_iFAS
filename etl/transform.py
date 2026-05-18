@@ -238,6 +238,72 @@ def _clean_source_value(value):
     return '' if text == '0' else text
 
 
+def _group_value_to_text(value, separator=' / '):
+    if isinstance(value, list):
+        parts = [str(item).strip() for item in value if str(item or '').strip()]
+        return separator.join(parts)
+    return str(value or '').strip()
+
+
+def _bezeichnungselemente_to_text(elements, separator=' | '):
+    if not isinstance(elements, list):
+        return ''
+    parts = []
+    for item in elements:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get('name', '') or '').strip()
+        value = str(item.get('value', '') or '').strip()
+        if not name:
+            continue
+        if value:
+            parts.append(f"{name}={value}")
+        else:
+            parts.append(name)
+    return separator.join(parts)
+
+
+def _normteil_spec_layers(normteil_match):
+    if not isinstance(normteil_match, dict):
+        return []
+    path = normteil_match.get('path') or []
+    if isinstance(path, list) and len(path) >= 2:
+        return [str(item).strip() for item in path[1:] if str(item or '').strip()]
+    fallback = normteil_match.get('primary_name') or normteil_match.get('display_name') or ''
+    return [str(fallback).strip()] if str(fallback or '').strip() else []
+
+
+def _expand_alias_variants(term):
+    """Create lightweight variants so singular/plural and separators still match.
+
+    Example: "U-Scheiben" -> "U Scheiben", "U_Scheiben", "U-Scheibe", "U Scheibe".
+    """
+    text = str(term or '').strip()
+    if not text:
+        return []
+
+    variants = {text}
+
+    # Separator variants
+    variants.add(text.replace('-', ' '))
+    variants.add(text.replace('-', '_'))
+    variants.add(text.replace('_', ' '))
+    variants.add(text.replace('_', '-'))
+
+    # Simple singular/plural normalization for common German part names.
+    candidates = list(variants)
+    for candidate in candidates:
+        lower = candidate.lower()
+        if lower.endswith('en') and len(candidate) > 3:
+            singular = candidate[:-1]  # scheiben -> scheibe
+            variants.add(singular)
+        if lower.endswith('e') and len(candidate) > 3:
+            plural = candidate + 'n'  # scheibe -> scheiben
+            variants.add(plural)
+
+    return [item for item in variants if str(item or '').strip()]
+
+
 def _load_yaml_cached(path):
     path_obj = Path(path)
     cache_key = ('yaml', str(path_obj.resolve()), path_obj.stat().st_mtime if path_obj.exists() else None)
@@ -276,6 +342,41 @@ def _load_steel_table_csv_cached(path):
 
     _GLOBAL_TABLE_CACHE[cache_key] = rows
     return rows
+
+
+def _preload_config_cache():
+    """Pre-load all configuration files needed for article grouping.
+    
+    Called at the beginning of bulk operations (process_module_structure) to ensure
+    all config files are cached before processing many articles. This avoids repeated
+    file I/O and ensures consistent configuration throughout the bulk operation.
+    """
+    if DEBUG:
+        print("[DEBUG] Pre-loading configuration cache...")
+    
+    try:
+        # Load all config files that getArticleGroup uses
+        config_dir = BASE_DIR / 'config'
+        
+        # Core group/subgroup/specification configs
+        _load_yaml_cached(config_dir / 'groups.yaml')
+        _load_yaml_cached(config_dir / 'subgroup_features.yaml')
+        _load_yaml_cached(config_dir / 'specification_features.yaml')
+        _load_yaml_cached(config_dir / 'group_features.yaml')
+        
+        # DIN normteile data
+        _load_yaml_cached(config_dir / 'templates' / 'DIN-Normteile.yaml')
+        
+        # Steel table
+        steel_path = config_dir / 'materials' / 'stahltabelle.csv'
+        _load_steel_table_csv_cached(steel_path)
+        
+        if DEBUG:
+            print("[DEBUG] Config cache pre-loaded successfully.")
+    except Exception as e:
+        print(f"[WARN] Error pre-loading config cache: {e}")
+
+
 
 
 def _get_article_description_parts(artnr):
@@ -375,7 +476,17 @@ def _extract_node_parameter_options(node):
         if key in blocked_keys:
             continue
         if isinstance(value, list):
-            options = [str(item).strip() for item in value if str(item or '').strip()]
+            options = []
+            for item in value:
+                if item is None:
+                    continue
+                # preserve dict objects so YAML can specify option metadata (label, value, custom_input)
+                if isinstance(item, dict):
+                    options.append(item)
+                    continue
+                text = str(item or '').strip()
+                if text:
+                    options.append(text)
             if options:
                 params[str(key)] = options
         elif isinstance(value, (str, int, float)):
@@ -385,22 +496,248 @@ def _extract_node_parameter_options(node):
     return params
 
 
-def _match_parameter_values(normalized_blob, parameter_options):
+def _match_parameter_values(normalized_blob, parameter_options, sets_data=None):
+    """Match parameter options against normalized article description.
+    
+    Handles special cases:
+    - Material: Looks for coating keywords if exact match not found
+    - DIN nummer: Scores matches by length for better DIN selection
+    - Sets: Validates matched values against allowed combinations
+    """
     matches = {}
+    assigned_numbers = set()
+
+    def _option_in_blob(norm_option):
+        norm_option = _normalize_rule_text(norm_option)
+        if not norm_option:
+            return False
+        blob_text = str(normalized_blob or '')
+        return norm_option in blob_text
+
+    def _score_option_match(key, opt_text, normalized_option):
+        normalized_option = _normalize_rule_text(normalized_option)
+        if not normalized_option:
+            return -1
+
+        blob_text = str(normalized_blob or '')
+        positions = [match.start() for match in re.finditer(re.escape(normalized_option), blob_text)]
+        if not positions:
+            return -1
+
+        score = len(normalized_option) * 10
+        lower_key = str(key or '').strip().lower()
+
+        # Length fields are usually written as M10x50, 10x50, or 50x10.
+        # Prefer the part after the x separator over the diameter token after M.
+        if lower_key in {'länge', 'laenge', 'length'}:
+            for pos in positions:
+                prefix = blob_text[max(0, pos - 1):pos]
+                suffix = blob_text[pos + len(normalized_option):pos + len(normalized_option) + 1]
+                if prefix == 'x':
+                    score += 120
+                if prefix == 'm':
+                    score -= 80
+                if suffix == 'x':
+                    score += 40
+                if re.fullmatch(r'\d+', normalized_option):
+                    score += 5
+        else:
+            # General preference: later, more explicit matches win over earlier embedded tokens.
+            score += max(positions)
+
+        return score
+
     for key, options in (parameter_options or {}).items():
         best_value = ''
         best_score = -1
-        for option in options:
-            normalized_option = _normalize_rule_text(option)
-            if not normalized_option:
-                continue
-            if normalized_option in normalized_blob:
-                score = len(normalized_option)
-                if score > best_score:
-                    best_score = score
-                    best_value = str(option).strip()
+        
+        # Special handling for Material: recognize coating descriptors
+        if key == 'Material' and options:
+            coating_keywords = {
+                'verzinkt': ['Stahl feuerverzinkt', 'Stahl blau-verzinkt'],
+                'blau': ['Stahl blau-verzinkt'],
+                'blank': ['Stahl blank'],
+                'promatverzinkt': ['Stahl promatverzinkt'],
+                'inox': ['INOX', 'Edelstahl'],
+                'edelstahl': ['Edelstahl', 'INOX'],
+            }
+            for keyword, material_options in coating_keywords.items():
+                if keyword in normalized_blob:
+                    # Check if any of the material options for this keyword are in options
+                    for mat_option in material_options:
+                        if mat_option in options:
+                            # Multiple keywords: prefer more specific match
+                            # "blau" + "verzinkt" should match "Stahl blau-verzinkt" over "Stahl feuerverzinkt"
+                            matching_keywords = sum(1 for kw in coating_keywords.keys() 
+                                                   if kw in normalized_blob and mat_option in coating_keywords[kw])
+                            if matching_keywords > best_score:
+                                best_score = matching_keywords
+                                best_value = mat_option
+        
+        # Standard matching for other parameters or if Material match not found
+        if not best_value:
+            # Try to find a match that does not reuse numeric tokens already assigned
+            def extract_digits(s):
+                return set(re.findall(r"\\d+", str(s or '')))
+
+            # First pass: prefer matches with no numeric overlap
+            for option in options:
+                opt_text = option.get('value') if isinstance(option, dict) and option.get('value') is not None else option
+                normalized_option = _normalize_rule_text(opt_text)
+                if not normalized_option:
+                    continue
+                if _option_in_blob(normalized_option):
+                    digits = extract_digits(normalized_option)
+                    if digits and digits & assigned_numbers:
+                        # skip in first pass if digits overlap
+                        continue
+                    score = _score_option_match(key, opt_text, normalized_option)
+                    if score > best_score:
+                        best_score = score
+                        best_value = str(opt_text).strip()
+            # Second pass: allow reuse of digits if no non-overlapping match found
+            if not best_value:
+                for option in options:
+                    opt_text = option.get('value') if isinstance(option, dict) and option.get('value') is not None else option
+                    normalized_option = _normalize_rule_text(opt_text)
+                    if not normalized_option:
+                        continue
+                    if _option_in_blob(normalized_option):
+                        score = _score_option_match(key, opt_text, normalized_option)
+                        if score > best_score:
+                            best_score = score
+                            best_value = str(opt_text).strip()
+            # Mark digits from chosen value as assigned
+            if best_value:
+                assigned_numbers.update(extract_digits(_normalize_rule_text(best_value)))
+        
         if best_value:
             matches[str(key)] = best_value
+    
+    # Validate matches against allowed sets if defined.
+    # Sets should map together as a coherent tuple (e.g. DIN + Mx + diameters + thickness)
+    # instead of mixing values from different rows.
+    if sets_data and isinstance(sets_data, list) and len(sets_data) > 0:
+        normalized_blob = str(normalized_blob or '')
+
+        # Build normalized option lookup per parameter key.
+        key_to_options = {}
+        for key, opts in (parameter_options or {}).items():
+            normalized_opts = set()
+            for opt in (opts or []):
+                opt_text = opt.get('value') if isinstance(opt, dict) and opt.get('value') is not None else opt
+                norm = _normalize_rule_text(str(opt_text or ''))
+                if norm:
+                    normalized_opts.add(norm)
+            key_to_options[str(key)] = normalized_opts
+
+        def _locate(term):
+            term = _normalize_rule_text(term)
+            if not term:
+                return -1
+            return normalized_blob.find(term)
+
+        def _map_set_to_keys(raw_set):
+            # Map each value from a set row to a compatible parameter key by option membership.
+            # One key can be used at most once.
+            if not isinstance(raw_set, list):
+                return None
+            mapping = []
+            used_keys = set()
+            for raw_val in raw_set:
+                val = str(raw_val or '').strip()
+                norm_val = _normalize_rule_text(val)
+                if not norm_val:
+                    continue
+                candidate_keys = []
+                for key, opt_norms in key_to_options.items():
+                    if key in used_keys:
+                        continue
+                    if norm_val in opt_norms:
+                        candidate_keys.append(key)
+                if not candidate_keys:
+                    return None
+
+                # Prefer semantically specific keys first to avoid ambiguous mapping.
+                preferred_order = (
+                    'DIN nummer', 'DIN Nummer', 'DIN number', 'DIN Number',
+                    'Metrischer Nenndurchmesser', 'Innendurchmesser', 'Außendurchmesser', 'Dicke'
+                )
+                chosen_key = ''
+                for pref in preferred_order:
+                    if pref in candidate_keys:
+                        chosen_key = pref
+                        break
+                if not chosen_key:
+                    chosen_key = candidate_keys[0]
+
+                used_keys.add(chosen_key)
+                mapping.append((chosen_key, val, norm_val))
+            return mapping
+
+        def _score_set_mapping(mapping):
+            if not mapping:
+                return -1
+
+            # Base evidence: values found in the article description.
+            hits = 0
+            hit_weight = 0
+            positions = []
+            hit_norm_values = set()
+            for _, _, norm_val in mapping:
+                pos = _locate(norm_val)
+                if pos >= 0:
+                    hits += 1
+                    # Single-digit numeric values are noisy in concatenated blobs;
+                    # include them as low-confidence by not adding length weight.
+                    if not re.fullmatch(r"\d", norm_val):
+                        hit_weight += len(norm_val)
+                    positions.append((pos, norm_val))
+                    hit_norm_values.add(norm_val)
+
+            if hits == 0:
+                return -1
+
+            # Reward when values from the same set appear directly nearby (explicit pairing in text).
+            positions.sort(key=lambda item: item[0])
+            adjacency_hits = 0
+            for idx in range(len(positions) - 1):
+                current_pos, current_val = positions[idx]
+                next_pos, _ = positions[idx + 1]
+                # "Directly next to each other": allow compact separators, parentheses and symbols.
+                distance = max(0, next_pos - current_pos - len(current_val))
+                if distance <= 8:
+                    adjacency_hits += 1
+
+            # Reward consistency with already matched values.
+            existing_consistency = 0
+            for key, _, norm_val in mapping:
+                existing_norm = _normalize_rule_text(matches.get(key, ''))
+                if existing_norm and existing_norm == norm_val:
+                    existing_consistency += 1
+
+            return (hit_weight * 40) + (hits * 20) + (adjacency_hits * 15) + (existing_consistency * 10)
+
+        mapped_sets = []
+        for raw_set in sets_data:
+            mapping = _map_set_to_keys(raw_set)
+            if mapping:
+                mapped_sets.append((mapping, _score_set_mapping(mapping)))
+
+        # Select the strongest set based on actual text evidence and adjacency.
+        best_mapping = None
+        best_score = -1
+        for mapping, score in mapped_sets:
+            if score > best_score:
+                best_score = score
+                best_mapping = mapping
+
+        # Enforce set mapping only when there is real evidence in the text.
+        # If not, keep the independent matches as fallback.
+        if best_mapping and best_score >= 80:
+            for key, raw_val, _ in best_mapping:
+                matches[key] = str(raw_val).strip()
+    
     return matches
 
 
@@ -416,9 +753,10 @@ def _flatten_din_normteile(din_data):
 
         aliases = node.get('Aliases') or node.get('aliases') or []
         din_number = node.get('DIN nummer') or node.get('DIN Nummer') or node.get('DIN number') or node.get('DIN Number')
+        sets_data = node.get('Sets') or node.get('sets') or []
         children = {
             key: value for key, value in node.items()
-            if key not in {'Aliases', 'aliases', 'DIN nummer', 'DIN Nummer', 'DIN number', 'DIN Number'}
+            if key not in {'Aliases', 'aliases', 'DIN nummer', 'DIN Nummer', 'DIN number', 'DIN Number', 'Sets', 'sets'}
         }
 
         if aliases or din_number:
@@ -427,14 +765,36 @@ def _flatten_din_normteile(din_data):
                 primary_name = path[-2]
             else:
                 primary_name = display_name
-            search_terms = [display_name, primary_name, din_number, *aliases]
+            # Parent category (e.g., Unterlegscheiben) is often the desired grouping label.
+            category_name = path[-2] if len(path) >= 2 else display_name
+
+            din_terms = []
+            if isinstance(din_number, list):
+                din_terms = [str(item).strip() for item in din_number if str(item or '').strip()]
+            elif str(din_number or '').strip():
+                din_terms = [str(din_number).strip()]
+
+            entry_parameter_options = dict(parameter_options or {})
+            if din_terms and not entry_parameter_options.get('DIN nummer'):
+                entry_parameter_options['DIN nummer'] = list(din_terms)
+
+            raw_terms = [display_name, primary_name, category_name, *din_terms, *aliases]
+            search_terms = []
+            for raw_term in raw_terms:
+                for variant in _expand_alias_variants(raw_term):
+                    if variant and variant not in search_terms:
+                        search_terms.append(variant)
             entries.append({
                 'path': path,
                 'display_name': display_name,
                 'primary_name': primary_name,
+                'category_name': category_name,
                 'aliases': [str(alias) for alias in aliases if str(alias or '').strip()],
-                'din_number': str(din_number or '').strip(),
-                'parameter_options': parameter_options,
+                'din_number': ', '.join(din_terms),
+                'din_numbers': din_terms,
+                'parameter_options': entry_parameter_options,
+                'bezeichnungselemente': [str(x).strip() for x in (node.get('Bezeichnungselemente') or []) if str(x or '').strip()],
+                'sets': sets_data,
                 'search_terms': [str(term).strip() for term in search_terms if str(term or '').strip()],
             })
 
@@ -499,9 +859,55 @@ def _find_best_match(normalized_blob, entries):
     return best_entry
 
 
-def _get_bezeichnungsregel_context(artnr):
+def _normalize_group_path(group_path):
+    tokens = []
+    if isinstance(group_path, dict):
+        raw_values = [group_path.get('hauptgruppe'), group_path.get('untergruppe'), group_path.get('spezifikation')]
+        for value in raw_values:
+            if isinstance(value, list):
+                tokens.extend([str(item).strip() for item in value if str(item or '').strip()])
+            else:
+                text = str(value or '').strip()
+                if text:
+                    tokens.append(text)
+    elif isinstance(group_path, (list, tuple)):
+        for value in group_path:
+            text = str(value or '').strip()
+            if text:
+                tokens.append(text)
+    else:
+        text = str(group_path or '').strip()
+        if text:
+            tokens.append(text)
+    return tokens
+
+
+def _find_entry_by_group_path(entries, group_path):
+    requested = [_normalize_rule_text(token) for token in _normalize_group_path(group_path)]
+    requested = [token for token in requested if token]
+    if not requested:
+        return None
+
+    best_entry = None
+    best_score = -1
+    for entry in entries or []:
+        candidate_terms = []
+        candidate_terms.extend([entry.get('display_name', ''), entry.get('primary_name', ''), entry.get('category_name', '')])
+        candidate_terms.extend(entry.get('aliases') or [])
+        candidate_terms.extend(entry.get('path') or [])
+        normalized_candidates = {_normalize_rule_text(term) for term in candidate_terms if str(term or '').strip()}
+        score = sum(1 for token in requested if token in normalized_candidates)
+        if score > best_score:
+            best_score = score
+            best_entry = entry
+
+    return best_entry if best_score > 0 else None
+
+
+def _get_bezeichnungsregel_context(artnr, group_path=None):
     artnr = str(artnr or '').strip()
-    cache_key = ('bezeichnungsregel_context', artnr)
+    group_tokens = tuple(_normalize_group_path(group_path))
+    cache_key = ('bezeichnungsregel_context', artnr, group_tokens)
     if cache_key in _GLOBAL_TABLE_CACHE:
         return _GLOBAL_TABLE_CACHE[cache_key]
 
@@ -515,9 +921,12 @@ def _get_bezeichnungsregel_context(artnr):
 
     steel_match = _find_best_match(normalized_blob, steel_entries)
     normteil_match = _find_best_match(normalized_blob, din_entries)
+    if not normteil_match and group_tokens:
+        normteil_match = _find_entry_by_group_path(din_entries, group_path)
     normteil_parameter_matches = _match_parameter_values(
         normalized_blob,
         (normteil_match or {}).get('parameter_options') or {},
+        (normteil_match or {}).get('sets') or [],
     )
 
     top_group = 'Sonstige'
@@ -558,6 +967,67 @@ def _get_bezeichnungsregel_context(artnr):
     return context
 
 
+def getBezeichnungselemente(artnr, group_path=None):
+    """Return resolved Bezeichnungselemente for an article as list of {name, value}.
+
+    Uses DIN normteil match and matched parameter values to fill the element values.
+    For DIN nummer: picks the DIN number that appears in the article description.
+    """
+    try:
+        context = _get_bezeichnungsregel_context(artnr, group_path=group_path)
+        normteil_match = context.get('normteil_match') or {}
+        param_matches = context.get('normteil_parameter_matches') or {}
+        elems = []
+        if not normteil_match:
+            return []
+
+        bezeichnungs = normteil_match.get('bezeichnungselemente') or []
+        primary_name = normteil_match.get('primary_name') or normteil_match.get('display_name') or ''
+        din_number = normteil_match.get('din_number') or ''
+
+        for elem in (bezeichnungs or []):
+            key = str(elem or '').strip()
+            val = ''
+            options = []
+            if not key:
+                continue
+            low = key.lower()
+            if low in {'name', 'bezeichnung', 'bezeichnungsname'}:
+                val = primary_name
+                options = [primary_name] if primary_name else []
+            elif low in {'din nummer', 'dinnummer', 'din_number'}:
+                din_options = normteil_match.get('din_numbers') or []
+                if not isinstance(din_options, list):
+                    din_options = [str(din_number).strip()] if str(din_number or '').strip() else []
+                options = [str(item).strip() for item in din_options if str(item or '').strip()]
+                
+                # Pick the DIN number that appears in the article description
+                normalized_blob = context.get('normalized_blob') or ''
+                best_din = options[0] if options else din_number
+                if normalized_blob and len(options) > 1:
+                    # Check which DIN number actually appears in the article
+                    for din_option in options:
+                        normalized_din = _normalize_rule_text(din_option)
+                        if normalized_din in normalized_blob:
+                            best_din = din_option
+                            break
+                val = best_din
+            elif key in param_matches:
+                val = param_matches.get(key, '')
+                options = list((normteil_match.get('parameter_options') or {}).get(key, []) or [])
+            else:
+                # Try to resolve from article parts (artbez fields)
+                parts = context.get('parts') or {}
+                val = parts.get(key) or ''
+                options = list((normteil_match.get('parameter_options') or {}).get(key, []) or [])
+            if val and val not in options:
+                options = [val] + [opt for opt in options if str(opt or '').strip() != val]
+            elems.append({'name': key, 'value': val or '', 'options': options})
+        return elems
+    except Exception:
+        return []
+
+
 def _build_sorting_schema_map():
     """
     Load and flatten the sorting schema into a searchable map.
@@ -583,6 +1053,58 @@ def _build_sorting_schema_map():
     return search_map, schema
 
 
+def _load_stueckliste_children_count_cached():
+    path_obj = Path(stuecklistenstamm_path)
+    cache_key = ('stueckliste_children_count', str(path_obj.resolve()) if path_obj.exists() else str(path_obj), path_obj.stat().st_mtime if path_obj.exists() else None)
+    if cache_key in _GLOBAL_TABLE_CACHE:
+        return _GLOBAL_TABLE_CACHE[cache_key]
+
+    children_count = {}
+    if path_obj.exists():
+        try:
+            with open(path_obj, encoding='utf-8-sig') as f:
+                lines = []
+                for line in f:
+                    if line.strip() == '':
+                        continue
+                    lines.append(line)
+                    if len(lines) == 1:
+                        break
+                lines += f.readlines()
+                reader = csv.DictReader(lines, delimiter=';')
+                for row in reader:
+                    parent_key = str((row or {}).get('stulinr', '') or '').strip()
+                    if parent_key:
+                        children_count[parent_key] = children_count.get(parent_key, 0) + 1
+        except Exception as exc:
+            if DEBUG:
+                print(f"[DEBUG] Failed to build child-count cache: {exc}")
+            children_count = {}
+
+    _GLOBAL_TABLE_CACHE[cache_key] = children_count
+    return children_count
+
+
+def _is_normteil_article(normalized_blob, normteil_match):
+    if normteil_match:
+        return True
+    # Keep a lightweight fallback for DIN-based data when the direct match does not fire.
+    din_data = _load_yaml_cached(din_normteile_path)
+    din_entries = _flatten_din_normteile(din_data)
+    return bool(_find_best_match(normalized_blob, din_entries))
+
+
+def _pick_named_group(group_tree, top_name, default_name=''):
+    if not isinstance(group_tree, dict):
+        return default_name
+    if top_name in group_tree:
+        return top_name
+    for candidate in group_tree.keys():
+        if _normalize_rule_text(candidate) == _normalize_rule_text(top_name):
+            return candidate
+    return default_name
+
+
 def getArticleGroup(artnr):
     """
     Return the three-level group for an article: (hauptgruppe, untergruppe, spezifikation).
@@ -593,46 +1115,87 @@ def getArticleGroup(artnr):
     - Purchased items: ('Kaufteile', 'Katalogteile', 'Standard')
     """
     try:
-        ctx = _get_bezeichnungsregel_context(artnr)
-        top_group = ctx.get('group') or 'Sonstige'
-        subgroup = ctx.get('subgroup') or ''
-        normalized_blob = ctx.get('normalized_blob') or ''
-        normteil_match = ctx.get('normteil_match') or {}
-        steel_match = ctx.get('steel_match') or {}
-        
-        if top_group == 'Normteile':
-            hauptgruppe = 'Normteile'
-            # Get primary name or display name from normteil_match
-            spezifikation = normteil_match.get('primary_name', normteil_match.get('display_name', ''))
-            # DIN number as additional detail
-            din_number = normteil_match.get('din_number', '')
-            if din_number and spezifikation:
-                spezifikation = f"{spezifikation} ({din_number})"
-            elif din_number:
-                spezifikation = din_number
-            # Map to Untergruppe based on path
-            path = normteil_match.get('path', [])
-            untergruppe = path[-2] if len(path) >= 2 else (path[-1] if path else '')
-            return (hauptgruppe, untergruppe, spezifikation)
-        
-        elif top_group == 'Rohmaterialien':
-            hauptgruppe = 'Zeichnungsteile'
-            spezifikation = steel_match.get('entry_name', steel_match.get('current_norm', ''))
-            return (hauptgruppe, 'Rohmaterialien', spezifikation)
-        
-        elif top_group == 'Laserteile':
-            return ('Zeichnungsteile', 'Lasergeteile', subgroup or 'Laserschneiden')
-        
-        elif top_group == 'Mechanisch bearbeitete Teile':
-            return ('Zeichnungsteile', 'Mechanisch_bearbeitete_Teile', subgroup or 'Bearbeitet')
-        
-        else:  # Sonstige
-            return ('Kaufteile', 'Katalogteile', subgroup or 'Standard')
-    
+        artnr = str(artnr or '').strip()
+        parts, blob, normalized_blob = _get_article_description_parts(artnr)
+        row = _get_row_cached(artikelstamm_path, artnr, key_column='artnr', delimiter=';') or {}
+        zeichnr = str(row.get('zeichnr') or '').strip()
+        children_count = _load_stueckliste_children_count_cached().get(artnr, 0)
+
+        groups_cfg = _load_yaml_cached(BASE_DIR / 'config' / 'groups.yaml') or {}
+        subgroup_features = _load_yaml_cached(BASE_DIR / 'config' / 'subgroup_features.yaml') or {}
+        specification_features = _load_yaml_cached(BASE_DIR / 'config' / 'specification_features.yaml') or {}
+
+        # Main rule requested by the user.
+        hauptgruppe = 'Produktionsteile' if children_count >= 1 else 'Einkaufsteile'
+        hauptgruppe_tree = groups_cfg.get(hauptgruppe, {}) if isinstance(groups_cfg, dict) else {}
+        if not isinstance(hauptgruppe_tree, dict):
+            hauptgruppe_tree = {}
+
+        # Business rule: production parts must not have subgroup/specification.
+        if hauptgruppe == 'Produktionsteile':
+            return (hauptgruppe, '', '')
+
+        # Refine the subgroup with the DIN normteil list first, then drawing article, then config fallbacks.
+        normteil_match = None
+        din_data = _load_yaml_cached(din_normteile_path)
+        din_entries = _flatten_din_normteile(din_data)
+        normteil_match = _find_best_match(normalized_blob, din_entries)
+
+        if _is_normteil_article(normalized_blob, normteil_match):
+            normteil_data = normteil_match or _find_best_match(normalized_blob, din_entries) or {}
+            subgroup = _pick_named_group(hauptgruppe_tree, 'Normteile', 'Normteile')
+            if not subgroup:
+                subgroup = 'Normteile'
+            # Use the key path below the DIN root as a layered specification.
+            spezifikation = _normteil_spec_layers(normteil_data)
+            return (hauptgruppe, subgroup, spezifikation)
+
+        if zeichnr:
+            subgroup = _pick_named_group(hauptgruppe_tree, 'Zeichnungsteile', 'Zeichnungsteile')
+            if not subgroup:
+                subgroup = 'Zeichnungsteile'
+
+            # Try to refine the specification via specification_features if this subgroup has rules.
+            spec_group = specification_features.get(subgroup) or specification_features.get('Zeichnungsteile') or {}
+            if isinstance(spec_group, dict):
+                for spec_name, rule in spec_group.items():
+                    tokens = []
+                    if isinstance(rule, str):
+                        tokens = [token.strip() for token in rule.split(',') if token.strip()]
+                    elif isinstance(rule, list):
+                        tokens = [str(token).strip() for token in rule if str(token or '').strip()]
+                    for token in tokens:
+                        if _normalize_rule_text(token) and _normalize_rule_text(token) in normalized_blob:
+                            return (hauptgruppe, subgroup, spec_name)
+
+            # For Zeichnungsteile, if no rule matched, default to one of the valid specs instead of zeichnr.
+            # Try to get configured specs for this subgroup; if none match, use 'Listenteile' as catch-all.
+            configured_specs = []
+            if isinstance(groups_cfg, dict) and hauptgruppe in groups_cfg:
+                zeichnungsteile_specs = hauptgruppe_tree.get(subgroup, {})
+                if isinstance(zeichnungsteile_specs, dict):
+                    configured_specs = list(zeichnungsteile_specs.keys())
+            
+            if configured_specs:
+                return (hauptgruppe, subgroup, configured_specs[0] if configured_specs else 'Listenteile')
+            else:
+                # Fallback to the first available spec from specification_features
+                available_specs = [s for s in spec_group.keys() if s]
+                return (hauptgruppe, subgroup, available_specs[0] if available_specs else 'Listenteile')
+
+        # Final fallback: use subgroup feature hints or the generic article state.
+        if isinstance(subgroup_features, dict):
+            for sub_name, condition in subgroup_features.items():
+                cond = str(condition or '').strip().lower()
+                if cond == 'rest':
+                    return (hauptgruppe, _pick_named_group(hauptgruppe_tree, sub_name, sub_name) or sub_name, 'Standard')
+
+        return (hauptgruppe, '', '')
+
     except Exception as e:
         if DEBUG:
             print(f"[DEBUG] Error in getArticleGroup({artnr}): {e}")
-        return ('Kaufteile', 'Katalogteile', '')
+        return ('', '', '')
 
 
 def _resolve_steel_material(context):
@@ -1254,7 +1817,8 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         with open(csv_path_obj, encoding='utf-8-sig') as f:
             reader = csv.DictReader(f, delimiter=';')
             for row in reader:
-                header = (row.get('columnname') or '').strip()
+                # Support multiple header names used across mapping files ('columnname', 'column')
+                header = (row.get('columnname') or row.get('column') or row.get('column_name') or '').strip()
                 if not header:
                     continue
 
@@ -1467,10 +2031,14 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         for a in articles:
             a['root_module_artnr'] = root_module_artnr
 
-    # Determine if this is for blocked articles by filename
+    # Determine if this is for blocked articles by filename.
+    # Supports both legacy "blocked_articles.csv" and mode-specific
+    # names like "blocked_articles_module_mode.csv".
     is_blocked = False
-    if isinstance(articlelist, str) and articlelist.endswith('blocked_articles.csv'):
-        is_blocked = True
+    if isinstance(articlelist, (str, Path)):
+        articlelist_name = Path(str(articlelist)).name.lower()
+        if 'blocked_articles' in articlelist_name:
+            is_blocked = True
 
     for sheet in active_sheets:
         # Map sheet names to their category directories
@@ -1479,6 +2047,7 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             'Artikelstamm': 'Article',
             'ArtikelDisposteuerung': 'Article', 
             'ArtikelLieferantendaten': 'Article',
+            'DMSDocuments': 'Docs',
             # BOM sheets
             'Stücklisten': 'BOM',
             'Stücklistenvarianten': 'BOM',
@@ -1493,7 +2062,23 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
         }
         # Default to Article if not found
         category = sheet_to_category.get(sheet, 'Article')
-        mapping_csv = os.path.join('config', 'sheet_mappings', category, f'mapping_plan_{sheet}.csv')
+        # Try to resolve mapping file flexibly (handles underscores, pluralization, and legacy names)
+        mapping_path = _find_mapping_file(BASE_DIR, category, sheet)
+        # Special-case Docs mappings which sometimes use a different filename pattern (e.g. mapping_DMSDocuments.csv)
+        if mapping_path is None and category == 'Docs':
+            docs_dir = Path(BASE_DIR) / 'config' / 'sheet_mappings' / 'Docs'
+            if docs_dir.exists():
+                for p in docs_dir.glob('*.csv'):
+                    if 'dms' in p.stem.lower():
+                        mapping_path = p
+                        break
+
+        if mapping_path is None:
+            if DEBUG:
+                print(f"[DEBUG] No mapping plan found for sheet '{sheet}' in category '{category}' (checked sheet name and normalized candidates). Skipping sheet.")
+            # Skip sheets without mapping definitions
+            continue
+        mapping_csv = str(mapping_path)
         if is_blocked:
             output_csv = sheets_output_dir / f'{sheet}_cache_blocked.csv'
         else:
@@ -1561,6 +2146,9 @@ def process_module_structure(
     Write stulinr, posnr, menge, artnr, artbez1 to partlist.csv.
     If the artnr of a position is itself a parent, recurse.
     """
+    # Pre-load all config files into cache for this bulk operation
+    _preload_config_cache()
+    
     article_list_creation_mode_path = get_path("article list", mode="creation")
     # Check UTF-8 validity for input files
     if not check_utf8_file(artikelstamm_path):
@@ -1610,6 +2198,27 @@ def process_module_structure(
     _init_workplan_suggest(reset=bool(reset_files))
     workplan_suggest_seen = _load_workplan_suggest_seen()
 
+    expected_article_list_header = 'artnr;artbez1;zeichnr;hauptgruppe;untergruppe;spezifikation;bezeichnungselemente;artikelnummer\n'
+
+    def _ensure_article_list_header(path):
+        file_path = Path(path)
+        if not file_path.exists() or file_path.stat().st_size == 0:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(expected_article_list_header)
+            return
+        with open(file_path, 'r', encoding='utf-8-sig') as f:
+            lines = f.readlines()
+        if not lines:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(expected_article_list_header)
+            return
+        current_header = str(lines[0] or '').strip().lower()
+        if 'bezeichnungselemente' in current_header:
+            return
+        lines[0] = expected_article_list_header
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.writelines(lines)
+
     def _append_workplan_suggest(base_artnr):
         key = str(base_artnr or '').strip()
         if not key or key in workplan_suggest_seen:
@@ -1621,7 +2230,7 @@ def process_module_structure(
     # Overwrite article_list, partlist, and blocked_articles only if reset_files is True
     if reset_files:
         with open(article_list_path, 'w', encoding='utf-8') as f:
-            f.write('artnr;artbez1;zeichnr;hauptgruppe;untergruppe;spezifikation;artikelnummer\n')
+            f.write(expected_article_list_header)
         with open(partlist_path, 'w', encoding='utf-8') as f:
             f.write('stulinr;posnr;menge;artnr;artbez1\n')
         blocked_articles_path = str(article_list_path).replace('article_list', 'blocked_articles')
@@ -1642,6 +2251,8 @@ def process_module_structure(
                             sheet_blocked_path.parent.mkdir(parents=True, exist_ok=True)
                             with open(sheet_blocked_path, 'w', encoding='utf-8-sig', newline='') as blocked_f:
                                 blocked_f.write('artnr;artbez1;zeichnr\n')
+    else:
+        _ensure_article_list_header(article_list_path)
 
     # Keep seen article numbers in memory to avoid scanning article_list.csv repeatedly.
     existing_articles_set = set()
@@ -1747,8 +2358,10 @@ def process_module_structure(
             artikelnummer_out = str(artikelnummer_overrides.get(artnr_key) or artikelnummer_overrides.get(effective_artnr) or '').strip()
             # determine group for this article and write as fourth, fifth, sixth columns
             hauptgruppe, untergruppe, spezifikation = getArticleGroup(effective_artnr)
+            spezifikation_text = _group_value_to_text(spezifikation)
+            bezeichnungselemente_text = _bezeichnungselemente_to_text(getBezeichnungselemente(effective_artnr))
             with open(article_list_path, 'a', encoding='utf-8') as f:
-                f.write(f"{effective_artnr};{effective_artbez1};{effective_zeichnr};{hauptgruppe};{untergruppe};{spezifikation};{artikelnummer_out}\n")
+                f.write(f"{effective_artnr};{effective_artbez1};{effective_zeichnr};{hauptgruppe};{untergruppe};{spezifikation_text};{bezeichnungselemente_text};{artikelnummer_out}\n")
             article_list_seen.add(effective_artnr)
             if DEBUG:
                 print(f"[DEBUG] Appended article: {effective_artnr}; {effective_artbez1}; {effective_zeichnr}")
@@ -1910,10 +2523,12 @@ def process_module_structure(
                     write_header = not article_list_creation_mode_path.exists() or article_list_creation_mode_path.stat().st_size == 0
                     with open(article_list_creation_mode_path, "a", encoding="utf-8") as f:
                         if write_header:
-                            f.write("artnr;artbez1;zeichnr;hauptgruppe;untergruppe;spezifikation;artikelnummer\n")
+                            f.write("artnr;artbez1;zeichnr;hauptgruppe;untergruppe;spezifikation;bezeichnungselemente;artikelnummer\n")
                         # compute groups for auto-created entry
                         hg, ug, spec = getArticleGroup(current_artnr)
-                        f.write(f"{current_artnr};Auto {current_artnr};Auto {current_artnr};{hg};{ug};{spec};\n")
+                        spec_text = _group_value_to_text(spec)
+                        bez_elems_text = _bezeichnungselemente_to_text(getBezeichnungselemente(current_artnr))
+                        f.write(f"{current_artnr};Auto {current_artnr};Auto {current_artnr};{hg};{ug};{spec_text};{bez_elems_text};\n")
                     artikel_map[current_artnr] = {'artnr': current_artnr, 'artbez1': f"Auto {current_artnr}", 'zeichnr': f"Auto {current_artnr}"}
                     artbez1 = f"Auto {current_artnr}"
                     zeichnr = f"Auto {current_artnr}"
@@ -2255,12 +2870,14 @@ def getDocPath(zeichnungsnummer, zeichnungsindex=None, tree_path=None):
         if not value:
             return ""
         value = str(value).strip()
+        if value in {"-", "--"}:
+            return ""
         value = re.sub(r"\s+", " ", value)
         value = value.rstrip("-").strip()
         return value
 
     expected_code = _normalize_code_part(zeichnungsnummer)
-    if zeichnungsindex:
+    if zeichnungsindex and _normalize_code_part(zeichnungsindex):
         expected_code = _normalize_code_part(f"{expected_code} {zeichnungsindex}")
 
     def _read_text_with_fallback(path):
@@ -2363,6 +2980,8 @@ def build_docs_download_cache_csv(article_list_path=None, output_csv_path=None, 
                 or article.get("zeichnrindex")
                 or ""
             ).strip()
+            if zeichindex in {"-", "--"}:
+                zeichindex = ""
 
             if not artnr or not zeichnr:
                 continue
@@ -2370,6 +2989,13 @@ def build_docs_download_cache_csv(article_list_path=None, output_csv_path=None, 
             doc_path, doc_filename = getDocPath(zeichnr, zeichindex)
             if not doc_path and not doc_filename:
                 continue
+
+            # Prefer a clean filename stem for the Bezeichnung column.
+            doc_label = str(doc_filename or "").strip()
+            if doc_label.lower().endswith(".pdf"):
+                doc_label = doc_label[:-4].rstrip()
+            if not doc_label:
+                doc_label = str(article.get("description") or article.get("artbez1") or "").strip()
 
 
             # Identifikation must always be empty
@@ -2393,7 +3019,7 @@ def build_docs_download_cache_csv(article_list_path=None, output_csv_path=None, 
                 "Artikelnummer": artnr,
                 "Identifikation": identifier,
                 "DMSDocId": "",
-                "Bezeichnung": str(doc_filename or article.get("artbez1") or "").strip(),
+                "Bezeichnung": doc_label,
                 "Kategorie": "11",
                 "Dokumenten Speicherort": full_doc_path,
                 "Gleiches Dokument ersetzen": "0",
