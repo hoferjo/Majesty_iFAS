@@ -12,6 +12,11 @@ from etl.validate import (
     load_article_group_validation_queue_from_csv,
     save_article_group_item_to_csv,
 )
+from etl.validate import (
+    _select_bezeichnungen_template,
+    _build_placeholder_values,
+    _render_bezeichnung_template,
+)
 import threading
 from pathlib import Path
 from fastapi import Body
@@ -2529,7 +2534,32 @@ def api_validate_groups_resolve_bezeichnungselemente(data: dict = Body(...)):
         ) or []
         return {"status": "ok", "bezeichnungselemente": elements}
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+        return JSONResponse(status_code=500, content={'status': 'error', 'message': str(exc)})
+
+@app.post('/api/validate/groups/render-bezeichnungen')
+def api_validate_groups_render_bezeichnungen(data: dict = Body(...)):
+    """Render Bezeichnung 1/2 using templates and provided bezeichnungselemente."""
+    try:
+        artnr = str((data or {}).get('artnr', '') or '').strip()
+        elems = (data or {}).get('bezeichnungselemente', []) or []
+        # load bezeichnungen templates
+        bezeichnungen_path = BASE_DIR / 'config' / 'Bezeichnungen.yaml'
+        bezeichnungen_cfg = {}
+        if bezeichnungen_path.exists():
+            with open(bezeichnungen_path, 'r', encoding='utf-8') as f:
+                try:
+                    bezeichnungen_cfg = yaml.safe_load(f) or {}
+                except Exception:
+                    bezeichnungen_cfg = {}
+
+        # select template set and render placeholders
+        template_set = _select_bezeichnungen_template(BASE_DIR, artnr, bezeichnungen_cfg) or {}
+        placeholders = _build_placeholder_values(elems or [])
+        b1 = _render_bezeichnung_template(template_set.get('Bezeichnung 1', ''), placeholders)
+        b2 = _render_bezeichnung_template(template_set.get('Bezeichnung 2', ''), placeholders)
+        return {'status': 'ok', 'bezeichnung1_de': b1, 'bezeichnung2_de': b2}
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={'status': 'error', 'message': str(exc)})
 
 @app.get("/api/search-lieferant")
 def search_lieferant(q: str = Query("", min_length=1)):

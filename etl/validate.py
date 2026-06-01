@@ -433,6 +433,8 @@ def save_article_group_item(base_dir: Path, artnr: str, updates: Dict[str, Any])
         'untergruppe': normalized.get('untergruppe', ''),
         'spezifikation': normalized.get('spezifikation', ''),
         'bezeichnungselemente': json.dumps(updates.get('bezeichnungselemente', []), ensure_ascii=False),
+        'bezeichnung1_de': normalized.get('bezeichnung1_de', ''),
+        'bezeichnung2_de': normalized.get('bezeichnung2_de', ''),
     }
 
     _upsert_row(validation_overrides_path, 'artnr', artnr, override_updates)

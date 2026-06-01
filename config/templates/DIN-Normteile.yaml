@@ -9,7 +9,7 @@ Normteile genormt nach DIN:
       Härte: [8.8, 10.9, 12.9, A2, A4]
       Material: [Stahl blank, Stahl blau-verzinkt, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
       Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
-      Länge: [5, 8, 10, 12, 16, 20, 25, 30, 40, 50, 60, 80, 100]
+      Länge: [5, 8, 10, 12, 15, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
       Gewindeart: [Ganzgewinde, Teilgewinde]
       Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Länge, Härte, Material, Gewindeart, DIN nummer]
       
@@ -21,19 +21,19 @@ Normteile genormt nach DIN:
       Härten: [8.8, 10.9, 12.9, A2, A4]
       Material: [Stahl blank, Stahl blau-verzinkt, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
       Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
-      Länge: [5, 8, 10, 12, 16, 20, 25, 30, 35, 40, 50, 60, 80, 100]
+      Länge: [5, 8, 10, 12, 15, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
       Gewindeart: [Ganzgewinde, Teilgewinde]
       Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Länge, Härte, Material, Gewindeart, DIN nummer]
 
     Senkkopfschraube:
       Aliases: [SK-Schrauben, Senkkopfschrauben]
-      DIN nummer: DIN 965
+      DIN nummer: [DIN 965, DIN 7991]
       name: Senkkopfschraube Innensechskant
       abbrevation: SK-Schraube
       Härten: [8.8, 10.9, 12.9, A2, A4]
       Material: [Stahl blank, Stahl blau-verzinkt, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
       Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
-      Länge: [5, 8, 10, 12, 16, 20, 25, 30, 40, 50, 60, 80, 100]
+      Länge: [5, 8, 10, 12, 15, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
       Gewindeart: [Ganzgewinde, Teilgewinde]
       Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Länge, Härte, Material, Gewindeart, DIN nummer]
 
@@ -45,7 +45,7 @@ Normteile genormt nach DIN:
       Härten: [8.8, 10.9, 12.9, A2, A4]
       Material: [Stahl blank, Stahl blau-verzinkt, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
       Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
-      Länge: [5, 8, 10, 12, 16, 20, 25, 30, 40, 50, 60, 80, 100]
+      Länge: [5, 8, 10, 12, 15, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
       Gewindeart: [Ganzgewinde, Teilgewinde]
       Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Länge, Härte, Material, Gewindeart, DIN nummer]
     TorX-Schraube:
@@ -56,19 +56,19 @@ Normteile genormt nach DIN:
       Härten: [8.8, 10.9, 12.9, A2, A4]
       Material: [Stahl blank, Stahl blau-verzinkt, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
       Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
-      Länge: [5, 8, 10, 12, 16, 20, 25, 30, 40, 50, 60, 80, 100]
+      Länge: [5, 8, 10, 12, 15, 16, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
       Gewindeart: [Ganzgewinde, Teilgewinde]
       Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Länge, Härte, Material, Gewindeart, DIN nummer]
 
   Muttern:
     Sechskantmutter:
       Aliases: [Sechskantmuttern, 6-kt-Muttern]
-      DIN nummer: [DIN 934, ISO 4032, ISO 4033]
+      DIN nummer: [DIN 934, DIN 439, ISO 4032, ISO 4033]
       name: Sechskantmutter
       Material: [Stahl fvz, Stahl blank, Stahl blau-verzinkt, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
       Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
       Härte: [8, 10, A2, A4]
-      Höhe: [0.8 d, 1.0 d, 1.5 d, 2.0 d, 2.5 d, 3.0 d, 4.0 d, 5.0 d, 6.0 d, 8.0 d, 10.0 d, 12.0 d]
+      Höhe: [0.5 d, 0.8 d, 1.0 d, 1.5 d, 2.0 d, 2.5 d, 3.0 d, 4.0 d, 5.0 d, 6.0 d, 8.0 d, 10.0 d, 12.0 d]
       Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Höhe, Härte, Material, DIN nummer]
     Sechskant-Sicherungsmutter:
       Aliases: [Sechskant-Sicherungsmuttern, 6-kt-Sicherungsmuttern, Sicherungsmuttern, Sicherungs-Muttern, Sicherungsmutter, Sicherungs-Mutter, Polystop, Poly-Stop]
@@ -76,7 +76,7 @@ Normteile genormt nach DIN:
       name: Sechskant-Sicherungsmutter Poly-Stop
       Material: [Stahl fvz, Stahl blank, Stahl blau-verzinkt, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
       Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
-      Härte: [8, 10, A2, A4]
+      Härte: [6/8, 8, 10, A2, A4]
       Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Härte, Material, DIN nummer]
     Flügelmutter:
       Aliases: [Flügelmuttern, Flügel-Muttern, Flügelmutter]
@@ -115,7 +115,20 @@ Normteile genormt nach DIN:
       Innendurchmesser: [2.2, 3.2, 4.3, 5.3, 6.4, 8.4, 10.5, 13, 15, 17, 21, 27, 33, 39]
       Außendurchmesser: [5, 6, 7, 8, 9, 10, 12, 15, 16, 18, 20, 24, 28, 30, 37, 44, 50, 60]
       Dicke: [0.5, 1, 1.5, 1.6, 2, 3, 4, 5]
-      Sets: [[DIN 125 A, M2, 2.2, 4, 1.6], [DIN 9021, M2, 2.2, 6, 0.8], [DIN 125 A, M3, 3.2, 6, 1.6], [DIN 9021, M3, 3.2, 18, 0.8], [DIN 125 A, M4, 4.3, 8, 1.6], [DIN 9021, M4, 4.3, 18, 1], [DIN 125 A, M5, 5.3, 10, 1], [DIN 9021, M5, 5.3, 15, 1.2], [DIN 125 A, M6, 6.4, 12, 1.6], [DIN 9021, M6, 6.4, 18, 1.6], [DIN 125 A, M8, 8.4, 16, 1.6], [DIN 9021, M8, 8.4, 24, 2], [DIN 125 A, M10, 10.5, 20, 1.6], [DIN 9021, M10, 10.5, 18, 2.5], [DIN 125 A, M12, 13, 24, 1.6], [DIN 9021, M12, 13, 18, 3], [DIN 125 A, M14, 15, 28, 1.6], [DIN 9021, M14, 15, 18, 3], [DIN 125 A, M16, 17, 30, 1.6], [DIN 9021, M16, 17, 18, 3], [DIN 125 A, M18, 19, 34, 1.6], [DIN 9021, M18, 19, 18, 3]]
+      Sets: [[DIN 125 A, M2, 2.2, 4, 1.6], [DIN 9021, M2, 2.2, 6, 0.8], [DIN 125 A, M3, 3.2, 6, 1.6], [DIN 9021, M3, 3.2, 18, 0.8], [DIN 125 A, M4, 4.3, 8, 1.6], [DIN 9021, M4, 4.3, 18, 1], [DIN 125 A, M5, 5.3, 10, 1], [DIN 9021, M5, 5.3, 15, 1.2], [DIN 125 A, M6, 6.4, 12, 1.6], [DIN 9021, M6, 6.4, 18, 1.6], [DIN 125 A, M8, 8.4, 16, 1.6], [DIN 9021, M8, 8.4, 24, 2], [DIN 125 A, M10, 10.5, 20, 1.6], [DIN 9021, M10, 10.5, 18, 2.5], [DIN 125 A, M12, 13, 24, 1.6], [DIN 9021, M12, 13, 18, 3], [DIN 125 A, M14, 15, 28, 1.6], [DIN 9021, M14, 15, 18, 3], [DIN 125 A, M16, 17, 30, 3], [DIN 9021, M16, 17, 48, 3], [DIN 125 A, M18, 19, 34, 1.6], [DIN 9021, M18, 19, 18, 3]]
+      Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Innendurchmesser, Außendurchmesser, Dicke, Härte, Material, DIN nummer]
+    Unterlegscheibe stark:
+      Aliases: [Unterlegscheiben stark, U-Scheiben, U-Scheibe]
+      DIN nummer: [DIN 6340, ]
+      name: Unterlegscheibe
+      abbrevation: U-Scheibe 
+      Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+      Härte: [140 HV, 200 HV, 300 HV, 380 HV]
+      Metrischer Nenndurchmesser: [M2, M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
+      Innendurchmesser: [2.2, 3.2, 4.3, 5.3, 6.4, 8.4, 10.5, 13, 15, 17, 21, 27, 33, 39]
+      Außendurchmesser: [5, 6, 7, 8, 9, 10, 12, 15, 16, 18, 20, 24, 25, 28, 30, 37, 44, 50, 60]
+      Dicke: [0.5, 1, 1.5, 1.6, 2, 3, 4, 5, 6, 7, 8, 10, 12, 15, 20]
+      Sets: [[DIN 6340,], ]
       Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Innendurchmesser, Außendurchmesser, Dicke, Härte, Material, DIN nummer]
     Unterlegscheibe mit Fase:
       Aliases: [Unterlegscheiben mit Fase, U-Scheiben mit Fase, U-Scheibe mit Fase]
@@ -144,27 +157,50 @@ Normteile genormt nach DIN:
     Aliases: [Blindnietmuttern, Blind-Nietmuttern, Nietmuttern, Threaded Inserts, TubTara]
     name: Blindnietmutter
     Kopfform: [Flachkopf, Senkkopf, kleiner Senkkopf]
-    Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Stahl verzinkt, Edelstahl, INOX, Aluminium, Stahl]
     Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
     Länge: [10, 16, 25, 40, 50, 60, 80, 100]
     DIN nummer: DIN 7338
     Pressbereich: [1-3, 3-6, 6-9, 9-12, 12-15, 15-20, 20-25, 25-30, 30-36]
+    Bezeichnungselemente: [name, Kopfform, Metrischer Nenndurchmesser, Pressbereich, Härte,Material]
 
   Gewindestift:
     Aliases: [Gewindestifte, Gewinde-Stifte, Madenschrauben, Madenschraube, Gewindestift, Gewinde-Stift]
     DIN nummer: DIN 916
     name: Gewindestift
+    Antriebsart: [Innensechskant, Schlitz, Kreuzschlitz]
     Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
     Härte: [8.8, 10.9, 12.9, A2, A4]
     Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
     Länge: [5, 8, 10, 12, 16, 20, 25, 30, 40, 50, 60, 80, 100]
     Gewindeart: [Ganzgewinde]
     Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Länge, Härte, Material, DIN nummer]
-    
+
+  Gewindestift mit Ringschneide:
+    Aliases: [Gewindestifte mit Ringschneide, Gewinde-Stifte mit Ringschneide, Madenschrauben mit Ringschneide, Madenschraube mit Ringschneide, Gewindestift mit Ringschneide, Gewinde-Stift mit Ringschneide, Gewindestifte mit Schneidring, Gewinde-Stifte mit Schneidring, Madenschrauben mit Schneidring, Madenschraube mit Schneidring, Gewindestift mit Schneidring, Gewinde-Stift mit Schneidring]
+    DIN nummer: [DIN 913, DIN 914, DIN 915, DIN 916]
+    name: Gewindestift
+    Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Härte: [8.8, 10.9, 12.9, A2, A4, 45H]
+    Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
+    Länge: [5, 8, 10, 12, 16, 20, 25, 30, 40, 50, 60, 80, 100]
+    Gewindeart: [Ganzgewinde]
+    Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Länge, Härte, Material, DIN nummer]
+  
+  Gewindestift mit Zapfen:
+    Aliases: [Gewindestifte mit Zapfen, Gewinde-Stifte mit Zapfen, Madenschrauben mit Zapfen, Madenschraube mit Zapfen, Gewindestift mit Zapfen, Gewinde-Stift mit Zapfen, Gewindestifte mit Schneidring, Gewinde-Stifte mit Schneidring, Madenschrauben mit Schneidring, Madenschraube mit Schneidring, Gewindestift mit Schneidring, Gewinde-Stift mit Schneidring]
+    DIN nummer: [DIN 915]
+    name: Gewindestift
+    Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Härte: [8.8, 10.9, 12.9, A2, A4, 45H]
+    Metrischer Nenndurchmesser: [M3, M4, M5, M6, M8, M10, M12, M16, M20, M24, M30, M36]
+    Länge: [5, 8, 10, 12, 16, 20, 25, 30, 40, 50, 60, 80, 100]
+    Gewindeart: [Ganzgewinde]
+    Bezeichnungselemente: [name, Metrischer Nenndurchmesser, Länge, Härte, Material, DIN nummer] 
 
   Blindnieten:
     Aliases: [Blindnieten, Blind-Nieten, Nieten]
-    DIN nummer: [DIN 7337, ]
+    DIN nummer: [DIN 7337]
     name: Blindniete
     Kopfform: [Flachkopf, Senkkopf, Halbrundkopf, Rundkopf]
     Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
@@ -187,6 +223,7 @@ Normteile genormt nach DIN:
       Länge: [10, 16, 25, 40, 50, 60, 80, 100]
       Gewindeart: [Ganzgewinde, Teilgewinde]
   Stellring:
+    name: Stellring
     Aliases: [Stellringe, Stell-Ringe]
     Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
     Durchmesser: [2, 3, 4, 5, 6, 8, 10, 12, 15, 16, 20, 25, 30,35]
@@ -197,18 +234,114 @@ Normteile genormt nach DIN:
 
   
   Sicherungsring für Welle:
+    name: Sicherungsring für Welle
     Aliases: [Sicherungsringe, Sicherungs-Ringe]
     Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
-    Durchmesser: [2, 3, 4, 5, 6, 8, 10, 12, 15, 16, 20, 25, 30,35]
-    Breite: [1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 14, 15, 16, 20]
+    Durchmesser: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, 60, 62, 63, 65, 67, 68, 70, 72, 75, 78, 80, 82, 85, 90, 95, 100, 105, 108, 110, 112, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215 , 220, 230, 240, 250, 260, 270, 280, 290, 300]
+    Dicke: [0.8, 1, 1.2, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 6, 8, 10, 12, 14, 15, 16, 20]
     DIN nummer: DIN 471
-    Bezeichnungselemente: [name, Durchmesser, Breite, Material, DIN nummer]
+    Bezeichnungselemente: [name, Durchmesser, Dicke, Material, DIN nummer]
 
   Sicherungsring für Bohrung:
+    name: Sicherungsring für Bohrung
     Aliases: [Sicherungsringe, Sicherungs-Ringe]
     Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
-    Durchmesser: [2, 3, 4, 5, 6, 8, 10, 12, 15, 16, 20, 25, 30,35]
-    Breite: [1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 14, 15, 16, 20]
+    Durchmesser: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, 60, 62, 63, 65, 67, 68, 70, 72, 75, 78, 80, 82, 85, 90, 95, 100, 105, 108, 110, 112, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215 , 220, 230, 240, 250, 260, 270, 280, 290, 300]
+    Dicke: [0.8, 1, 1.2, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 5, 6, 8, 10, 12, 14, 15, 16, 20]
     DIN nummer: DIN 472
-    Bezeichnungselemente: [name, Durchmesser, Breite, Material, DIN nummer]
+    Bezeichnungselemente: [name, Durchmesser, Dicke, Material, DIN nummer]
     
+  Sicherungsring schwer für Welle:
+    name: Sicherungsring für Welle
+    Aliases: [Sicherungsringe schwer, Sicherungs-Ringe schwer]
+    Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Durchmesser: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, 60, 62, 63, 65, 67, 68, 70, 72, 75, 78, 80, 82, 85, 90, 95, 100, 105, 108, 110, 112, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215 , 220, 230, 240, 250, 260, 270, 280, 290, 300]
+    Dicke: [0.8, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 8, 10, 12, 14, 15, 16, 20]
+    DIN nummer: DIN 471
+    Bezeichnungselemente: [name, Durchmesser, Dicke, Material, DIN nummer]
+
+  Sicherungsring schwer für Bohrung:
+    name: Sicherungsring für Bohrung
+    Aliases: [Sicherungsringe schwer, Sicherungs-Ringe schwer]
+    Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Durchmesser: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, 60, 62, 63, 65, 67, 68, 70, 72, 75, 78, 80, 82, 85, 90, 95, 100, 105, 108, 110, 112, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215 , 220, 230, 240, 250, 260, 270, 280, 290, 300]
+    Dicke: [0.8, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 8, 10, 12, 14, 15, 16, 20]
+    DIN nummer: DIN 472
+    Bezeichnungselemente: [name, Durchmesser, Dicke, Material, DIN nummer]
+
+  Spannhülse schwer:
+    name: Spannhülse schwer
+    Aliases: [Spannhülsen schwer, Spann-Hülsen schwer]
+    Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Durchmesser: [4, 5, 6, 8]
+    Länge: [14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 45, 50, 60, 80, 100]
+    Härte: [422-560HV, A2, A4]
+    DIN nummer: [DIN 1481]
+    Bezeichnungselemente: [name, Durchmesser, Länge, Material, DIN nummer]
+
+  Spannhülse leicht:
+    name: Spannhülse leicht
+    Aliases: [Spannhülsen leicht, Spann-Hülsen leicht]
+    Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Durchmesser: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    Länge: [10, 16, 25, 40, 50]
+    Härte: [422-560HV, A2, A4]
+    DIN nummer: [DIN 7346]
+    Bezeichnungselemente: [name, Durchmesser, Länge, Material, DIN nummer]
+  
+  Passcheiben:
+    name: Passscheibe
+    Aliases: [Passscheiben, Pass-Scheiben]
+    Material: [Stahl blau-verzinkt, Stahl blank, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Innendurchmesser: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 25, 26, 28, 30, 32, 35, 37, 40, 45, 50, 55, 60, 63, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 120, 130, 140, 150]
+    Aussendurchmesser: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 25, 26, 28, 30, 32, 35, 37, 40, 45, 50, 55, 60, 63, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 120, 130, 140, 150]
+    Dicke: [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.8, 1, 1.5, 2]
+    Härte: [2K60]
+    DIN nummer: DIN 988
+    Bezeichnungselemente: [name, Durchmesser, Dicke, Material, DIN nummer]
+
+  Kegelkerbstifte:
+    name: Kegelkerbstift
+    Aliases: [Kegelkerbstifte, Kegel-Kerbstifte]
+    Material: [Stahl blau-verzinkt, Stahl blank geölt, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Durchmesser: [2, 3, 4, 5, 6, 8, 10, 12]
+    Länge: [14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 45, 50, 60, 80, 100]
+    Härte: [9SMn28K]
+    DIN nummer: [DIN 1471]
+    Bezeichnungselemente: [name, Durchmesser, Länge, Härte, Material, DIN nummer]
+  
+  Zylinderstifte:
+    name: Zylinderstift
+    Aliases: [Zylinderstifte, Zylinder-Stifte]
+    Material: [Stahl blau-verzinkt, Stahl blank geölt, Stahl blank geschliffen, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Durchmesser: [2, 3, 4, 5, 6, 8, 10, 12]
+    Toleranz: [h6, m6]
+    Länge: [14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 45, 50, 60, 80, 100]
+    Härte: [HRc 60±2, 9SMn28K, A1]
+    DIN nummer: [DIN 6325, DIN 7979, DIN 1473]
+    Bezeichnungselemente: [name, Durchmesser, Länge, Härte, Material, DIN nummer]
+
+  Passfedern:
+    name: Passfeder
+    Aliases: [Passfedern, Pass-Federn]
+    Material: [Stahl blau-verzinkt, Stahl blank, Stahl blank geölt, Stahl blank geschliffen, Stahl feuerverzinkt, Stahl promatverzinkt, Edelstahl, INOX, Aluminium, Stahl]
+    Breite: [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 25, 32]
+    Höhe: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 18]
+    Länge: [14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 45, 50, 60, 80, 100]
+    Härte: [C45K]
+    DIN nummer: [DIN 6885-1]
+    Bezeichnungselemente: [name, Breite, Höhe, Länge, Härte, Material]
+  
+  Normdruckfedern:
+    name: Normdruckfeder
+    Aliases: [Normdruckfedern, Norm-Druckfedern]
+    Material: [INOX, Federstahl]
+    Drahtdurchmesser: [0.5, 0.8, 1, 1.2, 1.5, 2, 3, 4, 5, 6, 8, 10]
+    Außendurchmesser: [5, 6, 7, 8, 9, 10, 12, 15, 16, 18, 20]
+    Länge: [10, 16, 25, 40, 50]
+    Windungszahl: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    Federkonstante: [0.1-100 N/mm]
+    DIN nummer: DIN EN ISO 10243
+    Bezeichnungselemente: [name, Drahtdurchmesser, Außendurchmesser, Windungszahl, Länge, Federkonstante]
+
+  

@@ -1300,6 +1300,19 @@ def getBeschaffungsart(artnr):
         return '1'  # Replace 'SomeValue' with the actual value you want to return
     return '6'  # Replace 'OtherValue' with the actual value you want to return
 
+
+def getStücklistennummer(artnr):
+    artnr = str(artnr or '').strip()
+    if not artnr:
+        return ''
+    try:
+        hauptgruppe, _, _ = getArticleGroup(artnr)
+    except Exception:
+        hauptgruppe = ''
+    if hauptgruppe == 'Produktionsteile' and isParent(artnr, stuecklistenstamm_path):
+        return artnr
+    return ''
+
 def getKontierungsgruppe(artnr):    
     letzt_lief = getEntryFromCSV(artikelstamm_path, artnr, 'letzt_lief')
     if letzt_lief == '92005':
@@ -1422,21 +1435,38 @@ def getCodeFromAbbrevation(abbrevation):
     global _GLOBAL_UNIT_CODE_MAP
     if _GLOBAL_UNIT_CODE_MAP is None:
         mapping = load_yaml(BASE_DIR / "config" / "mapping_abbrevations.yaml") or {}
-        _GLOBAL_UNIT_CODE_MAP = {
-            str(k): str((v or {}).get("code", ""))
-            for k, v in (mapping.get("units") or {}).items()
-        }
+        _GLOBAL_UNIT_CODE_MAP = {}
+        for key, value in (mapping.get("units") or {}).items():
+            code = str((value or {}).get("code", ""))
+            if not code:
+                continue
+            unit_name = str((value or {}).get("name", "") or "").strip()
+            abbreviation = str((value or {}).get("abbrevation", "") or "").strip()
+            aliases = value.get("aliases") if isinstance(value, dict) else []
+            keys = [str(key).strip(), unit_name, abbreviation]
+            if isinstance(aliases, list):
+                keys.extend(str(alias).strip() for alias in aliases)
+            for candidate in keys:
+                if candidate:
+                    _GLOBAL_UNIT_CODE_MAP[candidate] = code
 
-    code = _GLOBAL_UNIT_CODE_MAP.get(str(abbrevation), "")
+    normalized = str(abbrevation or '').strip()
+    code = _GLOBAL_UNIT_CODE_MAP.get(normalized, "")
+    if not code:
+        code = _GLOBAL_UNIT_CODE_MAP.get(normalized.lower(), "")
     if code:
         return code
     if DEBUG:
         print(f"Warning: No code found for abbrevation '{abbrevation}' in mapping_abbrevations.yaml")
-    return ''
+    return str(abbrevation or '').strip()
 
 
 def getMasseinheit(artnr):
-    masseinheit = getEntryFromCSV(artikelstamm_path, artnr, 'meinheit')
+    masseinheit = (
+        getEntryFromCSV(artikelstamm_path, artnr, 'meinheit')
+        or getEntryFromCSV(artikelstamm_path, artnr, 'einheit')
+        or getEntryFromCSV(artikelstamm_path, artnr, 'masseinheit')
+    )
     if masseinheit and str(masseinheit).strip() != '':
         return getCodeFromAbbrevation(masseinheit)
     return ''
@@ -1449,6 +1479,7 @@ def _normalize_function_name(name):
         'derive_wbz': 'deriveWBZ',
         'defaultValue': 'defaultvalue',
         'directCopy': 'direct_copy',
+        'getStuecklistennummer': 'getStücklistennummer',
     }
     return aliases.get(normalized, normalized)
 
@@ -1586,7 +1617,11 @@ def _evaluate_bom_mapping(mapping, context):
             artnr_val = str(_resolve_arg(arglist[0]) or '')
             cached_lookup = context.get('_get_entry_cached')
             if callable(cached_lookup):
-                masseinheit = cached_lookup(artikelstamm_path, artnr_val, 'meinheit')
+                masseinheit = (
+                    cached_lookup(artikelstamm_path, artnr_val, 'meinheit')
+                    or cached_lookup(artikelstamm_path, artnr_val, 'einheit')
+                    or cached_lookup(artikelstamm_path, artnr_val, 'masseinheit')
+                )
                 masseinheit = str(masseinheit or '').strip()
                 if masseinheit:
                     return getCodeFromAbbrevation(masseinheit)
@@ -1806,6 +1841,7 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
                 'derive_WBZ': 'deriveWBZ',
                 'derive_wbz': 'deriveWBZ',
                 'defaultValue': 'defaultvalue',
+                'getStuecklistennummer': 'getStücklistennummer',
             }
             return aliases.get(normalized, normalized)
 
@@ -1845,6 +1881,12 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
 
     def get_beschaffungsart_cached(artnr):
         return '1' if str(artnr or '').strip() in parent_articles else '6'
+
+    def get_stuecklistennummer_cached(artnr):
+        artnr = str(artnr or '').strip()
+        if not artnr:
+            return ''
+        return artnr if artnr in parent_articles else ''
 
     def get_kontierungsgruppe_cached(artnr):
         letzt_lief = get_entry_cached(artikelstamm_path, artnr, 'letzt_lief', key_column='artnr')
@@ -1945,6 +1987,11 @@ def build_sheet_cache_CSV(articlelist, active_sheets, articles=None, table_cache
             # args can be "artnr" or ",artnr"
             if len(arglist) >= 1:
                 return get_beschaffungsart_cached(article.get(arglist[-1], arglist[-1]))
+            return ''
+
+        if func == 'getStücklistennummer':
+            if len(arglist) >= 1:
+                return get_stuecklistennummer_cached(article.get(arglist[-1], arglist[-1]))
             return ''
 
         if func == 'getKontierungsgruppe':

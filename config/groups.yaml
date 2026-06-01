@@ -1,11 +1,28 @@
 Einkaufsteile:
   Zeichnungsteile:
     Laserteil:
-      Bezeichnungselemente: checkbox "laserschneiden" checkbox ", abkanten" checkbox
-        ", inklusive Material" checkbox ", Gewindeschneiden"
+      checkbox 1: laserschneiden
+      checkbox 2: ', abkanten'
+      checkbox 3: ', inklusive Material'
+      checkbox 4: ', Gewindeschneiden'
+      Bezeichnungselemente:
+      - checkbox 1
+      - checkbox 2
+      - checkbox 3
+      - checkbox 4
     Mechanisches Teil:
-      Bezeichnungselemente: checkbox "komplett fertigen" checkbox "Fräsen" checkbox
-        "Drehen" checkbox "Schweißen" checkbox "inklusive Material"
+      checkbox 1: komplett fertigen
+      checkbox 2: ', Fräsen'
+      checkbox 3: ', Drehen'
+      checkbox 4: ', Schweißen'
+      checkbox 5: ', inklusive Material'
+      Bezeichnungselemente:
+      - checkbox 1
+      - checkbox 2
+      - checkbox 3
+      - checkbox 4
+      - checkbox 5
+    Listenteile: null
   Normteile:
     Normteile: null
     Schrauben Metrisch / Sechskantschraube: null
@@ -21,8 +38,21 @@ Einkaufsteile:
     Blindnietmuttern: null
     Blindnieten: null
     Gewindestift: null
+    Blindnietmutter: null
+    Gewindestifte: null
+    Stellringe: null
+    Schrauben Metrisch / Senkkopfschraube: null
+    Sicherungsring für Welle: null
+    Passcheibe: null
+    Spannhülse schwer: null
+    Flügelschraube: null
   Listenteile:
     Standard: null
+    Passcheibe: null
+  Rohmaterial:
+    Blech: null
+    Rohr: null
+    Rundstahl: null
 Produktionsteile:
   Produktionsteil:
     Standard: null

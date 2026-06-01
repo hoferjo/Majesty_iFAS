@@ -257,10 +257,14 @@
                     <label for="validationHauptgruppeCustom">Hauptgruppe (custom)</label>
                     <input id="validationHauptgruppeCustom" type="text" />
                 </div>
-                <div class="validation-modal-field">
-                    <label for="validationUntergruppe">Untergruppe</label>
-                    <select id="validationUntergruppe"></select>
-                </div>
+                    <div class="validation-modal-field">
+                        <label for="groupValidationBezeichnung1">Bezeichnung 1 [de]</label>
+                        <input id="groupValidationBezeichnung1" type="text" />
+                    </div>
+                    <div class="validation-modal-field">
+                        <label for="groupValidationBezeichnung2">Bezeichnung 2 [de]</label>
+                        <input id="groupValidationBezeichnung2" type="text" />
+                    </div>
                 <div class="validation-modal-field">
                     <label for="validationUntergruppeCustom">Untergruppe (custom)</label>
                     <input id="validationUntergruppeCustom" type="text" />
@@ -371,24 +375,7 @@
                     <div class="validation-modal-field" style="display:none; align-items:flex-end; grid-column:1 / -1;" data-group-validation-add-element-section>
                         <button id="groupValidationAddBezeichnungBtn" type="button" class="modern-btn" style="min-width:130px;">Add Element</button>
                     </div>
-                <div class="validation-modal-field" style="grid-column:1 / -1; margin-top:0.4em;">
-                    <label style="font-weight:600;">Add new groups</label>
-                </div>
-                <div class="validation-modal-field">
-                    <label for="groupValidationNewHauptgruppe">New Hauptgruppe</label>
-                    <input id="groupValidationNewHauptgruppe" type="text" />
-                </div>
-                <div class="validation-modal-field">
-                    <label for="groupValidationNewUntergruppe">New Untergruppe</label>
-                    <input id="groupValidationNewUntergruppe" type="text" />
-                </div>
-                <div class="validation-modal-field">
-                    <label for="groupValidationNewSpezifikation">New Spezifikation</label>
-                    <input id="groupValidationNewSpezifikation" type="text" />
-                </div>
-                <div class="validation-modal-field" style="display:flex; align-items:flex-end;">
-                    <button id="groupValidationAddBtn" type="button" class="modern-btn" style="min-width:130px;">Add</button>
-                </div>
+                <!-- Add-new-groups inputs removed as per request -->
             </div>
             <div id="groupValidationStatus" class="validation-modal-status"></div>
             <div style="display:flex; gap:0.6em; justify-content:flex-end; margin-top:1em; flex-wrap:wrap;">

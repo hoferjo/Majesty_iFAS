@@ -5,7 +5,12 @@ Normteile:
     Artikelbezeichnung Lieferant: "{name} {Metrische Nenndurchmesser} x {Länge} - {Härte}, {Material}, {Gewindeart}"
     Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
   Muttern:
-    Bezeichnung 1: "{name} {Metrischer Nenndurchmesser} x {Höhe}- {Härte}, {Material}"
+    Bezeichnung 1: "{name} {Metrischer Nenndurchmesser} x {Höhe} - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Metrischer Nenndurchmesser} x {Höhe} - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Sicherungsmuttern:
+    Bezeichnung 1: "{name} {Metrischer Nenndurchmesser} - {Härte}, {Material}"
     Bezeichnung 2: "{DIN nummer}"
     Artikelbezeichnung Lieferant: "{name} {Metrischer Nenndurchmesser} - {Härte}, {Material}"
     Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
@@ -29,7 +34,52 @@ Normteile:
     Bezeichnung 2: "{DIN nummer}"
     Artikelbezeichnung Lieferant: "{name} {Metrischer Nenndurchmesser} x {Länge} - {Härte}, {Material}"
     Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
-  
+  Sicherungsring für Welle:
+    Bezeichnung 1: "{name} A{Durchmesser} x {Dicke} - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} A{Durchmesser} x {Dicke} - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Sicherungsring für Bohrung:
+    Bezeichnung 1: "{name} J{Durchmesser} x {Dicke} - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} J{Durchmesser} x {Dicke} - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Stellring:
+    Bezeichnung 1: "{name} {Innendurchmesser} x {Aussendurchmesser} x {Höhe} - {Metrischer Nenndurchmesser}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Innendurchmesser} x {Aussendurchmesser} x {Höhe} - {Metrischer Nenndurchmesser}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Passscheiben:
+    Bezeichnung 1: "{name} {Innendurchmesser} x {Aussendurchmesser} x {Dicke} - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Innendurchmesser} x {Aussendurchmesser} x {Dicke} - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Kegelkerbstifte:
+    Bezeichnung 1: "{name} {Nenndurchmesser} x {Länge}mm - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Nenndurchmesser} x {Länge}mm - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Zylinderstifte:
+    Bezeichnung 1: "{name} {Nenndurchmesser}{Toleranz} x {Länge}mm - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Nenndurchmesser} x {Länge}mm - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Kegelstifte:
+    Bezeichnung 1: "{name} {Nenndurchmesser} x {Länge}mm - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Nenndurchmesser} x {Länge}mm - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Passfedern:
+    Bezeichnung 1: "{name} {Breite}/{Höhe} x {Länge}mm - {Härte}, {Material}"
+    Bezeichnung 2: "{DIN nummer}"
+    Artikelbezeichnung Lieferant: "{name} {Nenndurchmesser}/{Breite} x {Länge}mm - {Härte}, {Material}"
+    Artikel-Zusatz-Bezeichnung: "{DIN nummer}"
+  Normdruckfeder:
+    Bezeichnung 1: "{name} d = {Drahtdurchmesser}, D = {Außendurchmesser}, n = {Windungszahl}, L0 = {Länge}mm - {Federkraft}, {Material}"
+    Bezeichnung 2: ""
+    Artikelbezeichnung Lieferant: "{name} d = {Drahtdurchmesser}, D = {Außendurchmesser}, n = {Windungszahl}, L0 = {Länge}mm - {Federkraft}, {Material}"
+    Artikel-Zusatz-Bezeichnung: ""
+
 Zeichnungsteile:
   Laserteile:
     Bezeichnung 1: artbez 1

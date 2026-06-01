@@ -1473,6 +1473,8 @@ document.addEventListener("DOMContentLoaded", function() {
         var groupValidationSpezifikationCustom = document.getElementById("groupValidationSpezifikationCustom");
         var groupValidationStatus = document.getElementById("groupValidationStatus");
         var groupValidationBezeichnungsContainer = document.getElementById("groupValidationBezeichnungsContainer");
+        var groupValidationBezeichnung1 = document.getElementById("groupValidationBezeichnung1");
+        var groupValidationBezeichnung2 = document.getElementById("groupValidationBezeichnung2");
         var groupValidationConfirmBtn = document.getElementById("groupValidationConfirmBtn");
         var groupValidationCloseBtn = document.getElementById("groupValidationCloseBtn");
         var groupValidationNewHauptgruppe = document.getElementById("groupValidationNewHauptgruppe");
@@ -2218,6 +2220,9 @@ document.addEventListener("DOMContentLoaded", function() {
                             if (addElementSection) {
                                 addElementSection.style.display = (elements.length === 0) ? 'block' : 'none';
                             }
+                            // After rendering elements, update rendered Bezeichnung texts
+                            requestRenderBezeichnungen();
+                            attachBezeichnungElementListeners();
                     }
                 }
             })
@@ -2414,6 +2419,9 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             // Always align predefined fields with currently selected group path.
             refreshGroupValidationBezeichnungselemente();
+            // initialize bezeichnung inputs
+            if (groupValidationBezeichnung1) groupValidationBezeichnung1.value = item.bezeichnung1_de || '';
+            if (groupValidationBezeichnung2) groupValidationBezeichnung2.value = item.bezeichnung2_de || '';
         }
 
         function getGroupValidationUpdates() {
@@ -2473,7 +2481,66 @@ document.addEventListener("DOMContentLoaded", function() {
                 });
                 updates.bezeichnungselemente = elems;
             }
+            // include manually edited rendered bezeichnung texts
+            if (groupValidationBezeichnung1) updates.bezeichnung1_de = groupValidationBezeichnung1.value || '';
+            if (groupValidationBezeichnung2) updates.bezeichnung2_de = groupValidationBezeichnung2.value || '';
             return updates;
+        }
+
+        var _gv_render_timer = null;
+        function requestRenderBezeichnungen() {
+            if (_gv_render_timer) clearTimeout(_gv_render_timer);
+            _gv_render_timer = setTimeout(function(){
+                try { renderBezeichnungen(); } catch(e){}
+            }, 250);
+        }
+
+        function attachBezeichnungElementListeners() {
+            if (!groupValidationBezeichnungsContainer) return;
+            Array.from(groupValidationBezeichnungsContainer.querySelectorAll('input, select')).forEach(function(el){
+                // avoid adding duplicate listeners by using a marker
+                if (el.dataset._gv_listened) return;
+                el.addEventListener('change', requestRenderBezeichnungen);
+                el.addEventListener('input', requestRenderBezeichnungen);
+                el.dataset._gv_listened = '1';
+            });
+            // also listen to custom element inputs
+            Array.from(groupValidationBezeichnungsContainer.querySelectorAll('input[data-customValue="true"]')).forEach(function(el){
+                if (el.dataset._gv_listened) return;
+                el.addEventListener('input', requestRenderBezeichnungen);
+                el.dataset._gv_listened = '1';
+            });
+        }
+
+        function renderBezeichnungen() {
+            if (!groupValidationCurrentItem) return;
+            // collect current bezeichnungselemente from DOM similar to getGroupValidationUpdates (but only elements)
+            var elems = [];
+            if (groupValidationBezeichnungsContainer) {
+                var selects = [];
+                Array.from(groupValidationBezeichnungsContainer.querySelectorAll('select')).forEach(function(sel){ selects.push(sel); });
+                selects.forEach(function(sel){
+                    var key = sel.dataset.key || sel.name || '';
+                    var val = sel.value || '';
+                    var custom = groupValidationBezeichnungsContainer.querySelector('input[data-custom-for="' + key + '"]');
+                    if (custom && custom.style.display !== 'none' && custom.value) val = custom.value;
+                    if (key) elems.push({ name: key, value: val });
+                });
+                Array.from(groupValidationBezeichnungsContainer.querySelectorAll('input[type="text"][data-key]')).forEach(function(inp){ if (inp.dataset.key) elems.push({ name: inp.dataset.key, value: inp.value || '' }); });
+                Array.from(groupValidationBezeichnungsContainer.querySelectorAll('input[data-customValue="true"]')).forEach(function(inp){ var name = inp.dataset.customName || ''; if (name) elems.push({ name: name, value: inp.value || '' }); });
+                var checkboxMap = {};
+                Array.from(groupValidationBezeichnungsContainer.querySelectorAll('input[type="checkbox"][data-key]')).forEach(function(cb){ var key = cb.dataset.key || ''; var opt = cb.dataset.option || cb.value || ''; if (!checkboxMap[key]) checkboxMap[key]=[]; if (cb.checked) checkboxMap[key].push(opt); });
+                Object.keys(checkboxMap).forEach(function(k){ elems.push({ name: k, value: (checkboxMap[k]||[]).join(', ') }); });
+            }
+            fetch('/api/validate/groups/render-bezeichnungen', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ artnr: groupValidationCurrentItem.artnr, bezeichnungselemente: elems })
+            }).then(function(r){ return r.json(); }).then(function(data){
+                if (data && data.status === 'ok') {
+                    if (groupValidationBezeichnung1) groupValidationBezeichnung1.value = data.bezeichnung1_de || '';
+                    if (groupValidationBezeichnung2) groupValidationBezeichnung2.value = data.bezeichnung2_de || '';
+                }
+            }).catch(function(e){ if (DEBUG) console.log('render bezeichnungen error', e); });
         }
 
         function showNextGroupValidationItem() {
